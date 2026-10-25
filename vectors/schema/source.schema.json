@@ -1,0 +1,759 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dybw-core/vectors/schema/source.schema.json",
+  "title": "dybw-core scenario source (plaintext)",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(/[a-z0-9-]+)*$"
+    },
+    "spec": {
+      "const": "1.5"
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^§[0-9]+(\\.[0-9]+)*$"
+      }
+    },
+    "account": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "organizations": {
+          "type": "boolean"
+        },
+        "policy": {
+          "enum": [
+            "ask",
+            "prefer-remote",
+            "prefer-local"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "local": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "device": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "cipher": {
+                "type": "string"
+              },
+              "revisionDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "value": {
+                "type": "string"
+              },
+              "pushConfirmed": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "cipher",
+              "revisionDate",
+              "value"
+            ]
+          }
+        },
+        "pendingCreates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "pendingCreates"
+      ]
+    },
+    "expect": {
+      "type": "object",
+      "properties": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "cipher": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "enum": [
+                      "field",
+                      "notes",
+                      "login-password",
+                      "note-body"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "cipher",
+                  "id",
+                  "value",
+                  "source"
+                ]
+              }
+            },
+            "skipped": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "cipher": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "enum": [
+                      "wrong-type",
+                      "encoding-on-user-source",
+                      "unknown-location",
+                      "unknown-encoding",
+                      "invalid-id",
+                      "reserved-id",
+                      "view-password-hidden",
+                      "organizations-off",
+                      "undecryptable",
+                      "newer-format"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "cipher",
+                  "reason"
+                ]
+              }
+            },
+            "uninspectable": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "duplicates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kept": {
+                    "type": "string"
+                  },
+                  "left": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "kept",
+                  "left"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "items",
+            "skipped",
+            "uninspectable"
+          ]
+        },
+        "write": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/canonicalRequest"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "requests"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "enum": [
+                    "too-long",
+                    "notes-hold-user-text",
+                    "value-source-changed"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "error"
+              ]
+            }
+          ]
+        },
+        "plan": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "pull",
+                      "push",
+                      "adopt",
+                      "clear-local",
+                      "forget",
+                      "create"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "conflict"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "conflict": {
+                    "enum": [
+                      "both-changed",
+                      "local-unsynced",
+                      "deleted-remotely",
+                      "organization-claim",
+                      "organization-push"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "id",
+                  "conflict"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "namespaces": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "bwss",
+          "obsidian"
+        ]
+      }
+    },
+    "ciphers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cipher"
+      }
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "set-value"
+            },
+            "id": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "create"
+            },
+            "id": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "value",
+            "folderId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "delete"
+            },
+            "id": {
+              "type": "string"
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id"
+          ]
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "spec",
+    "sections",
+    "account",
+    "namespaces",
+    "ciphers",
+    "expect"
+  ],
+  "$defs": {
+    "cipher": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/plainLogin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/plainField"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "organizationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "itemKey": {
+          "type": "boolean"
+        },
+        "creationDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "revisionDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "deletedDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "edit": {
+          "type": "boolean"
+        },
+        "viewPassword": {
+          "type": "boolean"
+        },
+        "pascalCase": {
+          "type": "boolean"
+        },
+        "extra": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name"
+      ]
+    },
+    "plainLogin": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uris": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "passwordHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string"
+              },
+              "lastUsedDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "password",
+              "lastUsedDate"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "username",
+        "password",
+        "uris",
+        "totp",
+        "passwordHistory"
+      ]
+    },
+    "plainField": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            0,
+            1
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value",
+        "type"
+      ]
+    },
+    "canonicalRequest": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "enum": [
+            "POST",
+            "PUT",
+            "trash"
+          ]
+        },
+        "cipher": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "password": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "uris": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "totp": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "passwordHistory": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "username",
+                "password",
+                "uris",
+                "totp",
+                "passwordHistory"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  0,
+                  1
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value",
+              "type"
+            ]
+          }
+        },
+        "organizationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastKnownRevisionDate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hasItemKey": {
+          "type": "boolean"
+        },
+        "extra": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "cipher"
+      ],
+      "if": {
+        "properties": {
+          "method": {
+            "enum": [
+              "POST",
+              "PUT"
+            ]
+          }
+        },
+        "required": [
+          "method"
+        ]
+      },
+      "then": {
+        "required": [
+          "method",
+          "cipher",
+          "type",
+          "name",
+          "notes",
+          "login",
+          "fields",
+          "organizationId",
+          "folderId",
+          "lastKnownRevisionDate",
+          "hasItemKey",
+          "extra"
+        ]
+      },
+      "description": "A trash request carries only method and cipher; POST and PUT carry every property."
+    }
+  }
+}
