@@ -31,7 +31,7 @@ One JSON object per file.
 | `options` | object | `organizations` (bool, default `false`), `policy` (`"ask"` default, `"prefer-remote"`, `"prefer-local"`) |
 | `ciphers` | array | Plaintext ciphers, below |
 | `device` | object, optional | The device's sync state, below |
-| `local` | object, optional | `{ id: string \| null }`: the device's local values; `null` means missing |
+| `local` | object, optional | `{ id: string \| null }`: the device's local values; `null` means missing. A sync scenario lists every id it plans for, so a missing value is always written `null`, never left out (the plugin treats both alike) |
 | `operation` | object, optional | The write the tool performs, below |
 | `expect` | object | At least one of `read`, `write`, `plan`, below |
 
@@ -123,6 +123,11 @@ change to `fresh`.
   `{ kind: "conflict", id, conflict }` with `conflict` one of `both-changed`,
   `local-unsynced`, `deleted-remotely`, `organization-claim`,
   `organization-push`.
+
+  The plan covers every id found in the read items, in `device.base` or in
+  `device.pendingCreates`; an id that needs nothing has no entry. The
+  `confirmed` marker the plugin puts on a push the user just agreed to is not
+  part of the plan: no vector answers a conflict.
 
 ## Generated format
 
