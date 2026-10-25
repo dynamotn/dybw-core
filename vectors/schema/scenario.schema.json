@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dybw-core/vectors/schema/scenario.schema.json",
-  "title": "dybw-core generated scenario (encrypted)",
+  "title": "dybw-core generated scenario (encrypted); shares $defs with source.schema.json",
   "type": "object",
   "properties": {
     "id": {
@@ -23,280 +23,6 @@
       "type": "string",
       "pattern": "^[a-z0-9-]+$"
     },
-    "options": {
-      "type": "object",
-      "properties": {
-        "organizations": {
-          "type": "boolean"
-        },
-        "policy": {
-          "enum": [
-            "ask",
-            "prefer-remote",
-            "prefer-local"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "local": {
-      "type": "object",
-      "additionalProperties": {
-        "type": [
-          "string",
-          "null"
-        ]
-      }
-    },
-    "device": {
-      "type": "object",
-      "properties": {
-        "base": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "cipher": {
-                "type": "string"
-              },
-              "revisionDate": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-              },
-              "value": {
-                "type": "string"
-              },
-              "pushConfirmed": {
-                "type": "boolean"
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "cipher",
-              "revisionDate",
-              "value"
-            ]
-          }
-        },
-        "pendingCreates": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "base",
-        "pendingCreates"
-      ]
-    },
-    "expect": {
-      "type": "object",
-      "properties": {
-        "read": {
-          "type": "object",
-          "properties": {
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "cipher": {
-                    "type": "string"
-                  },
-                  "id": {
-                    "type": "string"
-                  },
-                  "value": {
-                    "type": "string"
-                  },
-                  "source": {
-                    "enum": [
-                      "field",
-                      "notes",
-                      "login-password",
-                      "note-body"
-                    ]
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "cipher",
-                  "id",
-                  "value",
-                  "source"
-                ]
-              }
-            },
-            "skipped": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "cipher": {
-                    "type": "string"
-                  },
-                  "reason": {
-                    "enum": [
-                      "wrong-type",
-                      "encoding-on-user-source",
-                      "unknown-location",
-                      "unknown-encoding",
-                      "invalid-id",
-                      "reserved-id",
-                      "view-password-hidden",
-                      "organizations-off",
-                      "undecryptable",
-                      "newer-format"
-                    ]
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "cipher",
-                  "reason"
-                ]
-              }
-            },
-            "uninspectable": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "duplicates": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kept": {
-                    "type": "string"
-                  },
-                  "left": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "id",
-                  "kept",
-                  "left"
-                ]
-              }
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "items",
-            "skipped",
-            "uninspectable"
-          ]
-        },
-        "write": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "requests": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/canonicalRequest"
-                  }
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "requests"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "error": {
-                  "enum": [
-                    "too-long",
-                    "notes-hold-user-text",
-                    "value-source-changed"
-                  ]
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "error"
-              ]
-            }
-          ]
-        },
-        "plan": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "enum": [
-                      "pull",
-                      "push",
-                      "adopt",
-                      "clear-local",
-                      "forget",
-                      "create"
-                    ]
-                  },
-                  "id": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "kind",
-                  "id"
-                ]
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "const": "conflict"
-                  },
-                  "id": {
-                    "type": "string"
-                  },
-                  "conflict": {
-                    "enum": [
-                      "both-changed",
-                      "local-unsynced",
-                      "deleted-remotely",
-                      "organization-claim",
-                      "organization-push"
-                    ]
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "kind",
-                  "id",
-                  "conflict"
-                ]
-              }
-            ]
-          }
-        }
-      },
-      "additionalProperties": false,
-      "minProperties": 1
-    },
     "namespace": {
       "enum": [
         "bwss",
@@ -306,6 +32,15 @@
     "generator": {
       "type": "string",
       "minLength": 1
+    },
+    "options": {
+      "$ref": "source.schema.json#/$defs/options"
+    },
+    "local": {
+      "$ref": "source.schema.json#/$defs/local"
+    },
+    "device": {
+      "$ref": "source.schema.json#/$defs/device"
     },
     "ciphers": {
       "type": "array",
@@ -388,6 +123,9 @@
           ]
         }
       ]
+    },
+    "expect": {
+      "$ref": "source.schema.json#/$defs/expect"
     }
   },
   "additionalProperties": false,
@@ -402,64 +140,10 @@
     "expect"
   ],
   "$defs": {
-    "serverCipher": {
+    "camelUri": {
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "Id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "type": {
-          "enum": [
-            1,
-            2,
-            3
-          ]
-        },
-        "Type": {
-          "enum": [
-            1,
-            2,
-            3
-          ]
-        },
-        "folderId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "FolderId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "organizationId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "OrganizationId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-        },
-        "Name": {
-          "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-        },
-        "notes": {
+        "uri": {
           "oneOf": [
             {
               "type": "string",
@@ -470,218 +154,39 @@
             }
           ]
         },
-        "Notes": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "login": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/serverLogin"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Login": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/serverLogin"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "secureNote": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/serverSecureNote"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "SecureNote": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/serverSecureNote"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "fields": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/serverField"
-              }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Fields": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/serverField"
-              }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "passwordHistory": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/serverHistory"
-              }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "PasswordHistory": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/serverHistory"
-              }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "key": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Key": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "favorite": {
-          "type": "boolean"
-        },
-        "Favorite": {
-          "type": "boolean"
-        },
-        "reprompt": {
-          "type": "integer"
-        },
-        "Reprompt": {
-          "type": "integer"
-        },
-        "creationDate": {
+        "match": {
           "type": [
-            "string",
+            "integer",
             "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "CreationDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "revisionDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "RevisionDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "deletedDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "DeletedDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "edit": {
-          "type": "boolean"
-        },
-        "Edit": {
-          "type": "boolean"
-        },
-        "viewPassword": {
-          "type": "boolean"
-        },
-        "ViewPassword": {
-          "type": "boolean"
+          ]
         }
       },
-      "additionalProperties": true,
-      "anyOf": [
-        {
-          "required": [
-            "id",
-            "type",
-            "name"
-          ]
-        },
-        {
-          "required": [
-            "Id",
-            "Type",
-            "Name"
-          ]
-        }
-      ],
-      "description": "Unknown properties of the source cipher's `extra` are spread at this level, verbatim; every known property is typed, in camelCase or PascalCase."
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
     },
-    "serverLogin": {
+    "camelHistory": {
+      "type": "object",
+      "properties": {
+        "password": {
+          "type": "string",
+          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+        },
+        "lastUsedDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "camelLogin": {
       "type": "object",
       "properties": {
         "username": {
@@ -695,29 +200,7 @@
             }
           ]
         },
-        "Username": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "password": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Password": {
           "oneOf": [
             {
               "type": "string",
@@ -739,36 +222,12 @@
             }
           ]
         },
-        "Totp": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "uris": {
           "oneOf": [
             {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/serverUri"
-              }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Uris": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/serverUri"
+                "$ref": "#/$defs/camelUri"
               }
             },
             {
@@ -777,63 +236,15 @@
           ]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
     },
-    "serverUri": {
-      "type": "object",
-      "properties": {
-        "uri": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Uri": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "match": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "Match": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "serverField": {
+    "camelField": {
       "type": "object",
       "properties": {
         "name": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "Name": {
           "oneOf": [
             {
               "type": "string",
@@ -855,26 +266,7 @@
             }
           ]
         },
-        "Value": {
-          "oneOf": [
-            {
-              "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "type": {
-          "enum": [
-            0,
-            1,
-            2,
-            3
-          ]
-        },
-        "Type": {
           "enum": [
             0,
             1,
@@ -887,33 +279,199 @@
             "integer",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "camelSecureNote": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "camelCipher": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
         },
-        "LinkedId": {
+        "type": {
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "organizationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+        },
+        "notes": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "login": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/camelLogin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "secureNote": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/camelSecureNote"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/camelField"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "passwordHistory": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/camelHistory"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "key": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "favorite": {
+          "type": "boolean"
+        },
+        "reprompt": {
+          "type": "integer"
+        },
+        "creationDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "revisionDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "deletedDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "edit": {
+          "type": "boolean"
+        },
+        "viewPassword": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name"
+      ],
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "pascalUri": {
+      "type": "object",
+      "properties": {
+        "Uri": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Match": {
           "type": [
             "integer",
             "null"
           ]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
     },
-    "serverHistory": {
+    "pascalHistory": {
       "type": "object",
       "properties": {
-        "password": {
-          "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-        },
         "Password": {
           "type": "string",
           "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
-        },
-        "lastUsedDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
         },
         "LastUsedDate": {
           "type": [
@@ -923,187 +481,274 @@
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
     },
-    "serverSecureNote": {
+    "pascalLogin": {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "integer"
-        },
-        "Type": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false
-    },
-    "canonicalRequest": {
-      "type": "object",
-      "properties": {
-        "method": {
-          "enum": [
-            "POST",
-            "PUT",
-            "trash"
-          ]
-        },
-        "cipher": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "type": {
-          "enum": [
-            1,
-            2
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "notes": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "login": {
+        "Username": {
           "oneOf": [
             {
-              "type": "object",
-              "properties": {
-                "username": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "password": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "uris": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "totp": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "passwordHistory": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "username",
-                "password",
-                "uris",
-                "totp",
-                "passwordHistory"
-              ]
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
             },
             {
               "type": "null"
             }
           ]
         },
-        "fields": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              },
-              "type": {
-                "enum": [
-                  0,
-                  1
-                ]
+        "Password": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Totp": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Uris": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pascalUri"
               }
             },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "value",
-              "type"
-            ]
-          }
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "pascalField": {
+      "type": "object",
+      "properties": {
+        "Name": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        "organizationId": {
+        "Value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Type": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "LinkedId": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "pascalSecureNote": {
+      "type": "object",
+      "properties": {
+        "Type": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "pascalCipher": {
+      "type": "object",
+      "properties": {
+        "Id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "Type": {
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        "FolderId": {
           "type": [
             "string",
             "null"
           ]
         },
-        "folderId": {
+        "OrganizationId": {
           "type": [
             "string",
             "null"
           ]
         },
-        "lastKnownRevisionDate": {
-          "type": [
-            "string",
-            "null"
+        "Name": {
+          "type": "string",
+          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+        },
+        "Notes": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
-        "hasItemKey": {
+        "Login": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/pascalLogin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "SecureNote": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/pascalSecureNote"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Fields": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pascalField"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "PasswordHistory": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pascalHistory"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Key": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Favorite": {
           "type": "boolean"
         },
-        "extra": {
-          "type": "object"
+        "Reprompt": {
+          "type": "integer"
+        },
+        "CreationDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "RevisionDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "DeletedDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "Edit": {
+          "type": "boolean"
+        },
+        "ViewPassword": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
       "required": [
-        "method",
-        "cipher"
+        "Id",
+        "Type",
+        "Name"
       ],
-      "if": {
-        "properties": {
-          "method": {
-            "enum": [
-              "POST",
-              "PUT"
-            ]
-          }
+      "patternProperties": {
+        "^x[A-Za-z0-9]+$": {}
+      }
+    },
+    "serverCipher": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/camelCipher"
         },
-        "required": [
-          "method"
-        ]
-      },
-      "then": {
-        "required": [
-          "method",
-          "cipher",
-          "type",
-          "name",
-          "notes",
-          "login",
-          "fields",
-          "organizationId",
-          "folderId",
-          "lastKnownRevisionDate",
-          "hasItemKey",
-          "extra"
-        ]
-      },
-      "description": "A trash request carries only method and cipher; POST and PUT carry every property."
+        {
+          "$ref": "#/$defs/pascalCipher"
+        }
+      ]
     }
   }
 }

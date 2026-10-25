@@ -8,7 +8,10 @@ generated files. Both formats are pinned by JSON Schemas (`additionalProperties`
 is `false` at every level, except where noted):
 
 - `schema/source.schema.json` for sources;
-- `schema/scenario.schema.json` for generated files.
+- `schema/scenario.schema.json` for generated files. It `$ref`s the shared
+  definitions (`expect`, `device`, `local`, `options`, `canonicalRequest`) in
+  `source.schema.json` by relative URI, so a validator must be given both files
+  (for Python, a `referencing.Registry` keyed by `$id`).
 
 Generated files are deterministic: building twice gives identical bytes. No
 real account or secret is involved; every key comes from the fixed seeds in
@@ -50,7 +53,7 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | `creationDate`, `revisionDate`, `deletedDate` | ISO 8601 or `null` | `null` | |
 | `edit`, `viewPassword` | bool | `true` | Organization permissions |
 | `pascalCase` | bool | `false` | `true` emits the server keys in PascalCase |
-| `extra` | object | `{}` | Unknown properties, passed through verbatim |
+| `extra` | object | `{}` | Unknown properties, passed through verbatim. Every key must match `^x[A-Za-z0-9]+$` (the `x` convention), so it can never collide with a known key |
 
 ### `device`
 
@@ -113,7 +116,10 @@ The source object with these differences:
   - `login.uris` is `[{ uri, match }]`, a secure note carries
     `secureNote: { type }`, dates and `folderId`/`organizationId` stay plain;
   - the source's `extra` properties are spread at the top level of the
-    cipher, verbatim. This is the one place where unknown keys are allowed.
+    cipher, verbatim, with the same spelling in camelCase and PascalCase
+    ciphers. Beyond the known keys, only `^x[A-Za-z0-9]+$` keys are allowed;
+    a cipher is either entirely camelCase or entirely PascalCase, nested
+    objects included (the schema is a `oneOf` of the two).
 - `device`, `local` and `expect` stay plaintext.
 
 ## Canonical write body
@@ -130,10 +136,9 @@ The source object with these differences:
 | `organizationId`, `folderId` | string or `null` |
 | `lastKnownRevisionDate` | string or `null` |
 | `hasItemKey` | bool |
-| `extra` | the unknown properties passed through |
+| `extra` | the unknown properties passed through (`x` keys, as in a cipher) |
 
-A `trash` request carries only `method` and `cipher`; `POST` and `PUT` carry
-every key. Dates written by the tool become the literal `"<now>"`. The
+A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`. The
 comparison is a deep equality after both sides are canonicalized: the adapters
 canonicalize the tool's real request by decrypting it with the scenario's keys.
 

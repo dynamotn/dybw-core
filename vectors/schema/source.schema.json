@@ -23,6 +23,583 @@
       "type": "string",
       "pattern": "^[a-z0-9-]+$"
     },
+    "namespaces": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "bwss",
+          "obsidian"
+        ]
+      }
+    },
+    "options": {
+      "$ref": "#/$defs/options"
+    },
+    "local": {
+      "$ref": "#/$defs/local"
+    },
+    "device": {
+      "$ref": "#/$defs/device"
+    },
+    "ciphers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cipher"
+      }
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "set-value"
+            },
+            "id": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "create"
+            },
+            "id": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "value",
+            "folderId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "delete"
+            },
+            "id": {
+              "type": "string"
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id"
+          ]
+        }
+      ]
+    },
+    "expect": {
+      "$ref": "#/$defs/expect"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "spec",
+    "sections",
+    "account",
+    "namespaces",
+    "ciphers",
+    "expect"
+  ],
+  "$defs": {
+    "cipher": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/plainLogin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/plainField"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "organizationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "itemKey": {
+          "type": "boolean"
+        },
+        "creationDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "revisionDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "deletedDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "edit": {
+          "type": "boolean"
+        },
+        "viewPassword": {
+          "type": "boolean"
+        },
+        "pascalCase": {
+          "type": "boolean"
+        },
+        "extra": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^x[A-Za-z0-9]+$"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name"
+      ]
+    },
+    "plainLogin": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uris": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "passwordHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string"
+              },
+              "lastUsedDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "password",
+              "lastUsedDate"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "username",
+        "password",
+        "uris",
+        "totp",
+        "passwordHistory"
+      ]
+    },
+    "plainField": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "enum": [
+            0,
+            1
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value",
+        "type"
+      ]
+    },
+    "canonicalRequest": {
+      "description": "trash carries only method and cipher; POST creates (cipher null); PUT edits (cipher id).",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "const": "trash"
+            },
+            "cipher": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "cipher"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "const": "POST"
+            },
+            "cipher": {
+              "type": "null"
+            },
+            "type": {
+              "enum": [
+                1,
+                2
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "login": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "password": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uris": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "totp": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "passwordHistory": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "username",
+                    "password",
+                    "uris",
+                    "totp",
+                    "passwordHistory"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/plainField"
+              }
+            },
+            "organizationId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "lastKnownRevisionDate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hasItemKey": {
+              "type": "boolean"
+            },
+            "extra": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^x[A-Za-z0-9]+$"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "cipher",
+            "type",
+            "name",
+            "notes",
+            "login",
+            "fields",
+            "organizationId",
+            "folderId",
+            "lastKnownRevisionDate",
+            "hasItemKey",
+            "extra"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "method": {
+              "const": "PUT"
+            },
+            "cipher": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                1,
+                2
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "login": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "password": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uris": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "totp": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "passwordHistory": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "username",
+                    "password",
+                    "uris",
+                    "totp",
+                    "passwordHistory"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/plainField"
+              }
+            },
+            "organizationId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "lastKnownRevisionDate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hasItemKey": {
+              "type": "boolean"
+            },
+            "extra": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^x[A-Za-z0-9]+$"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "cipher",
+            "type",
+            "name",
+            "notes",
+            "login",
+            "fields",
+            "organizationId",
+            "folderId",
+            "lastKnownRevisionDate",
+            "hasItemKey",
+            "extra"
+          ]
+        }
+      ]
+    },
     "options": {
       "type": "object",
       "properties": {
@@ -109,7 +686,8 @@
                     "type": "string"
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
                   },
                   "value": {
                     "type": "string"
@@ -174,7 +752,8 @@
                 "type": "object",
                 "properties": {
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
                   },
                   "kept": {
                     "type": "string"
@@ -296,464 +875,6 @@
       },
       "additionalProperties": false,
       "minProperties": 1
-    },
-    "namespaces": {
-      "type": "array",
-      "minItems": 1,
-      "uniqueItems": true,
-      "items": {
-        "enum": [
-          "bwss",
-          "obsidian"
-        ]
-      }
-    },
-    "ciphers": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/cipher"
-      }
-    },
-    "operation": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "set-value"
-            },
-            "id": {
-              "type": "string"
-            },
-            "value": {
-              "type": "string"
-            },
-            "fresh": {
-              "$ref": "#/$defs/cipher"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "id",
-            "value"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "create"
-            },
-            "id": {
-              "type": "string"
-            },
-            "value": {
-              "type": "string"
-            },
-            "folderId": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "fresh": {
-              "$ref": "#/$defs/cipher"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "id",
-            "value",
-            "folderId"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "delete"
-            },
-            "id": {
-              "type": "string"
-            },
-            "fresh": {
-              "$ref": "#/$defs/cipher"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "id"
-          ]
-        }
-      ]
-    }
-  },
-  "additionalProperties": false,
-  "required": [
-    "id",
-    "spec",
-    "sections",
-    "account",
-    "namespaces",
-    "ciphers",
-    "expect"
-  ],
-  "$defs": {
-    "cipher": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "type": {
-          "enum": [
-            1,
-            2,
-            3
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "notes": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "login": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/plainLogin"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "fields": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/plainField"
-              }
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "folderId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "organizationId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "itemKey": {
-          "type": "boolean"
-        },
-        "creationDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "revisionDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "deletedDate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-        },
-        "edit": {
-          "type": "boolean"
-        },
-        "viewPassword": {
-          "type": "boolean"
-        },
-        "pascalCase": {
-          "type": "boolean"
-        },
-        "extra": {
-          "type": "object"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "type",
-        "name"
-      ]
-    },
-    "plainLogin": {
-      "type": "object",
-      "properties": {
-        "username": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "password": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "uris": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "totp": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "passwordHistory": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "password": {
-                "type": "string"
-              },
-              "lastUsedDate": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "password",
-              "lastUsedDate"
-            ]
-          }
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "username",
-        "password",
-        "uris",
-        "totp",
-        "passwordHistory"
-      ]
-    },
-    "plainField": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        },
-        "type": {
-          "enum": [
-            0,
-            1
-          ]
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "value",
-        "type"
-      ]
-    },
-    "canonicalRequest": {
-      "type": "object",
-      "properties": {
-        "method": {
-          "enum": [
-            "POST",
-            "PUT",
-            "trash"
-          ]
-        },
-        "cipher": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "type": {
-          "enum": [
-            1,
-            2
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "notes": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "login": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "username": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "password": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "uris": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "totp": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "passwordHistory": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "username",
-                "password",
-                "uris",
-                "totp",
-                "passwordHistory"
-              ]
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "fields": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              },
-              "type": {
-                "enum": [
-                  0,
-                  1
-                ]
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "value",
-              "type"
-            ]
-          }
-        },
-        "organizationId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "folderId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "lastKnownRevisionDate": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "hasItemKey": {
-          "type": "boolean"
-        },
-        "extra": {
-          "type": "object"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "method",
-        "cipher"
-      ],
-      "if": {
-        "properties": {
-          "method": {
-            "enum": [
-              "POST",
-              "PUT"
-            ]
-          }
-        },
-        "required": [
-          "method"
-        ]
-      },
-      "then": {
-        "required": [
-          "method",
-          "cipher",
-          "type",
-          "name",
-          "notes",
-          "login",
-          "fields",
-          "organizationId",
-          "folderId",
-          "lastKnownRevisionDate",
-          "hasItemKey",
-          "extra"
-        ]
-      },
-      "description": "A trash request carries only method and cipher; POST and PUT carry every property."
     }
   }
 }
