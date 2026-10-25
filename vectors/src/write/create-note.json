@@ -23,7 +23,7 @@
           "method": "POST",
           "cipher": null,
           "type": 2,
-          "name": "alpha",
+          "name": "<tool-defined>",
           "notes": null,
           "login": null,
           "fields": [

@@ -89,9 +89,8 @@ change to `fresh`.
   listed. An empty list means the tool gave up (data model §6.5).
 - **Confirmations.** A write vector shows the requests after every
   confirmation the data model asks for was answered "go ahead" (the first
-  write-back to a hand-marked login and the eviction of a foreign history
-  entry, §6.1 and ADR 0016; the first write to an organization item, §9). The
-  questions themselves are not part of a write vector.
+  write-back to a hand-marked login, §6.1; the first write to an organization
+  item, §9). The questions themselves are not part of a write vector.
 
 ### `expect`
 
@@ -176,6 +175,21 @@ The source object with these differences:
 A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`. The
 comparison is a deep equality after both sides are canonicalized: the adapters
 canonicalize the tool's real request by decrypting it with the scenario's keys.
+
+Conventions the expectations follow:
+
+- **Cleared notes are `null`.** When a write clears the notes (a stale copy
+  after a value fits its field again, data model §6.4; a delete, §8.2), the
+  request carries `notes: null`, never `""`.
+- **Tool-defined parts of a create.** The data model leaves a new item's name
+  and the tool's other fields open (§6.2). For a `POST`, the comparison ignores
+  `name` and every `{ns}:*` field other than `{ns}:id` and `{ns}:password`:
+  adapters drop them from both sides before comparing. The vectors write the
+  name as the literal `"<tool-defined>"`.
+- **Password history.** A write-back to the login password puts the old
+  password first, and the vectors never start from a full history of 5. The
+  eviction of an entry from a full history arrives with ADR 0016 (password
+  history protection) in M3.
 
 ## Reason codes
 
