@@ -83,10 +83,12 @@ change to `fresh`.
 - **Values.** `value` follows the read value rule: `base64:<b64>`
   (canonical, standard alphabet with `=` padding) stands for bytes that are not
   valid UTF-8, and any other string is that UTF-8 text. The generator rejects a
-  `base64:` value that is not canonical or that decodes to valid UTF-8.
+  `base64:` value that is not canonical or that decodes to valid UTF-8. As in
+  reads, no operation value is plain text that starts with `base64:`.
 - **Requests after a refetch.** With `fresh`, `expect.write.requests` lists
   only the requests sent after the refetch; the rejected first write is not
-  listed. An empty list means the tool gave up (data model §6.5).
+  listed. An empty list means the tool gave up (data model §6.5). Each listed
+  request's `lastKnownRevisionDate` is then the `revisionDate` of `fresh`.
 - **Confirmations.** A write vector shows the requests after every
   confirmation the data model asks for was answered "go ahead" (the first
   write-back to a hand-marked login, §6.1; the first write to an organization
@@ -186,6 +188,12 @@ Conventions the expectations follow:
   `name` and every `{ns}:*` field other than `{ns}:id` and `{ns}:password`:
   adapters drop them from both sides before comparing. The vectors write the
   name as the literal `"<tool-defined>"`.
+- **Delete.** The server is taken to return the `PUT` body as sent; the trash
+  decision (§8.2 step 3) is made on it.
+- **Added fields go last.** A field a tool adds (`{ns}:location`,
+  `{ns}:encoding`, `{ns}:password`) is appended after the existing fields.
+- **Not compared.** The canonical body does not check
+  `login.passwordRevisionDate` (§6.1) or `encryptedFor` (§6.3).
 - **Password history.** A write-back to the login password puts the old
   password first, and the vectors never start from a full history of 5. The
   eviction of an entry from a full history arrives with ADR 0016 (password
