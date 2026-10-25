@@ -690,10 +690,32 @@ def test_unicode_values_round_trip_byte_exact():
         assert doc["expect"] == gen.expand_ns(src["expect"], ns)
         for want, got in zip(gen.expand_ns(src["ciphers"], ns), doc["ciphers"], strict=True):
             plain = gen.decrypt(got, acc)
-            for key in ("name", "notes"):
-                assert (plain[key] or "").encode() == (want[key] or "").encode()
-            assert [(f["name"].encode(), (f["value"] or "").encode()) for f in plain["fields"]] == [
-                (f["name"].encode(), (f["value"] or "").encode()) for f in want["fields"]
+            # exact: None stays None, "" stays "", text compares as UTF-8 bytes
+            assert utf8(plain["name"]) == utf8(want["name"])
+            assert utf8(plain["notes"]) == utf8(want["notes"])
+            assert [(utf8(f["name"]), utf8(f["value"])) for f in plain["fields"]] == [
+                (utf8(f["name"]), utf8(f["value"])) for f in want["fields"]
             ]
+            assert (plain["login"] is None) == (want["login"] is None)
             if want["login"] is not None:
-                assert plain["login"]["password"].encode() == want["login"]["password"].encode()
+                assert utf8(plain["login"]["password"]) == utf8(want["login"]["password"])
+
+
+def utf8(s):
+    return None if s is None else s.encode("utf-8")
+
+
+def test_attr_unicode_names_byte_exact():
+    import unicodedata
+
+    raw = (VECTORS / "src" / "read" / "attr" / "exact-match-untrimmed.json").read_text(encoding="utf-8")
+    assert raw.isascii() and "\\u0323\\u0302" in raw
+    src = json.loads(raw)
+    acc = gen.load_account(src["account"])
+    attrs = next(i["attributes"] for i in src["expect"]["read"]["items"] if i["id"] == "gamma")
+    ((name, value),) = attrs.items()
+    assert not unicodedata.is_normalized("NFC", name) and not unicodedata.is_normalized("NFC", value)
+    doc = load(VECTORS / "generated" / "bwss" / "read" / "attr" / "exact-match-untrimmed.json")
+    c3 = gen.decrypt(next(c for c in doc["ciphers"] if c["id"] == "c3"), acc)
+    assert utf8(c3["fields"][1]["name"]) == utf8("bwss:attr:" + name)
+    assert utf8(c3["fields"][1]["value"]) == utf8(value)

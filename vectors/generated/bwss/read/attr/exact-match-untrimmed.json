@@ -96,6 +96,43 @@
       "deletedDate": null,
       "edit": true,
       "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.amuDjhHeLgyj/B6AS35TfA==|3Tuky8pyonzeYoOjjEW20g==|MMISEucIioJ/rbufq7b0ek8uWibe6XYYycbF8fTALi8=",
+      "notes": null,
+      "login": {
+        "username": "2.DHvTCxvj6XV1gl1I7q9apA==|46PGrKTW8u9pqT/TH3pmmA==|YPfovHUOypt8GJ780U0MS+330aRQcg0zXUAPmSLuj0E=",
+        "password": "2.2C18IczrHfSLp6D3QKKxOw==|qHf9KAL6LUWIOdWf8uI/5A==|Ipphlj2/Mgyjwm2IRlERmhWVxYwFS6L759/YJLN5sCs=",
+        "uris": [
+          {
+            "uri": "2.PWcPyWZOhXwjC2fJrGVVrQ==|7BSD+KGR5f0Ouy7oqEAglE8G9Ty13FCjGG0aU/R38hA=|FdIIC5IObZQuwEfonifBUpmdmLK+N6P7XVaISZXbjiY=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.ZCPLYAn/BOj3Cfe3MgqRwg==|j5REC06dh/5KMzU1May87Q==|2pIgxvJi2rlaNtGqDHr6wheeUOue1/3Ek07UrMloHwI=",
+          "value": "2.GHjn9YJiD9BOdYli4FAfLg==|TkKA2eBRtJB6/kl2Kq3DYA==|tJ19YV8BTBXKu7MMyLA3CyFvBPsNBqKXakBOfNHS09Q=",
+          "type": 0
+        },
+        {
+          "name": "2.rTXwfkWcI7VXM73HkE8CyA==|0Y0ezpYjnxyNuh00ump3uJLg3VpiHS6kLnVZMR7ySN4=|gZliGIP8ZGeDoOPeTpB/lH36kFDMgVdjcKvXkcFurj0=",
+          "value": "2.8ist8IQZQHVFBT3NzrtXJg==|ufsYGQ9f43YwdkXH6QOY8A==|hoD9jgWQO5tIrrgKn1I3N/kT01TNLoH3us1xmVFDLz4=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
     }
   ],
   "expect": {
@@ -118,6 +155,15 @@
           "attributes": {
             "host": "a",
             "port": ""
+          }
+        },
+        {
+          "cipher": "c3",
+          "id": "gamma",
+          "value": "login-pw",
+          "source": "login-password",
+          "attributes": {
+            "tên-🔑": "Việt 🔑 "
           }
         }
       ],

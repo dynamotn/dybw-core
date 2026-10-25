@@ -66,6 +66,27 @@
       "deletedDate": null,
       "edit": true,
       "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 3,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.S7Zyk3vExAbvv6qpmlQlcA==|C1/AuqbSDge9IFNeVKXh1Q==|XOyoovTaPursGYEKrYKGySFcJxqcFJmCtyui674rQ40=",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "2.hp/27khIl+ETkiuEqcRORw==|l0xWmtucgSAjHEut6ytA+A==|yD2pKRb9hYIW9jiGcMhmv+KPyj+ejiSd/jCFe2OH47k=",
+          "value": "2.VSe8yttZ9jKu2A2QW31kvQ==|asMAq45ZSR1+AMtV6wcqZQ==|kIDkFOSfZHSymIQZ6eqo/+ZJOkj8fOpFl/b4UcxURR0=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
     }
   ],
   "expect": {

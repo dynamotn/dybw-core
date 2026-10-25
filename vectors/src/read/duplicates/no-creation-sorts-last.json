@@ -67,6 +67,63 @@
       "deletedDate": null,
       "edit": true,
       "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "name": "Login c3",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "absent-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c4",
+      "type": 1,
+      "name": "Login c4",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "absent-pascal-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true,
+      "pascalCase": true
     }
   ],
   "expect": {
@@ -86,7 +143,9 @@
           "id": "alpha",
           "kept": "c2",
           "left": [
-            "c1"
+            "c1",
+            "c3",
+            "c4"
           ]
         }
       ]

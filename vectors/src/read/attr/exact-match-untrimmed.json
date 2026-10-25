@@ -2,7 +2,7 @@
   "id": "read/attr/exact-match-untrimmed",
   "spec": "1.5",
   "sections": [
-    "§3.4"
+    "\u00a73.4"
   ],
   "account": "pbkdf2",
   "namespaces": [
@@ -91,6 +91,40 @@
       "deletedDate": null,
       "edit": true,
       "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "name": "Login c3",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "gamma",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:te\u0302n-\ud83d\udd11",
+          "value": "Vie\u0323\u0302t \ud83d\udd11 ",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
     }
   ],
   "expect": {
@@ -113,6 +147,15 @@
           "attributes": {
             "host": "a",
             "port": ""
+          }
+        },
+        {
+          "cipher": "c3",
+          "id": "gamma",
+          "value": "login-pw",
+          "source": "login-password",
+          "attributes": {
+            "te\u0302n-\ud83d\udd11": "Vie\u0323\u0302t \ud83d\udd11 "
           }
         }
       ],

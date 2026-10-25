@@ -71,6 +71,68 @@
       "deletedDate": null,
       "edit": true,
       "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.iARfFFLEMDDovFKFMTJWFQ==|tdcxYHpsCJWro6z7ldd6Zw==|8SpQehEmkuWfK7GUo9CL1cGThqL8LLiYLT9FpS9mPKE=",
+      "notes": null,
+      "login": {
+        "username": "2.AbAF1hn60+vffV1R3+Gfgg==|dUH8FFbGmxu1tRimhiigYA==|rUSAltZxy0OQBj/G3N8ExSMCaGy98hO07gBK+ytUMqs=",
+        "password": "2.BbWgIKONGT+DHt43i5Gh5Q==|cNVFykDt30wJzAPcUQt2xQ==|ZrgQXIveqmFtFfEKSfJU0tv9wcrlniyTykHtSbvMQlg=",
+        "uris": [
+          {
+            "uri": "2.AJmk6TPxFlaHIql/L0C2sQ==|fT1M2Nha1AtAyfZU2Tkq5OEtQoFgXLlNFKsrLXsV9WQ=|RIx7ALCoZ/p/XahdffIyQFZxyr1WWecBz0iOZ2jfoxY=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.zkt1TVImHJsOk5FKL+lloA==|O6snZDtmZXHhQKPtzzn2RQ==|rrKlTFO0qRlY49d6ubftL96c4+sdmC+gGlrcMwrmXNg=",
+          "value": "2.4cVLIHaqesETxsKIh2NtuA==|SmYXHyCr6YgQafJhdZdiYQ==|fF8zs/m4ylGwCw2/Ec1XzCnIYg4N0WwyBuEC4/3E1TY=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "Id": "c4",
+      "Type": 1,
+      "FolderId": null,
+      "OrganizationId": null,
+      "Name": "2.UplXnloyphZSqGzHDPlUng==|NmSMGmkeCNVlooZSQk904g==|il76RmB4v5kUgAbVs3DI48nTQEu01p2s2HCQsJbiNBk=",
+      "Notes": null,
+      "Login": {
+        "Username": "2.RR2IIYvoOYI7m8pnfDR3YQ==|7Z5nbquftIwG3wvG75FfLA==|f0vT98dE+TdqT/cxyENm+pXWeX3/PErCIlBanC/b50g=",
+        "Password": "2.L7WVzl/dF3/+zZGNrruXNA==|GrkeTN14kgOBVRSDBj/YVz4Gcm/E7q3dW3JdviNF7nM=|cGR1dYPaIqWOeg7E75R9EFDBN72kVA/yhRWKHXN+Cso=",
+        "Uris": [
+          {
+            "Uri": "2.wqX+qs347hFdgekQuIQpLQ==|w3+/rxYcOdD2zyz0wQ1xLB5ZxBA+F7fwlhFjb86gDDU=|eT6paF0S3LoSUxye9AWe8jAuOvcMMOD1p7xxdsYuHOA=",
+            "Match": null
+          }
+        ],
+        "Totp": null
+      },
+      "Fields": [
+        {
+          "Name": "2.ki8TsWPeOGwgo+lQgUO0Dg==|5oSH0JrQtka1Hz7QhiiDhA==|x/tfy6WEv3n3buLcfc/5FlXcfTDnCcmLXZq8SXx5ST0=",
+          "Value": "2.Aj4y6zJogJ3hkFQmaI2ktQ==|CGyEocGaO/2VJEp3nn2vBA==|Od8kCAOSDLHWAslhaUht4jP4cg2rNkjMwrRpBzv1v9k=",
+          "Type": 0
+        }
+      ],
+      "PasswordHistory": [],
+      "RevisionDate": "2026-01-01T00:00:00.000Z",
+      "DeletedDate": null,
+      "Edit": true,
+      "ViewPassword": true
     }
   ],
   "expect": {
@@ -90,7 +152,9 @@
           "id": "alpha",
           "kept": "c2",
           "left": [
-            "c1"
+            "c1",
+            "c3",
+            "c4"
           ]
         }
       ]

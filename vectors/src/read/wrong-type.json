@@ -65,6 +65,27 @@
       "deletedDate": null,
       "edit": true,
       "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 3,
+      "name": "Unmarked card",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "other",
+          "value": "v",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
     }
   ],
   "expect": {

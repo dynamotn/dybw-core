@@ -85,8 +85,17 @@ change to `fresh`.
 - `read`: `{ items, skipped, uninspectable, duplicates? }`.
   - `items`: `[{ cipher, id, value, source }]`, sorted by `id`, with `source`
     one of `field`, `notes`, `login-password`, `note-body`. `value` is the
-    decoded secret: base64 is decoded, and binary values are written as
-    `"base64:<b64>"`. An optional `attributes` (object, name to value) lists
+    decoded secret, under these rules:
+    - a value read under `{ns}:encoding=base64` is base64-decoded to bytes;
+      when those bytes are valid UTF-8 they are written as that text;
+    - otherwise they are *binary* (not valid UTF-8, data model §3.2) and are
+      written as `"base64:<b64>"`, where `<b64>` is canonical: re-encoded
+      from the decoded bytes with the standard alphabet and `=` padding,
+      never copied from the stored string;
+    - a value read without an encoding mark is written as stored, never
+      prefixed; no vector uses a plain value that starts with `base64:`.
+
+    An optional `attributes` (object, name to value) lists
     the item's stored lookup attributes (`{ns}:attr:<name>`, data model §3.4)
     with names after the prefix and values exactly as stored; derived
     attributes are not listed. When it is absent, attributes are not checked.
@@ -164,10 +173,10 @@ Used in `expect.read.skipped[].reason`.
 | `wrong-type` | The cipher is neither a login nor a secure note |
 | `encoding-on-user-source` | An encoding mark sits on a value the user typed (such as the login password) |
 | `unknown-location` | The `{ns}:location` mark names a location that does not exist |
-| `unknown-encoding` | The `{ns}:encoding` mark names an encoding that does not exist |
+| `unknown-encoding` | The `{ns}:encoding` mark names an encoding that does not exist, or that the namespace does not implement. A namespace that implements no encoding (`obsidian`) reports it for every non-blank mark, before any other encoding check (such as `encoding-on-user-source`) |
 | `invalid-id` | The `{ns}:id` mark is not a valid identifier |
 | `reserved-id` | The `{ns}:id` mark uses a reserved identifier |
 | `view-password-hidden` | An organization hides the password from this user |
-| `organizations-off` | The cipher belongs to an organization and organizations are disabled |
-| `undecryptable` | A string needed to inspect the cipher failed to decrypt |
+| `organizations-off` | Reserved, not used in read skips: an organization cipher the tool does not read is listed in `uninspectable` (data model §4, §9) |
+| `undecryptable` | Reserved, not used in read skips: a cipher whose item key or field names fail to decrypt is listed in `uninspectable` (data model §4) |
 | `newer-format` | The mark was written by a newer data model than this tool supports |
