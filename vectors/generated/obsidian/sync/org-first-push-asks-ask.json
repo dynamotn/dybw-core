@@ -1,0 +1,76 @@
+{
+  "id": "sync/org-first-push-asks-ask",
+  "spec": "1.5",
+  "sections": [
+    "§9",
+    "§10"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true,
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "local-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "org-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": "org-a",
+      "name": "2.7kq1ZygesX2vN6vyyJJM7w==|COoLpduBhbK64BDfXjUuOA==|+oO3BiTKMeL8xzl7MSzsxsLVqJNgEd+muyVdox8WGhI=",
+      "notes": null,
+      "login": {
+        "username": "2.PeXL8UdPBuICXGsNtA18Sg==|pYkrsrOukTURr4mRz+iDaA==|xsvotRY+stTb21q5HIHaJJpYrjZB7Cuqk3PZoiEJ2xI=",
+        "password": "2.grpKNuC0jOR8nv+S8kufUg==|TRnmZj4tgDMsA1vu4ElsOA==|RC3t4okE+nOPzkV38FLSezqqBZmWptNQIqyFkGyLXJ4=",
+        "uris": [
+          {
+            "uri": "2.n3rYlYTj6yK/ii1bwQ1mPA==|KGGWViYfVlVYJXOKrsFMCInaKMaAdUJR/GtQX++20UY=|TzgdX1IPODWV7IzqdpHWT3sopIeJigYPDJNT/sqLsj0=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.yCeFUs3GTSlpUpVYalat3g==|ygN2oG2srTjp5zHfqQw+YA==|VWqnKSiSpRGzS6TwN+3PIPwBUyn3y/uRhqddeSi/5A4=",
+          "value": "2.l5Vzo51kRbzWitu8p9uiOw==|7ZSBmb5DGzMS3JntU21W9w==|4JR5PdnePcymglVvzi+EukTIYATzoEHUS+XNZChAnO8=",
+          "type": 0
+        },
+        {
+          "name": "2.I8oTsLvYvYQyEt6NsOl4Yg==|d8oz8cD8ipGquiPtQsIM/DtTVBYDI30s7i1UukHtZyk=|obF8FgWe4haSVio+HYnSYGG02YGpFybPAKbypbra2SI=",
+          "value": "2.FX8DgHKMNDFNNBazNmct9g==|c8vUkYC2+LNvhQqxTIUF1Q==|JYkGY63lyhPUU1RdtbPYEK5HD8aPir4VZcTzfUCiDSM=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "organization-push"
+      }
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "id": "sync/revision-only-change-adopts",
+  "spec": "1.5",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "policy": "ask"
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "same-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "same-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "local": {
+    "alpha": "same-secret"
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "adopt",
+        "id": "alpha"
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "id": "sync/org-claim-new-id-pulls",
+  "spec": "1.5",
+  "sections": [
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true,
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": null
+  },
+  "device": {
+    "base": {},
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": "org-a",
+      "name": "2.mAJfUKQ43BAZ38Yz+pTT8w==|4XnNZDjqiWbSUPvtJByPvA==|I4rsWVYXoXiapQ1EuYa4Gr1KA+m/ByS3GxeK57Uk//8=",
+      "notes": null,
+      "login": {
+        "username": "2.N6kj6Bt/lz7s1T64HAutuQ==|1wZ/pNdmkV70cEanQp4e8w==|u7IrXjVoQfIDxIAvnCgKrOFIevl8UDbYCMEbvSGw0ek=",
+        "password": "2.1wa6VhVXs7PrydmaHtc4eA==|+wv0Nt+BxvPNiq+dmFSevQ==|VaQjhvw8hg8oKqqy4LuKukDav2UpJDfjjNQ4Skk6y74=",
+        "uris": [
+          {
+            "uri": "2.p1cEks2YMexJbcQbqK++ug==|L62DaeewAiuzM2S8l+PGari0/Cr+F4OiS1/F/4Nv/4U=|HVPyU0H6krlQnvKkXyhhHSZ7ZPWXYGhliDA2pOcdAxc=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.EmjOW+AjPqhpUvuOjfcbKA==|A7SwRdIXFal85/DT59rUxQ==|9mDumqY6envBDFHhcnGcfpUO1/tQC+X7fu0Vu6rhiT8=",
+          "value": "2.3uJaLTS2UwhnGw5T+BNy2g==|bvmBppf8s4Le8OKlLv0mRA==|qItR4+TdyQc7a1E0SvUMTMuevJkMk/7xTkPDsSVI6PA=",
+          "type": 0
+        },
+        {
+          "name": "2.FBeKLSmcaKuvGGhw50biZA==|mK8eXMGXs23amUdM7PBBlj8lQ4e+HHcdhEfSxVCsy0Y=|A3ng7ZhSVXx80V7tiPsi2NPCDHe2L4cyr+bIE8g9u/I=",
+          "value": "2.EI7Gqyoj1NyIfmK+vPbSTg==|1iPdLHk+662zELpm0LcW6w==|n1vq1yx17gVido+YarCqCGmscdYsRf1BOqcKijdJi40=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "pull",
+        "id": "alpha"
+      }
+    ]
+  }
+}

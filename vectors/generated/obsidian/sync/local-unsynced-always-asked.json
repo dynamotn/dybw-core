@@ -1,0 +1,68 @@
+{
+  "id": "sync/local-unsynced-always-asked",
+  "spec": "1.5",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "prefer-local"
+  },
+  "local": {
+    "alpha": "local-secret"
+  },
+  "device": {
+    "base": {},
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.6HJ5+ouQZIVBvTmYqAMYQA==|LTrPj0eVJtg68pITwfErNA==|Sck3GZfmFy3hFZ5yOj7ywCIPHYbQCrJMJXw63FR5xbI=",
+      "notes": null,
+      "login": {
+        "username": "2.TRNEtt40ode5A7i2eVQc1w==|QG/lnZE4ncBOEeE5BN1XXg==|42VUeHY+lVnxJaov5CunalB/1ywTvk8rcaKkRXGfD4c=",
+        "password": "2.t89L0hIpkOtXUKucTojRmQ==|O757dwqiI4NhGgBsR5iMjw==|qYygR/+rtwAj29a+HlGJMXNhx7XX/5KGDUNdYQBCca8=",
+        "uris": [
+          {
+            "uri": "2.fKktPpxNZgynTbdjeB3Fsw==|VcGJAPK5DhBQtw6TIivqMRf57GarqjGTaClBh/BWWWg=|FwoSDMigBcJwh9J+YiWORz2TJEhtu/RRFyrJO3fuofc=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.Qi4/puN+j1Ghzg1c6u1J5Q==|yK3GCM4w2V/UebPdfqJ+Wg==|XlZtqqFJ+3bUXb6s+cd+tddYf7QW44QVtozUEs8Tmvs=",
+          "value": "2.6d0pkzcVE+sdHxaOttnrzA==|i93vBdgqAJ8JQ7NLKFur/g==|YYERjyKbXDkaCyNcP9ReDgPOf6144W70sRYBHB2gwfw=",
+          "type": 0
+        },
+        {
+          "name": "2.wISpQTpaUTHBXY2nCsJ9/w==|T+F/46KM9sACqTrtviCJ0BRcA+qe+cb/hKN27CdWpvA=|wgCvY3f1jsRfvhT5Heu/SPOmY0O55mgqPY23oFdXa+U=",
+          "value": "2.ZqxF5YqZF33poMZIWIj+ug==|HyUYh8uHP+U9h9UuZxi+Eg==|NZCfdyd/OkJhYrZI1J6TJuJ4A3mosa+j4mMj1cPxB7o=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "local-unsynced"
+      }
+    ]
+  }
+}

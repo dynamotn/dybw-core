@@ -1,0 +1,32 @@
+{
+  "id": "sync/pending-create",
+  "spec": "1.5",
+  "sections": [
+    "§6.2",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "new-secret"
+  },
+  "device": {
+    "base": {},
+    "pendingCreates": [
+      "alpha"
+    ]
+  },
+  "ciphers": [],
+  "expect": {
+    "plan": [
+      {
+        "kind": "create",
+        "id": "alpha"
+      }
+    ]
+  }
+}

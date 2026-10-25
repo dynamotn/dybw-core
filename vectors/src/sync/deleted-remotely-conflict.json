@@ -1,0 +1,38 @@
+{
+  "id": "sync/deleted-remotely-conflict",
+  "spec": "1.5",
+  "sections": [
+    "§8.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "policy": "ask"
+  },
+  "ciphers": [],
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "local": {
+    "alpha": "local-secret"
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "deleted-remotely"
+      }
+    ]
+  }
+}

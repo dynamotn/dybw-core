@@ -1,0 +1,66 @@
+{
+  "id": "sync/org-claim-new-id-pulls",
+  "spec": "1.5",
+  "sections": [
+    "§9"
+  ],
+  "account": "org",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "organizations": true,
+    "policy": "ask"
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "org-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": "org-a",
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "device": {
+    "base": {},
+    "pendingCreates": []
+  },
+  "local": {
+    "alpha": null
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "pull",
+        "id": "alpha"
+      }
+    ]
+  }
+}

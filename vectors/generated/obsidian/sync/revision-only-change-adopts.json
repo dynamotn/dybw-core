@@ -1,0 +1,73 @@
+{
+  "id": "sync/revision-only-change-adopts",
+  "spec": "1.5",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "same-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "same-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.cFLkz0cqdDOFjjsQj+ljag==|bcyQ818fn/hetf72dTgs1Q==|63iXZGW+kLgwmQL34nI+jx9rXe4EXwlST1mBizp1ZbQ=",
+      "notes": null,
+      "login": {
+        "username": "2.t2y0dLP0rydANy5tTf/hDA==|6toXWwUhuUffVYv94hs6bw==|4ukSbczfcuowdaJGd6afoEH5Hv7Hh43ubHMZyMCFOfs=",
+        "password": "2.OWDWM+dn8O+vkO9zFoKeQA==|hhTXAjPjwQcsTJpJnbUi/w==|xkJjx3fxU1cMcWUzZyGzmbMRw9DCgB4mo3B2yfI2JQ8=",
+        "uris": [
+          {
+            "uri": "2.mxLsBQeuQ8DOm+Wds8lMJw==|Wfnqs+xMkUYTmpAL/y6SMfQaM9FgTUzuYXImqykVSgw=|0izN7l3F8vfiSNePcvKZEFAgC2hDaPMBTsEBjscxq2Q=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.38xGq5mbd5y1+rF7q7m8MA==|XM+ACTkdcGf5QsnQkb5tTQ==|+MOLCDSmfFO2q9wKf5ofOa7CfVGcdKOgKfYgrCfkwF8=",
+          "value": "2.KgjpsY/jRqhoFlySpsjj4w==|gSwDIi9i/uLU2Xw9lMq7Lg==|PkNZbjJOuAB8macKB+RjZFV/GWYDYUSRKLsUgp9P/RA=",
+          "type": 0
+        },
+        {
+          "name": "2.dniaHVxuAdw/PiJThdhDrQ==|2kmzAygqZvM3Uv78claFkd9Hyrro+bHQ42jBzsnT5zM=|LMnMP9kmYdVfqHggdGbytUIH/Q/0PvhBFH2VMHk+tjw=",
+          "value": "2.8IJ8/ZqFvfM6Lbf1yrCAOw==|knNm02JNP4ilxYg2z+pK4g==|fLg/sxeJOTzYrpG4qmtPEmIsw74c+Z4kvgSpjPiTlBM=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "adopt",
+        "id": "alpha"
+      }
+    ]
+  }
+}

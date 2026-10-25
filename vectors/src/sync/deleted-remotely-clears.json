@@ -1,0 +1,37 @@
+{
+  "id": "sync/deleted-remotely-clears",
+  "spec": "1.5",
+  "sections": [
+    "§8.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "policy": "ask"
+  },
+  "ciphers": [],
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "local": {
+    "alpha": "old-secret"
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "clear-local",
+        "id": "alpha"
+      }
+    ]
+  }
+}

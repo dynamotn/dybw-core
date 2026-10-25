@@ -1,0 +1,33 @@
+{
+  "id": "sync/pending-create",
+  "spec": "1.5",
+  "sections": [
+    "§6.2",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "policy": "ask"
+  },
+  "ciphers": [],
+  "device": {
+    "base": {},
+    "pendingCreates": [
+      "alpha"
+    ]
+  },
+  "local": {
+    "alpha": "new-secret"
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "create",
+        "id": "alpha"
+      }
+    ]
+  }
+}

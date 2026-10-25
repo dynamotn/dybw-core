@@ -1,0 +1,73 @@
+{
+  "id": "sync/restore-missing-local",
+  "spec": "1.5",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": null
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.yU8PMMhv9xYPBRo6hjmyCg==|kWifuTEsjcSBGRzKLKI0YA==|eJThHYtq/fgita/N0cQ1eedA/fJ+6Ij7FA9lboYFSg8=",
+      "notes": null,
+      "login": {
+        "username": "2.uP6xriPmkTs6HvtSCTZu1w==|5CsO1vYJLwK29lm7jbvXcA==|OX0zlQJjsGeYVq8OSnxQhC3D1nPcYeWhaWSETCzAzmA=",
+        "password": "2.t5qIAO6jBBEfJ5ut/EldFQ==|Oa5ckt/8eEuUtJByWGzUDA==|3JyRH26biaPaiuQ2pG35ojmuWJkH43GYeN/fQPkUDhA=",
+        "uris": [
+          {
+            "uri": "2.W0y20onLNjmpOzMPqch77g==|/0fAMRt3BuTiT4+f7LKNT6oyYmaJLzdysw5JaQP0fso=|P1wih+L84/SWc1aQ2EUdA0ntJGCB1LyxM+k8Wf/6bLE=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.Cv2MuAjBUaooNcHRcQJLfA==|W9b8cAAVML5Y1q6K5xksVA==|xJB8p7wWjxP8TxxVCEwlk+RJyfx2qWaBhExjCh9sINo=",
+          "value": "2.IhbGABq5LXyq6eHIjAWbnA==|FarVFlh4ajQ/DxFogV/Q1g==|cuy4URw9eQZVMMG47tRAZpnqehgPo6Xs1FU+oRi9hns=",
+          "type": 0
+        },
+        {
+          "name": "2.C64ucq9vz4lE6pu43EEUeQ==|hgh9Wfw2uapIBOkySYsoDFIsqD8Td34TYPyz+sAJYyA=|k41N2D0/fhHZvcHG3HySjMvDC0qvKl5RFl/CRNgY1MU=",
+          "value": "2.D8EWoYhBLcKxgFCHmb/ONg==|063amlEF4BOkUH4sDS3XKQ==|UBs13bnpUKLxWTqfDt3CGNjGRCdiw7rEjRUTI29eJKE=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "pull",
+        "id": "alpha"
+      }
+    ]
+  }
+}

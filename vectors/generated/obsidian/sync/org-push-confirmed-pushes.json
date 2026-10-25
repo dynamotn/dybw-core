@@ -1,0 +1,76 @@
+{
+  "id": "sync/org-push-confirmed-pushes",
+  "spec": "1.5",
+  "sections": [
+    "§9",
+    "§10"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true,
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "local-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "org-secret",
+        "pushConfirmed": true
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": "org-a",
+      "name": "2.bv9eeEkhZ8B/WmFJx2/Gkw==|0pdbUrbYeIij5/wlXE5LXg==|f6xAVC5f01JQHJ04kwo/UqSpMF431G8US0yW71ma9hU=",
+      "notes": null,
+      "login": {
+        "username": "2.6evsjDFZmERa5JDnidWsTg==|pJ9ut9vD3jg3xk3uQRCNMQ==|SPnrOhAbzs5xJBm5y7nd2V9KOyaqkHi3HSNMs9sewiE=",
+        "password": "2.Fdo13S8hqlu5BWlHy9E7cw==|XyCj7ChJyuM7l2JKBAIVvQ==|P2/uH9BEEs+nnPz90v/KqMiXIXukiS4k6y12sSQVw90=",
+        "uris": [
+          {
+            "uri": "2.qH0tAAlfJcPB/5/9W1BFAw==|I13RVHDVvcDSBtBXxe+583WlC0DNf9edyHDQMAcGgOo=|hXnP12LIzGtwuKt2Qq0xCe5PPZ4S33eXVi9VzsFLmSQ=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.1m/Bh/p58jm0fNWMREs3PA==|WPZ0vPwfHZK3aBYTWBDBuw==|/nim/PbygjYrusjIz1QXcCzbQnl6naVIrocNfNQ3PaA=",
+          "value": "2.oFXtCNkZyanu12gU0mwtCg==|OuHSw74yDkCXx6x9BgZ2Xw==|j5RUl1Pn9OnRUIkuG1f2pOyRNqDdayealBhP7hBUHU8=",
+          "type": 0
+        },
+        {
+          "name": "2.XTTg1fq/P6MT4/Dxd/yaJg==|20lb+TZkNC/FY6/u8hGvBOcsNcEB9W58B5oSjEcWHCE=|L3/wJohx9Pod9VlimsM1UqEg//P6DmrOrlzStLblyJU=",
+          "value": "2.w7ZKww6Ly5Z4W5A4kOoqHQ==|Rfu2dKAnL6avfucKiyNcig==|JN//qsDdxNUDjg/lMu5V4XIJdjE/rNS1w0jsQxqmlL0=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "push",
+        "id": "alpha"
+      }
+    ]
+  }
+}

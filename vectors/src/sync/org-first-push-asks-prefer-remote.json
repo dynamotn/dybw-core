@@ -1,0 +1,74 @@
+{
+  "id": "sync/org-first-push-asks-prefer-remote",
+  "spec": "1.5",
+  "sections": [
+    "§9",
+    "§10"
+  ],
+  "account": "org",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "organizations": true,
+    "policy": "prefer-remote"
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "org-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": "org-a",
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "org-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "local": {
+    "alpha": "local-secret"
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "organization-push"
+      }
+    ]
+  }
+}
