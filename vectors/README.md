@@ -80,6 +80,19 @@ in a source, a server-shaped cipher in a generated file. When present, the
 first write is rejected as out of date and the tool must re-apply its own
 change to `fresh`.
 
+- **Values.** `value` follows the read value rule: `base64:<b64>`
+  (canonical, standard alphabet with `=` padding) stands for bytes that are not
+  valid UTF-8, and any other string is that UTF-8 text. The generator rejects a
+  `base64:` value that is not canonical or that decodes to valid UTF-8.
+- **Requests after a refetch.** With `fresh`, `expect.write.requests` lists
+  only the requests sent after the refetch; the rejected first write is not
+  listed. An empty list means the tool gave up (data model §6.5).
+- **Confirmations.** A write vector shows the requests after every
+  confirmation the data model asks for was answered "go ahead" (the first
+  write-back to a hand-marked login and the eviction of a foreign history
+  entry, §6.1 and ADR 0016; the first write to an organization item, §9). The
+  questions themselves are not part of a write vector.
+
 ### `expect`
 
 - `read`: `{ items, skipped, uninspectable, duplicates? }`.

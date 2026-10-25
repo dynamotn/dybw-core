@@ -719,3 +719,40 @@ def test_attr_unicode_names_byte_exact():
     c3 = gen.decrypt(next(c for c in doc["ciphers"] if c["id"] == "c3"), acc)
     assert utf8(c3["fields"][1]["name"]) == utf8("bwss:attr:" + name)
     assert utf8(c3["fields"][1]["value"]) == utf8(value)
+
+
+@pytest.mark.parametrize("value", ["plain text", "base64://4=", "base64:gA=="])
+def test_operation_value_accepted(value):
+    gen.check_operation_value(value)
+
+
+@pytest.mark.parametrize(
+    "value, why",
+    [
+        ("base64:aGk=", "valid UTF-8"),
+        ("base64://4", "not base64"),
+        ("base64:/w=", "not base64"),
+        ("base64:_w==", "not base64"),
+    ],
+)
+def test_operation_value_rejected(value, why):
+    with pytest.raises(gen.GenError, match=why):
+        gen.check_operation_value(value)
+
+
+def test_build_rejects_utf8_base64_operation(tmp_path, capsys):
+    src = tmp_path / "src"
+    (src / "write").mkdir(parents=True)
+    doc = {
+        "id": "write/bad-binary",
+        "spec": "1.5",
+        "sections": ["§6.1"],
+        "account": "pbkdf2",
+        "namespaces": ["bwss"],
+        "ciphers": [],
+        "operation": {"kind": "set-value", "id": "a", "value": "base64:aGk="},
+        "expect": {"write": {"requests": []}},
+    }
+    (src / "write" / "bad-binary.json").write_text(json.dumps(doc), encoding="utf-8")
+    assert run("build", src, tmp_path / "out") == 1
+    assert "decodes to valid UTF-8" in capsys.readouterr().err

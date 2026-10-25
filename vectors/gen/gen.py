@@ -296,6 +296,25 @@ def _apply_case(cipher: dict, pascal: bool, extra: dict) -> dict:
     return {**out, **extra}
 
 
+def check_operation_value(value: str) -> None:
+    """A ``base64:`` operation value must be canonical base64 of bytes that are
+    not valid UTF-8 (the read value rule, vectors/README.md)."""
+    if not value.startswith("base64:"):
+        return
+    b64 = value[len("base64:"):]
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except ValueError as exc:
+        raise GenError(f"operation value {value!r} is not base64") from exc
+    if bwcrypto.b64(raw) != b64:
+        raise GenError(f"operation value {value!r} is not canonical base64")
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return
+    raise GenError(f"operation value {value!r} decodes to valid UTF-8: write it as text")
+
+
 def render_scenario(src: dict, ns: str, account: dict) -> dict:
     """The generated scenario for one namespace of a source."""
     sid = src["id"]
@@ -317,6 +336,8 @@ def render_scenario(src: dict, ns: str, account: dict) -> dict:
     out["ciphers"] = [encrypt_cipher(c, account, sid, ns) for c in body["ciphers"]]
     if "operation" in body:
         op = dict(body["operation"])
+        if "value" in op:
+            check_operation_value(op["value"])
         if "fresh" in op:
             original = next((c for c in body["ciphers"] if c["id"] == op["fresh"]["id"]), None)
             op["fresh"] = encrypt_cipher(op["fresh"], account, sid, ns, True, original)
