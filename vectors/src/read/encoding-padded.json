@@ -1,0 +1,96 @@
+{
+  "id": "read/encoding-padded",
+  "spec": "1.5",
+  "sections": [
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note c1",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": " base64\n",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "aGk=",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "name": "Note c2",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "beta",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": "\tbase64 ",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "AAH/",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "hi",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "base64:AAH/",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

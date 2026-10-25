@@ -1,0 +1,156 @@
+{
+  "id": "read/value-source/notes-null",
+  "spec": "1.5",
+  "sections": [
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note c1",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "name": "Note c2",
+      "notes": "",
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "beta",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "name": "Login c3",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "gamma",
+          "type": 0
+        },
+        {
+          "name": "{ns}:location",
+          "value": "notes",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c4",
+      "type": 1,
+      "name": "Login c4",
+      "notes": "",
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "delta",
+          "type": 0
+        },
+        {
+          "name": "{ns}:location",
+          "value": "notes",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "",
+          "source": "note-body"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "",
+          "source": "note-body"
+        },
+        {
+          "cipher": "c4",
+          "id": "delta",
+          "value": "",
+          "source": "notes"
+        },
+        {
+          "cipher": "c3",
+          "id": "gamma",
+          "value": "",
+          "source": "notes"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "id": "read/attr/exact-match-untrimmed",
+  "spec": "1.5",
+  "sections": [
+    "§3.4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.PdJwcc09nvWN+Pf28vpqLg==|fzxsk7jVi1HBdRXmasLOIA==|AutG37aRIy1b8IGl6JbhAi8A7TwzjEQfp+ELz+uWBHs=",
+      "notes": null,
+      "login": {
+        "username": "2.dsYE+r/rc4mMdIRI34DSYg==|ci1nTd+E/8s3UIkoVAEqxQ==|2ihOBSKQQ5koIHPMd3ca4HeaN9ZENiSEyGHHmXg1q9s=",
+        "password": "2.dBRzn6eeiantSOIVMYGH3Q==|8x7qjcRG/DgjZHjlQf6IzQ==|A5WKdWhWp6yJ6T+Dki8szCnSkxhU508XqU5XWi2wZs4=",
+        "uris": [
+          {
+            "uri": "2.c+5JouzDkjrRxHiYqsYixQ==|2m8B9m240q942DwjNPKwU5xwmhaHf9sBTQKNJIST/jE=|j1nEXUHnkpMSgrkC7YI3+vFhvshfTvj5kiMS4XW28OM=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.dD2EnXUaA11jOHtHn0bV3A==|bkEFvQw0zBpNFooXyJnXyw==|XhgxiDGg9K35PzirF526zqQYWLdnE2hNJvjg13Lon2o=",
+          "value": "2.czxg/6yWLN5/Z9GK3XsCQg==|ghBuKDmf8ThdzccCrLzaXQ==|2tA4dCkguml/jdBDxWYsiBOyQG/ZDbgYDWJ6aSQ5zEs=",
+          "type": 0
+        },
+        {
+          "name": "2.79UGSkkR+gQvbQpydTL7lg==|isVnqaHju6pivfzsSsVfmQ==|dLACHaDB5usQBLl7jy+xN2PD2HixcWNeXbNSqHi6OdQ=",
+          "value": "2.KLD/X57lqQhq+LPJvDGatg==|//NdrycNOnh9B2xpkQ1yhA==|ZhYEpDW94vc+m3jpBomJIjoqAJGEVh0xKC+wt4Rty9U=",
+          "type": 0
+        },
+        {
+          "name": "2.mALJU42TonDxM+38LPN4MA==|lr0HcY0IRhHEPTxerrGeZA==|++wnCX+msUbXoqXojtbenp4Y66E84mSgcxDTw3bQw/A=",
+          "value": "2.GGblL6OH/MCyYkWQ731Y5A==|VvjpLeHZJv47h4SMJNT2jA==|0mnEMmPFGBiLf74QOX+PVlyPqG0dfcUNImgYTxD2kyM=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.QxcLGqE3nE36BBbuNsN/Vw==|6RyU2hH1jDQhLJM1KNyfUQ==|jpwH8ZaEChHlKGVTR3qkoVhoOjdBp53zytz7/A/Dhrc=",
+      "notes": null,
+      "login": {
+        "username": "2.d/5yxWvHOxckbPGV2w8kew==|JxRvnkoyo1lDcn0eWOPWRA==|u7LwyI5vv5mFsR/Zwzl9zkbkpJwhG8ZJc7hJKR4XdcY=",
+        "password": "2.jHjosoZD8iHtHXKQPCD1LA==|66CYkRZU1MWRCd3UTHncGw==|kOyYxhcprfv68fzbV0e+bUu1W6vPVfbSZdo6pce3rdw=",
+        "uris": [
+          {
+            "uri": "2.KxTbPx+68sb3I/Fwfq4LSA==|aaC0oK3MW0h5gS/Bq4xF0znjzD5cH0JzkCkCCzqqIpI=|RWP2FsOoAyND7h7et3oQqd3jKqxDnwqPn57x3EuMgLY=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.KNktx1+u35ev/TBUe6UItg==|hzUWuJyeu5Hwpmfz9HgrvQ==|EA35jRKexXA/ZKcEb3JUTv9LiIXP6Y1m5PUIrZ5cS98=",
+          "value": "2.eViGVoiPyfB62XCoNjOwig==|orLznXNE/lLqQR+CGoqNog==|MluV09xUVcod1GqbrQ/ggdA1GCSUbXaLJ9cStLwD+4w=",
+          "type": 0
+        },
+        {
+          "name": "2.JJT8Ya8D7jKEDERkNCGwcg==|OX2REfgHFc0mYWee0uj4kg==|8tqpvnOV14FRHPXyKhf5vEP07mIs5ZvYHxXz3H4N8Vg=",
+          "value": "2.QiYSlNiPgnWL6StgBlHwCw==|tHOmV4SG88M9Tbo0T5GalQ==|SGSK+dqmeVCeWphSko6xMq2S1whC3VK4cY6zHQFiKec=",
+          "type": 0
+        },
+        {
+          "name": "2.Jbz/wAcgLlNID0gDMDhkiw==|wSC3ZFLk9CWA5vEDGY9Wng==|Bkdjqm4dsGk2Y6fSxwSlw3PiNTQpcaZQhyEITyT2BSo=",
+          "value": "2.PCZdQQtM8/cA3TbzTwpDdQ==|nl7E+rjehObmhv5elSVRUA==|hHH8fJHW6qVfj3cMfqut8uoB/Su1Nc+ISg+PJ8L0GEs=",
+          "type": 0
+        },
+        {
+          "name": "2.Dcg8KaDeMdl5ZUmZ3Q6YNg==|17GEr31J2oR1uRJTq/8tuw==|xPlCwIKC+u3JhSRdhlt4ZKulXq4Pe3fJ4c9bGX1BzsA=",
+          "value": "2.RV7+Zfp7YnLjzaX8DM5pYQ==|PpFzczAcRvmC93PaLtBcZw==|tu8va9Qxg2VbesYWgyeZuXt4clVfZsfU6odwdJ3MRHI=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "login-pw",
+          "source": "login-password",
+          "attributes": {
+            "host": " a "
+          }
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "login-pw",
+          "source": "login-password",
+          "attributes": {
+            "host": "a",
+            "port": ""
+          }
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

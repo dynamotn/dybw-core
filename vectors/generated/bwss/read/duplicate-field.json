@@ -1,0 +1,166 @@
+{
+  "id": "read/duplicate-field",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.DlRk2p9K7PIkDoQQUU4KOA==|+l1fNJsuhchqwlo0ZD6vQQ==|V1PZ0XN+LIaJac8XdBQeHbuZjp6a71MpsitmK9XNTik=",
+      "notes": null,
+      "login": {
+        "username": "2.29w4K1Ngth/ex7gMhXruEw==|pmQ2U64hhEbHh6co/DHlOA==|mWSHIxffKV2ae8MEUKTvYYLO+dsb1YNULHX3l/fQQwo=",
+        "password": "2./vuFGO17F1B76HDsmpvAug==|p7rCF/uZO2u4KCWdauwi5A==|Fwdsoc/qoYH2fdi3v2PqJyxQKzuhwUDQ0igYaUIiVsg=",
+        "uris": [
+          {
+            "uri": "2.+7VCSWdEsn6OEh6L9p5Omw==|9jmb/sN8Pz6jRD+Lyfe1hDtXp5c7Pj1JBj0BeFyWxS8=|2JBu1+tLV17XyggQTg/tgjW4Drk94hPYnzYW7B8AlQI=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.NPDw2jx3GAoVK1Ycq//SFw==|MjitfQJUyH4iELXyfZUPDQ==|b9nSlXN2slmsbeoEQPiEofid2S64Sqia0jYx/qY30BU=",
+          "value": "2.NciddSuutHP3titQK7TnHw==|D/Xd71D8V/cSh41G5XTWpw==|3FsznInvkVfyaWJZZQYYnDjVhJjl05F6WMgo78s/TPc=",
+          "type": 0
+        },
+        {
+          "name": "2.BKmQG/gIpICfC4DOw6IuHQ==|UWOPje1eEDaPSSNBVMuLeA==|8fXuRQqBRZSO6J0JQy3Dkv6R6+435FVdjO4aww92iIA=",
+          "value": "2.OEYL8fq/c2sHyNvIfDpe3g==|OjqzW+iUQKG7qlhqOHiQEQ==|ZS3As1YGeBB3J5jQ6hzCbNxS5kWESFyLI2OSSx71wUA=",
+          "type": 1
+        },
+        {
+          "name": "2.YtRup5INoRuRpkedHvEK/w==|HfKyLK0NXVCh7C9dIFBQow==|kGJHAVhyLHqAeIYPK+j5Kk+3O8vFFxH5n9mBt50u2Qc=",
+          "value": "2./7BlGPq6AS1j1YmlYwzGNw==|DAS2qJPFFuOZXWSvJ5g+fA==|hSWBR6BSSaPtZgNYt+EXz4nDPLsra7FMWGBkt0vG9ws=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.KeavXxwgCkr9hB4BW4L2Kw==|VDav9/bYvuUA27deYRgLlg==|LELQL8hStjGS4WLm54yS5DvVa4Ie5R1KbZVCEWRHytw=",
+      "notes": null,
+      "login": {
+        "username": "2.yn9GIeg2rV2vE/Y+goMiLg==|MqZSdkxzDDe7H4p+XNrNrQ==|3a5/hb/E51iXeJ/eE3LPKjfdWNY118320OOEVfVXd5c=",
+        "password": "2.aDbDElggYwjqtgtqY8Bi8w==|gr0bBAOJ25FyHue+RPkUNA==|JELkEELVkuLU6aqEFNJ5fLBMosdNGfa1NaMdw78RkUk=",
+        "uris": [
+          {
+            "uri": "2.kXghZQaV1ueN+Yj2E0zOUQ==|gzHJ7SQA+YEoYV9DRFvlPFyTEvsKd2zfULfKNHTDJP0=|kdpZA6e4ohqUtDE7xD/pN0mzkG57KZsBkIHF8Ecc5po=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.VlHUT82StOVOmO2YDbALUQ==|dvKTjNU2hHn81TT8mz/2xw==|2RYWe2MppKqgZXKeXK7bD8eha66KYFwayxfuqFIPS1Y=",
+          "value": "2.f/P6962iSOI5XaAGAlA6yg==|2aCe0MksrXuJDKht91VuSA==|c947WfEmgRJiK8wY4O4rfiGZc+S4lH6fAhwJvWwa+H8=",
+          "type": 0
+        },
+        {
+          "name": "2.xNx9uRcvGa5uUeRGcRkAEA==|qxvdYbztJZP3xFkz2nN9IQ==|6yAnSYran9QxogW2s0ratWEPaCz4qbeezsU4x/CGS6g=",
+          "value": "2.9myj9Kpmlf1JpD0ZJ4zRiQ==|5DoDJiWTuOtQOSCxraJe1w==|rxRlPjfNfrLYzeyI2Tn5OSk2seBU41Yn3JJEmk2BfcU=",
+          "type": 0
+        },
+        {
+          "name": "2.rHWQUbqbPdn7ACgYJTJ/VA==|8gtsn3ePGTHfwzYzomsXmQ==|xgHvuGNivLRcTe0yolsBNcVkoWdTGGkwBWIVLvvuIk4=",
+          "value": "2.N7BAAhF9w+/yA2fWj7U1Xg==|G/+9KVs+Fb6o/CJIkCGYVw==|yEl6LNzjRezwWZ+/cC0Kx0a4AQaaZ27CqWTCvSXu29k=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.CX7Uefcz/6spnCkoqemUig==|VGKlGFkasGEUVbP5q7+mSw==|5IO11ATmCt96MWkoEMjuK5OyJSO5WqpgalEhKaT+Qoc=",
+      "notes": "2.AhuZQ4qhGK3GMJV4ac1Zhg==|cVWLp/SgdjFTQ10Ud1ZGDQ==|4ZOiCSjL1Q+ONIdAnA1+JPwc0hhhVaw0JyUQIgbUbis=",
+      "login": {
+        "username": "2.YvHGbsUvstGs4OTKEs32zA==|YTs3VUbpUQnZj01cm/Mmcg==|2fsnHewqyY3CqDrwPIAyyE9Ti/nQfj05ADisLz78aO4=",
+        "password": "2./bXYBOMUsF/7Ap+n/o0dqA==|5i9PVrS/bZiAqEu8M1sHBA==|i9Y1/TKFMHvLpDaxEv6ef0IKCmtyoaiAA4lHG2jdKT8=",
+        "uris": [
+          {
+            "uri": "2.M56kGaG2bAwMbcA1p3OExA==|usEYhpLCDOPc8jWLKS3pdD/Hz+HuNGJyDumsFK9VJgI=|8zl6xDlKTmpwMgi7F6MFAt+96u1KugKg0jErowYHWv4=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2./hKYO7wKVyXd0tFdINFWcA==|p15X0bxQ93ObH+giX98aWQ==|YQrvTeqWQ7C5flZy66lSjhff6Pd/b6gdfUaXhFUep4A=",
+          "value": "2.+YmyBpnvg254IzaV0XMRkw==|9b+r62TDu3dEheAt2X29Lw==|jQCCrbEdK/5+oMW0xNqZBxYfLGh8U64fwhy7dRA/n5A=",
+          "type": 0
+        },
+        {
+          "name": "2.GiQCy2frIiHv7OG78ZcHCA==|i6U0djUTa1ExRNymTuOlSQ==|A/2ZjR29LLn5XuS5snCMKoVGjqt6X6wFPJfi9oon/IY=",
+          "value": "2.FY9DuuHfdhDxFOHkG/knKQ==|du3v9/5tUZk7T07pzEEVCQ==|JCp2ODPMxHSk0lVwn5FwgvqqhqImO9CPyyQWcj4fv40=",
+          "type": 0
+        },
+        {
+          "name": "2.crbjjDLU+r3p9ucYLbH/Bw==|nxLftOo3xEmNCVAMkmHygw==|EQWtWq6uOy9VnRePn9nIClCZeeTlqAoz6zDg3THxgRA=",
+          "value": "2.osx3HEt7w3dKE7Sv4PbWEg==|fX5ermil3YHxbzqf71pEaA==|awbolP7LJ4VIivhvvO94Dq+4LZ8aXovCP2yl124c7w4=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "first",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "beta-secret",
+          "source": "field"
+        },
+        {
+          "cipher": "c3",
+          "id": "delta",
+          "value": "login-pw",
+          "source": "login-password"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

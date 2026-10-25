@@ -669,3 +669,31 @@ def test_read_item_attributes_optional_strings():
     bad["expect"]["read"]["items"][0]["attributes"]["host"] = 1
     with pytest.raises(jsonschema.ValidationError):
         check(bad, SOURCE_SCHEMA)
+
+
+def test_unicode_values_round_trip_byte_exact():
+    import unicodedata
+
+    src_path = VECTORS / "src" / "read" / "unicode-values.json"
+    raw = src_path.read_text(encoding="utf-8")
+    # written with escapes, so no editor can normalize the decomposed text
+    assert raw.isascii() and "\\u0302\\u0301" in raw
+    src = json.loads(raw)
+    acc = gen.load_account(src["account"])
+    nfd = next(i["value"] for i in src["expect"]["read"]["items"] if i["id"] == "nfd")
+    assert not unicodedata.is_normalized("NFC", nfd)
+    assert unicodedata.normalize("NFD", nfd) == nfd
+    long = next(i["value"] for i in src["expect"]["read"]["items"] if i["id"] == "long")
+    assert len(long) == 1000
+    for ns in src["namespaces"]:
+        doc = load(VECTORS / "generated" / ns / "read" / "unicode-values.json")
+        assert doc["expect"] == gen.expand_ns(src["expect"], ns)
+        for want, got in zip(gen.expand_ns(src["ciphers"], ns), doc["ciphers"], strict=True):
+            plain = gen.decrypt(got, acc)
+            for key in ("name", "notes"):
+                assert (plain[key] or "").encode() == (want[key] or "").encode()
+            assert [(f["name"].encode(), (f["value"] or "").encode()) for f in plain["fields"]] == [
+                (f["name"].encode(), (f["value"] or "").encode()) for f in want["fields"]
+            ]
+            if want["login"] is not None:
+                assert plain["login"]["password"].encode() == want["login"]["password"].encode()

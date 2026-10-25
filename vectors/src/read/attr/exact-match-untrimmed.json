@@ -1,0 +1,123 @@
+{
+  "id": "read/attr/exact-match-untrimmed",
+  "spec": "1.5",
+  "sections": [
+    "§3.4"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:host",
+          "value": " a ",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:host",
+          "value": "b",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "name": "Login c2",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "beta",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:host",
+          "value": "a",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:port",
+          "value": "",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:",
+          "value": "ignored",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "login-pw",
+          "source": "login-password",
+          "attributes": {
+            "host": " a "
+          }
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "login-pw",
+          "source": "login-password",
+          "attributes": {
+            "host": "a",
+            "port": ""
+          }
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "id": "read/encoding-padded",
+  "spec": "1.5",
+  "sections": [
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.KJv5VxM4ve94etMuvkakRA==|f4MVyJr4lCHvtMOH5gaWZA==|JnC3MHImAD1Pjtk+qcNE86dwpb0hq6lwxQ0H3tgAJ0A=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.BCojScJcqBNM7ct/Wqixxw==|ZecCQBKoxxhtszDRhbLDxw==|2MMVBP84Y4UwLWTyPY5JPpzZny6acM7uMqt2qsFE5rw=",
+          "value": "2.lFk4TV9WYTKCySrmcrbIag==|OtU3Oa/PjuGnYJ+awvymEw==|6hsLIjcYbn38jTDGS6b+OHStY3R1z3x7Wsx9JSy9/xk=",
+          "type": 0
+        },
+        {
+          "name": "2.k6nKsRE4An9/Yfmr7ybKKw==|6OYZtTkRIYLjYsqqGkksFA==|cWjN5ByO/iIzn29BRpKLSBUW12dHHgf8GW/d+sRNktw=",
+          "value": "2.NnelkhGZo02GqYfKaG29mw==|1HOZLHJMsB/d11iSWIV/lg==|X+RgCgg4CMyHBncxuFUVB923ADa5sjEZXBvyRv2r+PY=",
+          "type": 0
+        },
+        {
+          "name": "2.WRfkwyhc6ZEyaWmceHkm+w==|sn8x5Zpff6yoQ4SAdP5m2w==|fxutfYpeg9K5f7WqxVq1asqM9wehloJPSfnXu/6n4Ck=",
+          "value": "2.YiXwmuMJqIVxCAe9krBy0g==|5LiVCTJ91Rg4wjCZtPUDIg==|YiywH4DVgV7MKkgsKTAX51AVbJ1qnVAZL/Or2kgfOI8=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.Se7fFh5WGrDvuKzhgHCW9w==|D9ZE3MsuS8LDHpqQOlt0SA==|LTFsOpaUgvemQxrzjU4DGViIzmgoyJCOxfahhowu7lE=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.yCZg2u+253jGi4Q/g/HXZQ==|x/EHWxiqisneyCfw9zqv/Q==|m+1X66B33oY266gXrlgz4VH4uIS8BWvrEhVWx0Yoo8M=",
+          "value": "2.PflBdjLSNvwRZ9Vfo/zpUg==|H3SEt1gNdfIMEru2bJGJvw==|ChSqE0731RySoXkngrgyZCiuYc/wHbBibAuNAq5ongY=",
+          "type": 0
+        },
+        {
+          "name": "2.UdSb5zi3n1ZXTHutWTcgAA==|JTODHXADnrGTnWQ4KWQzog==|tmBKDrjSTAABN//wxLi6Loi00pMI2SFS3gSuU6paZBg=",
+          "value": "2.GgsXHJkQWzW9RhKzPtXWXw==|kLsvVteKamC0TLs97mycEg==|fYd3ocZWnnmUkkpX1g7mwoRgbR1k1kUxJ0mHtbdPKcI=",
+          "type": 0
+        },
+        {
+          "name": "2.ft5iLEEkccU0GdNKJNaGRg==|qbHoinM7H5cXPwU+T/nuSw==|WSSJg83xIsGrao6pUBP7XTIAxJV1MS6EfwWKX40zxyM=",
+          "value": "2.KoD9WgkkR+9n58ypKD+f7w==|RSjl8JfgHSSXkUaG8nlsvg==|dO9ax4tWupZpPXnP/BOurA9ZSap8YyNslEHzwPHuE30=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "hi",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "base64:AAH/",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

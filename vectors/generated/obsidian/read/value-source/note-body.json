@@ -1,0 +1,50 @@
+{
+  "id": "read/value-source/note-body",
+  "spec": "1.5",
+  "sections": [
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.dl0PeLbAW4EZe406Hot5Bw==|FtKrp81RwUJycUR5jeQK9A==|22LENPAIcRMUDZqhd3M+KP73hAASuoPUg/luHmzPl74=",
+      "notes": "2.QJSvpsSDiMjYUDbCXYC+hA==|DTsZWtTzV3eAipUPqri/uQ==|2+b1IPiEzkB1Y62L8wkiWoNtBMX+Bwzf8NpvbkqSGHI=",
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.bpJNTmQ5tM7ZJVLd1iwJvg==|H0RLy8pjAe9ImmJCifDTyw==|4WIdmqO6yp7tU3cIKTkWDNbDTWbop28q/hoQ8UQhkbw=",
+          "value": "2.yN9VOuhoJf9Q3YeJznxi8A==|Xe4lziXVTBoPweeeok8vgA==|BeHViPWjxPtst69y3rYOLAkZSFuhXlrcPmMfxoRS2lE=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "note body",
+          "source": "note-body"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

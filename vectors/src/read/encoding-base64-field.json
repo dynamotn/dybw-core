@@ -1,0 +1,178 @@
+{
+  "id": "read/encoding-base64-field",
+  "spec": "1.5",
+  "sections": [
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note c1",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "bin",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": "base64",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "AAH/",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "name": "Note c2",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "text",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": "base64",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "aGVsbG8=",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 2,
+      "name": "Note c3",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "empty",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": "base64",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c4",
+      "type": 1,
+      "name": "Login c4",
+      "notes": "AAH/",
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "notes-bin",
+          "type": 0
+        },
+        {
+          "name": "{ns}:location",
+          "value": "notes",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": "base64",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "bin",
+          "value": "base64:AAH/",
+          "source": "field"
+        },
+        {
+          "cipher": "c3",
+          "id": "empty",
+          "value": "",
+          "source": "field"
+        },
+        {
+          "cipher": "c4",
+          "id": "notes-bin",
+          "value": "base64:AAH/",
+          "source": "notes"
+        },
+        {
+          "cipher": "c2",
+          "id": "text",
+          "value": "hello",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

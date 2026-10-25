@@ -1,0 +1,169 @@
+{
+  "id": "read/unicode-values",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.UlQkguGvJatb4XHlGBs8OQ==|fmUohvjra7byb9i/gDt9VUWNqk0zrRCEJocTv7TGPLI=|DGt+0tNwk2xOGVy8NBt9CpqbRoqQG3BOBnIDtMs2PE8=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.NK3vAEEzjjCyAtDIRjMO4w==|Lz+Ofbmu1+rdSmWO2n7zOw==|2av344RegNt0JmiPSUrtCoMysXW9njoX4hgpXm4G+s0=",
+          "value": "2.t864L4st0Jz5+fn1ziDKnA==|V88oDAsVlAFxcPD4/fd37Q==|jwBnx/h8X2fBUPCsLKpndq1smYKk494KeFSdP8c5Nqw=",
+          "type": 0
+        },
+        {
+          "name": "2.hAylfldqBadq7uKPvIlDIg==|Frw4u8B2olPyCcGZ7psfmjMwRJ9Pu/pGJcp142Ltrcg=|QAqn7nN4dj9MeVPnCR4cU9DNBZy9hUEMp/lsmoVBjZg=",
+          "value": "2.Fi5UBnNON0WZTChPoc2biw==|zxSs7S7X2NTV/J5Z/cFSdGckEOq7PP/8vbQhpKiUFms=|W5shPxIn3mpMymtWN4VrulFIhCRs6SrnzgM09DmGBsU=",
+          "type": 1
+        },
+        {
+          "name": "2.I8BW8S9ShabJ8eLz9xlvfA==|QL1Fs3bB3c0AcWvYxzO6ow==|/yIll4Jj6B2RqOZbd7996Tky3lRbCH1BwMa7rtNbcZ8=",
+          "value": "2.vKyOBXsMTKevv8iQ/GTZEw==|oa81pFZ43aMo69XHBThkZpIJqapLKMfLvh0NF603z0Y=|dJl9oQHWuCT2jPLBDCeKjySxLNmrAfdlyXewu4mw5Xw=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.RU5chGl4TKHSXU/B7JON3A==|/nBESd4vlVyCimylODkmHInJe6Xw0HMIobRgyBH/4vU=|kh29WVEnizGvls9g3zYqvUBZX0hzD1E+7gzotW70PgE=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.sZMmO2YtYruxm+KoUaw3ow==|5rXnHFZI/kfG1h+xdwwsSQ==|ttd0V0YqhZGIOwrZSKsmIpaf3jnSBIwkOsqE77+qgxM=",
+          "value": "2.rIlu3l2/feU0FWeFybwzew==|N3LUCaAG5VlMTvkqxkVjVg==|RucS6dMmdYEiJYe46Y69ORqAjxd8GFFEYk/yQe4r1Dc=",
+          "type": 0
+        },
+        {
+          "name": "2.mfZE5YohVXROD3cTuZQPWg==|mBcnFjOsPDOwwBiN61os9dkSQzgvuNA+Ye/F6satAMM=|pviFZVy2eqbIJ4ftOuTTJ/cz5RwBLgYWdg5JyRSLcFk=",
+          "value": "2.Vhl6gLOrcOlvOnKKRDAzjA==|gBUsYRZlXRv5nSWEEW/tCQ==|BCVVTQUJwJR1KB4Td3qHcfqwtU+S9LQN4Tudc1XkT8I=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.bjVA5xIb9TzqKm933GQ46g==|wD+x8SUZVUqQwXsj0iAJsw==|j6/hx21OQ5li28Gbw5I1DnmVH+fECDsrwEOmRBF2dY0=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.0IcAh/bMhI1C4fjUPBmuig==|on3WBHZbFafRgU1hMZRctw==|uTCtY0MrikiwJbXodUQrEoE34n4csLWSwugffMbPEtE=",
+          "value": "2.fqOdppg7St4pxIiCjQOaNA==|mTxDi1p9Tq3rYZiaUqNhKQ==|JUMJklLgwG+/IYYQLfkRwIpxed409pXFjHal7Btzz4E=",
+          "type": 0
+        },
+        {
+          "name": "2.bTsKuTjC856LFT2spPP6/g==|SGDyDhRY2pYQ5afh36YCA/1gtyUYGAQ11Tv467xAh9Y=|qlAz/nguhOoOuCvEyTe5ny6Aqo6t4+lPjzIV9LtqJbo=",
+          "value": "2.R6/5RhGoHnYIb7CSOnubMw==|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",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c4",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.ClsnY5yxAXs99giSgpNVKg==|Z1Mfi75doP+XE4dPDsI2mDMFRCWUqDRycMDeE4H/N4I=|Fii4cpaRKyHisLXreL3uWORoidAic+GqqIHuaPVj5FM=",
+      "notes": "2.vA6rFoVhD82s2cU7MKUa/Q==|RVLMZIylH7kY+fLPN+GdXg==|XUqfj+Cau06N+IVbUx8QUc03EI59n10fA+KReWHS0wU=",
+      "login": {
+        "username": "2.S16szvVenxrbBecoButo4g==|9cF0lm9fevTjaIm+me7QPA==|fNEmeMjBEoW6oI62bggy16ja7+WgHccyQ9j4iS5efOY=",
+        "password": "2.5xHjXXuHGLjoXOlc3CdTDQ==|TRGvcGlzRfmb9OUsYHmRj2Ws7QaR/JJ746KCdlPQ/uc=|7MYImpWK4CVV2HEjf+Oa2+rgcdwwmkrCDXkZLqMW4Yk=",
+        "uris": [
+          {
+            "uri": "2.Q0Pm06VOQ+8wfSj1lcX1yA==|msxZsG7Ut31T9/31GHzDgk5ZlZuaPnpMwIqovPuI6JM=|rnLGg++pD0yP0lOxmqBMz9129ROgcqz0E1i9OK/dh+o=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.dUipmGATAGsw3ggmUhI/CA==|rJSl7AqEk5YkNJqyqSZBiA==|7Lgi5ANJZ+wux3fE7zH/j+bxzwHVq5LH706jcxcfeJ8=",
+          "value": "2.m2w9R01v61uPZDMhUohxEw==|OlcerasXUPbQQ1sI9aQOig==|4LdtOyQCgO7u8B9YPm6YYKFMsF/YtC6YWX7ru0mKuLM=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c4",
+          "id": "login-nfd",
+          "value": "Tiếng Việt",
+          "source": "login-password"
+        },
+        {
+          "cipher": "c3",
+          "id": "long",
+          "value": "Việt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 xViệt 🔑 x",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "nfc",
+          "value": "Tiếng Việt",
+          "source": "field"
+        },
+        {
+          "cipher": "c1",
+          "id": "nfd",
+          "value": "Tiếng Việt",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

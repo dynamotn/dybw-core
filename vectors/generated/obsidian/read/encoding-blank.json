@@ -1,0 +1,101 @@
+{
+  "id": "read/encoding-blank",
+  "spec": "1.5",
+  "sections": [
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.etFRDWxif7D2oidlgBCN2A==|nO0pUjRinGGxhaQbxxq5Yg==|WAlr+UpqE3gFgvIAbZCPnlt4vEN+MOI5DKSsBJagOQc=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.BstepLwmjcflChIR8NUMOQ==|a046YlxhsBy1oDNkbAf5DA==|6EyeUyBCAEN1nL/JNWQ0CuSzPKz6QBgCcWYMb2Vs4zQ=",
+          "value": "2.FUBAHlz/9TrZzdrcA5389A==|o3IUsqGZrxIJlPdwoS8S+g==|2jiFcDHQ/mtBTKl6pNVmggRayV3/TXnDTkvYGMloWa8=",
+          "type": 0
+        },
+        {
+          "name": "2.J+rPoAtQX64bszwTqAvnRw==|Za5Vh9oNus2ry2D6zCsZMLgVXfQaKPf8koEQKA9Kqxc=|myyjNQZWpydzwhrwAx4P8wQt1lHytGwntH0IN2+ZqY4=",
+          "value": "2.T3nS+43IS4DGrlIPCFjOyA==|wd3KmZhVP9rWLVHriXWivw==|kHlh8GyzclkKf6ay+F5xQTtMZbzQqrU9ENGwCyl3XMo=",
+          "type": 0
+        },
+        {
+          "name": "2.GS/UssoIXoNjr5BsoEZfbQ==|lbNVL+s18rHcqrI0NrraWfgzQ0o7EZOfoL4csLoXZY0=|mlqlSXzXVfZZje5c4UCLNobsBOd4MnPLgA7f9y7flVY=",
+          "value": "2.GrNA6/zxYRcW4eBKQb5Mgw==|i6DAwbRP9DhMIzn+m4QFAA==|JErVtdj8a1Pfjys8e1cpZr+ErQ1YvMcJhDx7Ynnk9pk=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.Y55KNrk/nt05QWvdFPWzRQ==|IQTfAWvZ0ZHLPCaZNiHIAg==|FdRAckeQiuVGUTNhYfGKuvKOAWJzZKsA2345S8Bzaqk=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.xuVayyu+msEW6kdXMzDOmQ==|GzSkxJxiUulZC/2bbX2LcA==|zmps6GVLX2yeUD2O6E5tU82AGU2+1u40ASkrPMacg7Y=",
+          "value": "2.xwR7rheHx+2eEldTJOm+Jw==|CHET8E2rGHW7ams7ey08Vw==|udox9CHN/Q16HkbPOgDWk7LuJseI3qy3n/XkQwF6RoE=",
+          "type": 0
+        },
+        {
+          "name": "2.t7mVeoblbe5yN4FmCdubNg==|eW3LfgrxQlD8NSxZ1DZJrNCSTpFnOtBnJGz3Ei/Uom4=|ifDxb3wQzrgXX0W9HU3YyrXTHoAljWjTk6PAWMFRnDg=",
+          "value": "2.4GyZch/ttrZ4x0INcApksw==|0mxIK6v5B8Lu6UIGgM14JA==|eOvyOK0S/m1w8OViesh+hDZ9ny2/9xNCnYFEK19LH/E=",
+          "type": 0
+        },
+        {
+          "name": "2.n0huACZhc26bHwo0tqI48A==|RJc86EIBwKEI8+HKrVCBHHBZpwsTlS5xVy8V90kWh60=|G3VjZW4wy1BTIcouIVZiTfJoVDtsSp6GQe0bmVHOwwc=",
+          "value": "2./pU7rSggY7AekEcDsd5q9w==|CFRcXlczeJKO4eEXAyASAw==|KoCK5VVu3yvSsBvazXSwAle8qlPigO3lzSDjTBbnCaM=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "aGk=",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "aGk=",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

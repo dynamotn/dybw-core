@@ -1,0 +1,62 @@
+{
+  "id": "read/unmarked-only-field-names",
+  "spec": "1.5",
+  "sections": [
+    "§2",
+    "§4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.55RbHRTyGH06BRAajPo82A==|53m3kdERwWO70GC6l+pwhg==|5E/lysKPSFbgoWHYgb//DWM9nauFLtbBpxiGM30UhE4=",
+      "notes": "2.hx0/4NDRKRF0wCFb59R0Pg==|Cz2RuRwSH62fw8d9JHEY/w==|tJSe49u6O6708JdApi7yQn1LIwODkrBz/dEgy0zqs1c=",
+      "login": {
+        "username": "2.VnJ4rc3L3Dd5vvdxTSdAyg==|+xOwHmzE/x3VRPJrgomObg==|l3HFJr4BuBgUfgHps4pWm3tvSm0UtEDfWcB3uA5mPRo=",
+        "password": "2.IRbzV2pcKunX4F8bGmZNyw==|k36GD5uLwklsajuA8+TsUw==|89v5weUvq0ExmSfu0Hn+p3p1rQEGWKz36IlvJhbOzGs=",
+        "uris": [
+          {
+            "uri": "2.I9Q49VqMUcHNnchXFcfHgA==|rVbwk2nO446iPSls6k35Yhl13GFEFhSsG6vN1xHL6dg=|H753IzcF7rYZn7rjSQQs1iW/o7C5RxkN6VAqVWNVyiA=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.PVqPRAfVXC7xGmtvNZhuFg==|eoRXBQI49a7j8XyO2qYM3g==|B8E7hZtMAmTpSd/cP13d/gHfhZnBodU2eDr5QwB6iCw=",
+          "value": "2.5El5bQaLAPzt+AAPxKy74Q==|/5DqNYsrwTX2SxuzSzOD1g==|OL1U0wexZKMUfpVOB/z9eqHvLCphxBXV2stV9wo9QDQ=",
+          "type": 0
+        },
+        {
+          "name": "2.BI85wSbHo5z/QUyPNSlVYA==|Ygi6/TxCGw0WNaH1cs7bjjK8MIv6KWmVOiRWgmsv+As=|RkQJUgcnXnU4kZcgm4JJi2AMv6p9a+pgrx5UtdARAT0=",
+          "value": "2.A0Pv7TmqdFM8qWEqIpMFHg==|xr9yUwNmm6MZa/hKC6IfJw==|vEH/h10eNhkt0Ljj3kUTpO218CQLk0Xi/5VeFStqKHY=",
+          "type": 1
+        },
+        {
+          "name": "2.njzAw3HJ3Bsvcmm94M0MdQ==|RZLl47F82Z1V4WQHxR801A==|GMUqqmEVc2YolkJuE7hH8NFBpk7A4/5DlTgxjq1RQ6Y=",
+          "value": "2.Cw2ZxAvO6aozKfRzaHTMgw==|V0HCBcP2TNyOwaS5JtJKzQ==|PMzopAUiHsLCsOvnV/zwROd4dpNrJUqV3KoajyOg7h0=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

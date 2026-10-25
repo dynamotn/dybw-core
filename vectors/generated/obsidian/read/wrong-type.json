@@ -1,0 +1,90 @@
+{
+  "id": "read/wrong-type",
+  "spec": "1.5",
+  "sections": [
+    "§2",
+    "§4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 3,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.b2W6EeG/51YN7MLiUMWFGA==|OMV0Zu68AzpU9Nluz87Z0A==|m6/0753QA8CQfiFHstMHZJUB3bzVQXNH04MTV91lYpI=",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "2.v+j0Nt7cx76pjqGK9RRQCw==|cZHhBNw6XnhqmyR4JlQsCg==|4UrJppRkeJLNTIOnZkkfzS7xdbhd9qxsCYjqiIbsYP0=",
+          "value": "2.jYMkvmYO/r5vgQNH5HZCng==|IGF/V9iH9mq2M/s6dvRXGA==|jcFdd2UQbD/VrPO+RrFKMNFep1Yyct9yCdwA6VGWY2k=",
+          "type": 0
+        },
+        {
+          "name": "2.xpg4DW+Y/a8hp/HPVGtQdA==|mVWyfSMHS2yi0LDyYKd9zSDBVQDj7O7DwAEOqZAVO4s=|umjA9U9dfUIf3Q2dmq5SAitqy2uDWRCe8p5PQSB1eO8=",
+          "value": "2.IQT5Z0kpmYopLUYn+h0GNg==|GC/lNisTl688Q2j/jc+pvA==|aYulSdnCC4diJQuHdM72AP2t8y+K7kTz1lPWsmZZ0VU=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.b1gf1sNFZd0l5oum+MV1kw==|74nIYyt4SSu584t0qWqnxQ==|NKHdpjfbeD/EFv5dbKZpvz8BLFOnVDaQR3WDBZ1zYzY=",
+      "notes": null,
+      "login": {
+        "username": "2.Ae9TZBOVil3H0WaU0KvD/A==|SfV5ij0Ab89pPfysj2e8HQ==|afewbc6RCY1fmOHSMPcSUZF9PutphfW/AR4oXPbkyeo=",
+        "password": "2.CLw5dMfsfS/gcNyyeWPLxA==|QjtWkI4R6eamSGLAt1ZUQA==|JUb0hccuqlAidJ/nOddaD0EztxDgTXK3v0Up7c0rI5I=",
+        "uris": [
+          {
+            "uri": "2.nIc7agXHKrvu+E18UpJ3Hg==|uI/wvdVeU/LsLMu4JWwiO6SiCVLI/AtFnDmuVwd/1gc=|KdQHPWdVolyqV3Me++tOP6qqpp1QEe5gtg6haYPmLjg=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.Eb+WEdnpbkS9ImPyQy2dQw==|SdAGWgq3NgbgFdIh39T8Kg==|0VnSVYqwHLAb/DM5V7Uyu+wyGJtRl51dehkCnC8qpVA=",
+          "value": "2.mt+lNyCG1KBvnB+87x3B0w==|ah7xQeCpjr2GSTApIx+TMQ==|2jl+cYkpYQ7+Ugx9UeeAD8r+CYdpzeEnnyCqd0gnukU=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "login-pw",
+          "source": "login-password"
+        }
+      ],
+      "skipped": [
+        {
+          "cipher": "c1",
+          "reason": "wrong-type"
+        }
+      ],
+      "uninspectable": []
+    }
+  }
+}

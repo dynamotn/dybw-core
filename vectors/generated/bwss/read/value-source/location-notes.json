@@ -1,0 +1,99 @@
+{
+  "id": "read/value-source/location-notes",
+  "spec": "1.5",
+  "sections": [
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.4niAiFsgRhZTtqj1zA1q1g==|1PZPV2VGHjDnYzoSJQ5PZw==|cfUzdMD9arGQc0Gg5oT8CQ1/FejiUWJVEr39PzSKkNI=",
+      "notes": "2.ZwJ+miIaQo1FbLsEgBFSWg==|0A3LNHXagvgkIGzh5M9oVA==|KHFfJ/fGuQkSX1es9jPNLG2ivquj9T+EBXl9FJyQtGY=",
+      "login": {
+        "username": "2.LdBfZJ2Rn2UlS3N0Ys551g==|3bFKvFf87TlBHFbVjdtjSw==|2jm8ckic8hrmlRPct4vA54A0jRe49zf4WX7wwJMyX8k=",
+        "password": "2.xPStX1NuRJM9v95N/4FYUw==|RkC1o7YPjDkaBr2TqRViWw==|n8e0jedbwxCrtZpbRHyjeYYNiyrw0vIHtuOGJ2BSy28=",
+        "uris": [
+          {
+            "uri": "2.HgxO017t2tGIS+HdYIq2kg==|TKIkEgKRGJJpU5N+2rKXiyLpEXGM6PQ+S8kBmoBKw0c=|gsnuy7+u7x/DmLZEop4+Xeb2uZ8PRHPJiX4hnn/lkOE=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.TWIn46kJ7s9a9O9e5Ou9hA==|oxoyFq/7PT8/PoQ+O6C7BA==|mXikbojUnCROrgXTg9zeQxcC3LIuHbo8frCjPIGNv8Q=",
+          "value": "2.DXKCYj1KpACagZmxnqwqIw==|I/yx4Y1g1Nv0U+5QATAeLw==|vCNB19nJu0pCV0FoNxvtMd3uF7nxFell1IouggAYJLU=",
+          "type": 0
+        },
+        {
+          "name": "2.3T7aWugki0NKFAXrQYNwTg==|uVnxyTWsWYhWhYpuxydQMQ==|Hzu5CEJx4mRU2qG3hiG9wBwxybpfP/bsA7elEY6l2Xs=",
+          "value": "2.jSGvw8v0oY7+90gbQjzYtA==|WnaJNUfM+DmGLUrblpncTw==|y535MeFHl0rZRx0q6DP49ATfvs+izbJbtP7Bp/ipuSo=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.PieUwT7r1ZDLC4V52mzuDQ==|s6QlaVmEeuX60pL70p+pww==|+UiMc0YFqq5gNZk805fo9yuxQNkZHJ05WQ/xnfZ3zfY=",
+      "notes": "2.sewp9PkKobK9m4qPiKjwPQ==|mKzmeBRcfAxrfJTkPgm2Hg==|KcpZyiwsg9aS4PrAuTBvRf3BWuZ3kzo6+NbYtaobaAI=",
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.9CFVd9+XsV1GzN49nEGwwQ==|dezL/qKi08Fe1IptdR4yUg==|JfcC5NpfeTUg2tyj5oNzyC52xPkbEYaaIhMP8KECkus=",
+          "value": "2.HYcdnHsqi3UmhGsKU7Yk4A==|fG/GwxD6aYTADPJ7p9a0hg==|Xe+doOtAMgrAGc9ym9FLrQmMlh69KtZkhsk27o0RySM=",
+          "type": 0
+        },
+        {
+          "name": "2.9nJQ2lvGmS2tdsUm3I7grg==|eqlQbPADIRLe2hwIUa9s1A==|6VNf1xYaWt8NKIOI2bD6fCuPaxXKDbhe7aZSJddSMzE=",
+          "value": "2.5Ubh/BuyJRhGQRlc9X6iZQ==|C9wD83v4nT2KyfM1qbD2SQ==|tZm6NWjFe4vhrXVHKZ4oJCcbCoqf1r29ulpn6ICNWlg=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "notes-secret",
+          "source": "notes"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "note-secret",
+          "source": "notes"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

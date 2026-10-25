@@ -1,0 +1,63 @@
+{
+  "id": "read/value-source/field-present",
+  "spec": "1.5",
+  "sections": [
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.VrXhERO4ngbhO7JGC8VoUQ==|4taaVB6XgLYqDgwAVYDCHg==|aKS0oVvN0kDtxEWUJYH77tGj0TziOh5bwd/Ba3DSWBM=",
+      "notes": "2.6oJu6BNY3Tcmqa7JP1V6dQ==|fWAJeHKMYMehOc4MA3NYZw==|aoZPEXYKAIa6S0ascCcuVnbKkl+RexSTbOnBnzD44ng=",
+      "login": {
+        "username": "2.wk8cPblxQxcQNukCwEWgmQ==|PCFhNBOQoKx6i/RrXYCOPA==|A6EwbEZ7SX4avsC9zRggfkg4SdvzGC3L24FAoiafA2Q=",
+        "password": "2.5/h8831NYcI7yQQNDfraIw==|mzcBhVpAl+xxsjoDoroiUg==|8+7cga4sIhcvBPzwi7fi1+20XN9FRHjXk5iCa8Az5EI=",
+        "uris": [
+          {
+            "uri": "2.LMOmgg4J6aJzQ5Irb2tWmg==|HXoLauiNMY1qIyQk1+o33Cfgzhh1SpAQcIhgKkD/Rm0=|XvBOhAEGj2cTdR/RVYRUmP4CD6WjeS8f5qV8asLm5/Q=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.b9cSwviZ1O7/tvo8TXjE9Q==|v9gZYT72aZvWjwP8ebH+Vw==|HWiE2TBDBnNkTfit+ue/o/Khm4m89NtvFLcO8J5WzIM=",
+          "value": "2.Ec1hwYQZwuprNS0595OEuw==|kja0lA15RQClSqWd1Q/Z/Q==|GXXLInoDWh+7XEgQ++DN8DAdiyF3vWwCp29bmURKYoI=",
+          "type": 0
+        },
+        {
+          "name": "2.x2l76tCuiH0UtSa9oCtQNQ==|9mWfdlVsCFI/KwfFhZaqFVADho8KKDz8M0DIPOdMU3Y=|oWdW1p8MtOwkMvDHs5cnOR1jN/7kAmf3ZeK8C3Mla2Q=",
+          "value": "2.lASRTX6pU2YwBntcx3CAyg==|/7kalHqV9KpPfNyTcBYowg==|joLwgex/XJxgiJ6mXp1iayQ0dWGWW5oqEsP+a545sRo=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "field-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

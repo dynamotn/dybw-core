@@ -1,0 +1,172 @@
+{
+  "id": "read/item-key",
+  "spec": "1.5",
+  "sections": [
+    "§4",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "key": "2.H2kz6r0Qh45GunfiZZE62A==|JVM1rsquvgUnT7bk57AjebeEJykBBb7QtVlASWciRcXQUzTB/XiOFrsuQwfKEM/IeG0j7Ta8sscWsbfRcxtqqLEiW5/VjwTNK1Q83aL6TNk=|BS4lDIjtcutnT7h82g5Q006TV3kh/t6pdNa+3CFiPAU=",
+      "name": "2.bycGy9WKZ9IvDKlbaM9K1Q==|lhjNC+ymaw6yiFUEsuMY/Q==|L8DBkaBLZMSdFNRGF8BddtMU7cVucPUYE51hBHUl5mg=",
+      "notes": null,
+      "login": {
+        "username": "2.xfJokeqbN90rO+N94tmZTA==|ZbdYTPXcB2osUsDQY0xZbA==|4cJWUDOgdUhCi/tilGU3gvXALVxhFeedD/Kz4SU5PVE=",
+        "password": "2.GOuxNM0eysmtTLfC5LZYpQ==|ULlwQPj3JpBmk6wUqReY1Q==|4tQkv9BYRi1POY8hH72srg3p6XJYVh2fNF/WK1GxDLg=",
+        "uris": [
+          {
+            "uri": "2.FtgCsrPLFp40lxQPiyAyrw==|L6fxtMvLszrfMaoiCaVcYNqBCVFOIE8V13W4RHA1INg=|vs0TZFvQhX91wFGfhcwjXBIRrx0bqkvaYOyrWP0tYsY=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.0P78Tmw/H6Q/ZYLHEfZRvQ==|k47yBaZV6qlEbMvFzYYahw==|MtDZxyVsRfXYX+p5rlZht8HJWtAmVV0/+0T+46cAfwk=",
+          "value": "2.YR9CIREVkr2oEVUaHKMkVA==|F+8UFb9yGPyeEy1+XR2M1g==|oB+RUst+9qRzMYvremfjJI/98r73pKkNAr4cTbxksXk=",
+          "type": 0
+        },
+        {
+          "name": "2.OYk5IjR/fMzICqVDpmfUBw==|91BoLip1d4GeZziVW3/zrQ==|RwuC2L6Lq0MWoUucsx3RqRkmrjAk0a42zoTtMiXkJxo=",
+          "value": "2.TOOt8Ys3i9g5hnt7J4huRQ==|J9rGckWwzR6zGYe8oc9afg==|z1Lb1Ck6AKMDkgGaAm+L6wUpuJJiGqXspV7dkxfoUiM=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.MmAa/TJtok9Z09e810hsIA==|+XgjEj+tdFtboENZD11GUw==|pHJwEmeptOU47gg9kOeeelYt8bUa6i/PAVBtFc/RpDE=",
+      "notes": null,
+      "login": {
+        "username": "2.A6Ly5+ce8oa+g/gqIJL+NA==|5bfLj+dmJNFc6lC/E1zGdw==|bTuyyMRHbSvw7dr3mE5N2iPhM2/iH0OwQauXbal828g=",
+        "password": "2.SdTskQDPov8tZYiu7G44dA==|7B+Jc8GRf+sj2lV3d1efUw==|et+wVLltzhDR2twJtbsUJwssUQHvbbQRtTPzANex51U=",
+        "uris": [
+          {
+            "uri": "2.7d4Bv4YXkGZs7rkyCLa+Dw==|gLV9L7eGs0bsUN9EvbzdA1EEkEQXU6dxKVCqDY42IQc=|pKpLqjXEpb8lryiLwNWABA7tix7yqrrUMZl5qIhvtBE=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.ZVUiGmfyJGYFEVuhGuYA/Q==|H7upuUprYfMPL4EXYR51KQ==|wC5pCEXwst709RSLiUVvVg/ISoZArs5fPp2gAhMYQZo=",
+          "value": "2.XaF+xEBp2VXZv0yNjvLBOA==|onWWBrAR9p+VfwDHaUnLUg==|K+J1kYyg85nAr9Y1Z8cXGHJhGvFn9tQvOh2jvK5p4Hg=",
+          "type": 0
+        },
+        {
+          "name": "2.JhS6QhrvZ/Xupcl81NTJSA==|vQnj3TssQahJSiZ8a+Se4A==|fwuHhv1usrlG/bKpFBRkcWaBuozshjVzO7fbBVvdUXM=",
+          "value": "2.mIbl1LHgs4uElNq7/V+Cgw==|4ThHJTKVvTtZwO48rkl/JQ==|8lWmHnwGuI8hMUznQmn0VltWujH3l122uUPy3z80z3Q=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "key": "2.jNAfA0Vr1twKJo+efUS7FQ==|iqiD2fY+btMd+8pRfHmGMWlphpZRCi3p+gfyulNey94MMSYPMdGcazZZP4ji/hqdxltX7JhRabzAha57PB7yvdcK2Bsrk5GRH8bZSH8GUq4=|1g02rHDhfAxwh9WZSb4gEZat9/v7JPSHYx1DC3rQeWI=",
+      "name": "2.K2XDSP6qEEjTFmxYJ+8jJw==|AGDIjASLEYvMQkUNE8e9BQ==|RjrPthruooejfJ+4nR245psgrs17cjhiUd9TbJOyby4=",
+      "notes": "2.qIHmMWnH0sNSp7joakHPCA==|2U+0K87VsosSS3l/eIUYNA==|YjZQ+mqiYDMmxzDvY1nO7N67lbCgW44Bh7v62SdcgDg=",
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.gaBW5kJePrkUnktc7yGgRw==|4uWNyL6T6mLNnEGGT+dDbw==|MxwI5aeDnNnbi0lZojk9P41cTxvoF8jA17IKnQFSS6A=",
+          "value": "2.UMUQcV0bKXRwWQghjundLQ==|JGMgef58xFKNMUlgNgtmBg==|F5pAs7TfwkLIYqwVwRdgRxe/8ZWsnCTmTdz/I5nSHDU=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c4",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "key": "2.p7zR6paVvLV4LRZ26IUs3w==|hI1Yv9g0mOrKMWllmmBdJ+yksN+TxTvxm+zdBsK/ON4G/6DLqbZ0dKq7MvjM7SLG17FgXsv8/JqGws1QSa+jEs39iUh65vLwmJYc8tY1ORE=|Sj4Hf/kpkOpom8jbn+ODxHlkYzBMZ3GmCI5kHzdAG9I=",
+      "name": "2.ftY2Kf105VDrg+IDGF510g==|2FaGj24a/L0gCIHj1AjlxQ==|4tPdUQ+Ydx/e++dloXvVGE93ytuCqV73CkKzw++GsOQ=",
+      "notes": null,
+      "login": {
+        "username": "2.Fo6BfmmM4tNwRElEWr3ynQ==|JQIdmJNhZFHbkHpJUSD6LA==|ccuP/Rq+VIyIli/bDugw4zJHOx4W48u+vxzhC7Tridw=",
+        "password": "2.oPqU5EbXLhGzOKR6KAvbKg==|goYIZGzyW0eX0ia0ld5vlA==|RQeXjUXUNzJh2lpfX/qq2E6pxmkfDCWGfnJ/Im96V4A=",
+        "uris": [
+          {
+            "uri": "2.GS8tKPNQIJtp+zdAKGQWRA==|gN3CCnRq0aT9iXHdg5V6ALts9SL3TCh+C1L1qdt1+04=|imNQIkdfb1PWK+NwbDy2igNHaupBTnPpVxUz8rOt818=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.NDaMp0rS+84aGFu7Uf00kw==|Y1pfqQhqqsmQcwiibHic6A==|kqN1CrTsFhctY2SCrDUymAOlaaKzIO8e27fTFquqvyI=",
+          "value": "2.jih4AVhSWgTl7Z/cqE8+Ow==|1nikbd64WPwIBD8Ox9hDRw==|U2M8qHKz7SbIIYeB09vH8XhArBehhja2BLdLLfCEtXk=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "alpha-secret",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "beta-secret",
+          "source": "field"
+        },
+        {
+          "cipher": "c3",
+          "id": "gamma",
+          "value": "gamma body",
+          "source": "note-body"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

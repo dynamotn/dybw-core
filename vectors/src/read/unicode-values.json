@@ -1,0 +1,159 @@
+{
+  "id": "read/unicode-values",
+  "spec": "1.5",
+  "sections": [
+    "\u00a73.1",
+    "\u00a75"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "\ud83d\udd11 Kho\u0301a b\u00ed m\u1eadt",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "nfd",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "Tie\u0302\u0301ng Vie\u0323\u0302t",
+          "type": 1
+        },
+        {
+          "name": "\ud83d\udd11 ghi ch\u00fa",
+          "value": "Tie\u0302\u0301ng Vie\u0323\u0302t",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "name": "\ud83d\ude00 Ti\u1ebfng Vi\u1ec7t",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "nfc",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "Ti\u1ebfng Vi\u1ec7t",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 2,
+      "name": "Long \ud83d\udd11",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "long",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "Vi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 x",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c4",
+      "type": 1,
+      "name": "Tie\u0302\u0301ng Vie\u0323\u0302t",
+      "notes": "Ti\u1ebfng Vi\u1ec7t",
+      "login": {
+        "username": "user",
+        "password": "Tie\u0302\u0301ng Vie\u0323\u0302t",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "login-nfd",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c4",
+          "id": "login-nfd",
+          "value": "Tie\u0302\u0301ng Vie\u0323\u0302t",
+          "source": "login-password"
+        },
+        {
+          "cipher": "c3",
+          "id": "long",
+          "value": "Vi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 xVi\u1ec7t \ud83d\udd11 x",
+          "source": "field"
+        },
+        {
+          "cipher": "c2",
+          "id": "nfc",
+          "value": "Ti\u1ebfng Vi\u1ec7t",
+          "source": "field"
+        },
+        {
+          "cipher": "c1",
+          "id": "nfd",
+          "value": "Tie\u0302\u0301ng Vie\u0323\u0302t",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}
