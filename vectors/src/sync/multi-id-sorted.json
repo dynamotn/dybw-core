@@ -1,0 +1,156 @@
+{
+  "id": "sync/multi-id-sorted",
+  "spec": "1.5",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "policy": "ask"
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "gamma",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "gamma-old",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "name": "Login c2",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "beta",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "beta-new",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "name": "Login c3",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "alpha-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "device": {
+    "base": {
+      "gamma": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "gamma-old"
+      },
+      "beta": {
+        "cipher": "c2",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "beta-old"
+      },
+      "alpha": {
+        "cipher": "c3",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "alpha-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "local": {
+    "gamma": "gamma-new",
+    "beta": "beta-old",
+    "alpha": "alpha-secret",
+    "delta": "local-only"
+  },
+  "expect": {
+    "plan": [
+      {
+        "kind": "pull",
+        "id": "beta"
+      },
+      {
+        "kind": "push",
+        "id": "gamma"
+      }
+    ]
+  }
+}

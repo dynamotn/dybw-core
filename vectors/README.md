@@ -31,7 +31,7 @@ One JSON object per file.
 | `options` | object | `organizations` (bool, default `false`), `policy` (`"ask"` default, `"prefer-remote"`, `"prefer-local"`) |
 | `ciphers` | array | Plaintext ciphers, below |
 | `device` | object, optional | The device's sync state, below |
-| `local` | object, optional | `{ id: string \| null }`: the device's local values; `null` means missing. A sync scenario lists every id it plans for, so a missing value is always written `null`, never left out (the plugin treats both alike) |
+| `local` | object, optional | `{ id: string \| null }`: the device's local values. An absent id and `null` both mean no local value; `""` is a value. Sync scenarios still write `null` for every id they plan for |
 | `operation` | object, optional | The write the tool performs, below |
 | `expect` | object | At least one of `read`, `write`, `plan`, below |
 
@@ -125,9 +125,20 @@ change to `fresh`.
   `organization-push`.
 
   The plan covers every id found in the read items, in `device.base` or in
-  `device.pendingCreates`; an id that needs nothing has no entry. The
-  `confirmed` marker the plugin puts on a push the user just agreed to is not
-  part of the plan: no vector answers a conflict.
+  `device.pendingCreates`; an id that needs nothing has no entry, and an id
+  known only to `local` is not planned. The `confirmed` marker the plugin puts
+  on a push the user just agreed to is not part of the plan, because no vector
+  answers a conflict yet; it returns when answers and overrides enter the
+  format (M3).
+- **Planner policy.** The data model fixes the organization rules (§9), the
+  restore of a missing local value and device-local state (§10). The rest of
+  the three-way merge is the planner's policy, taken from the plugin's
+  `src/sync/plan.ts`: what a first contact, a change on one or both sides, a
+  remote deletion and a revision-only change plan, and how `ask`,
+  `prefer-remote` and `prefer-local` settle the ordinary conflicts. In
+  particular `sync/local-unsynced-always-asked`, `sync/adopt-equal` and
+  `sync/revision-only-change-adopts` follow that policy rather than a data
+  model rule; their `sections` cite §10, the device state they read.
 
 ## Generated format
 

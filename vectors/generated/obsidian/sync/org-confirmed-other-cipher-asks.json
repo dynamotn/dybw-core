@@ -1,0 +1,77 @@
+{
+  "id": "sync/org-confirmed-other-cipher-asks",
+  "spec": "1.5",
+  "sections": [
+    "§9",
+    "§10"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true,
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "local-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c2",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "org-secret",
+        "pushConfirmed": true
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": "org-a",
+      "name": "2.hN8XsHMAabMvIH7/qTUfKw==|wKUHdTiem8ybCu2LK7KcsQ==|Out+SqiIgdjSOObYzeDTtj8NwpOCfc7XbPOuUuvGDeE=",
+      "notes": null,
+      "login": {
+        "username": "2.UWglS2gFp6TRjcr8j2W1Vg==|1F0v9Prq65oifQPOvFtUcw==|J0P74gF/9EXr8gDu+6PgG7WVbKdM+4Kg51R/7/KWWI4=",
+        "password": "2.i/nQHyf8qvkdUVqJTi4YFg==|UuuOFyDIaGGDeYTvSzglBg==|C1+4XwoLZJiyRJO/QqZJdGKtkmwt+busCfIMVhRMlHg=",
+        "uris": [
+          {
+            "uri": "2.Lux/6NJfrbcOC8bpiXh4rA==|+Qad95mQND4KymrByHQXyRkw5pzk2Ds3s3ViNu9rgck=|hCxNUv2jEFAmEGmC0XdBmlSA6oXpDVUxvli2WfGLKlo=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.4Ym+POFUhhiPAdkpBLbgBQ==|UkZTZU55vBFSGazDsTpegA==|N0fv1Rnp4FNiUgJfhbLRgj0pdbsWgpXPDEEWSqOB0v0=",
+          "value": "2.bbeJdwwWQt5ecCiEkPZJrQ==|2KC96YjiwN3Uz+TWojldbg==|kC11/PASUId8N0omKbHfo3RgcqoFS1UjUzFo3y+wOso=",
+          "type": 0
+        },
+        {
+          "name": "2.FdeDMHprgTpXxHFNS4/3uA==|JV3iWnXUxPOW1X+jfsLokEvYP99/XyBjgnUvUM2FHWI=|drvBLClJkKjgf3yVAA3gI65KKNmrUase5ER1B9NPYNs=",
+          "value": "2.Njd0Hgykph1EFxLkJLc4qQ==|pRUOgyLUCwoEXjo3OEgVqA==|GU5MgjtuBFXc9gM6nfpWRxIhNAFkabsQtKyDLb8HElM=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "organization-claim"
+      }
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "id": "sync/org-claim-with-local-asks-prefer-local",
+  "spec": "1.5",
+  "sections": [
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true,
+    "policy": "prefer-local"
+  },
+  "local": {
+    "alpha": "shared-secret"
+  },
+  "device": {
+    "base": {},
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": "org-a",
+      "name": "2.afW9Ufz2RwGnbDkz2+HbdQ==|L+ElfeGeMLXqeg+8MnxN3A==|MLph+hXi/VoN2TTxdCo3bfJsm3cfz+EP0973nE26IDI=",
+      "notes": null,
+      "login": {
+        "username": "2.yZINTpE0d/Hep+t98lWnWg==|WNEmlc2KXNaXVBLo++CGzQ==|x4Y8zYRlNvnANtY2nNovOtQb59flvLx9elDeqQMsTpM=",
+        "password": "2.vhWbmwylOK5qpg1gyyCIdA==|ILevJNWfnhvOmoz5UPoSUA==|g7ZQs7IvS3isBRVgM9sAKb7KzMc/ercTEZjB/CxfYXY=",
+        "uris": [
+          {
+            "uri": "2.v5d5H08tyCDJgUZnc8L3Qw==|EhtSPA9p/ue0NDeRwTq24KkD5gNF1+YE+3sgyp119LU=|rbqwliSS+EDXLOkU7936i1M4NanEttFjlPjuNrRvPxs=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.NWIHxqxn6CJwrtmWjWJSIg==|5rzCvvIOoapPTuHJ2V7QvQ==|CQvNH3/vMGRVEwDbVZGaZg0FkFfkVF4o8xNwL1G1Qfw=",
+          "value": "2.tfTisSU/Piofr2B6dGv5ZQ==|H75dGkrbf4jdNBvUjIAeHg==|10HsfJd3g+Bp3iWpuvHULQtPIMjPUh+c95BrBHjCJ8g=",
+          "type": 0
+        },
+        {
+          "name": "2.Y4DPFxc6eti0LrMNKf+iDw==|Ph+KTXrrO2wTknpC8kW6frmop22te8pWdQ64HVPktLM=|efaoq9fhtPR7CcHMQU0xAJeSorTYW4tL+zFGYXtAprE=",
+          "value": "2.YfRDOhxzTGyrSPt5VLaBAA==|REFgOXRPZvo+aaIx0X7j3g==|jt+AZt8ZxUkxwx5hLfkU85gW0DlAkQrNtjZYTIU3sqw=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "organization-claim"
+      }
+    ]
+  }
+}
