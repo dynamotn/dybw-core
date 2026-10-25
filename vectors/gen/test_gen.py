@@ -316,3 +316,186 @@ def test_drbg_rsa_is_deterministic():
     b = bwcrypto.rsa_key_from_seed(b"\x01" * 32, bits=512)
     c = bwcrypto.rsa_key_from_seed(b"\x02" * 32, bits=512)
     assert a.private_numbers() == b.private_numbers() != c.private_numbers()
+
+
+# --- generator: build / check -------------------------------------------------
+
+import gen
+
+FIXTURE = {
+    "id": "read/fixture",
+    "spec": "1.5",
+    "sections": ["§4"],
+    "account": "org",
+    "namespaces": ["bwss", "obsidian"],
+    "options": {"organizations": True},
+    "ciphers": [
+        {
+            "id": "c1",
+            "type": 1,
+            "name": "Login {ns}",
+            "notes": "",
+            "login": {
+                "username": "user",
+                "password": "pw-ünï-😀",
+                "uris": ["https://example.invalid"],
+                "totp": None,
+                "passwordHistory": [{"password": "old", "lastUsedDate": "2025-01-01T00:00:00Z"}],
+            },
+            "fields": [
+                {"name": "{ns}:id", "value": "token", "type": 0},
+                {"name": "{ns}:empty", "value": None, "type": 0},
+            ],
+            "itemKey": True,
+        },
+        {"id": "c2", "type": 2, "name": "Note", "notes": None, "fields": None},
+        {
+            "id": "c3",
+            "type": 1,
+            "name": "Org login",
+            "organizationId": "org-a",
+            "notes": "n",
+            "login": None,
+            "pascalCase": True,
+            "extra": {"xFlag": 1},
+        },
+    ],
+    "expect": {"read": {"items": [], "skipped": [], "uninspectable": []}},
+}
+
+
+@pytest.fixture
+def tree(tmp_path):
+    src = tmp_path / "src"
+    (src / "read").mkdir(parents=True)
+    (src / "read" / "fixture.json").write_text(json.dumps(FIXTURE), encoding="utf-8")
+    return src, tmp_path / "out"
+
+
+def run(cmd, src, out):
+    return gen.main([cmd, "--src", str(src), "--out", str(out)])
+
+
+def account_org():
+    return gen.load_account("org")
+
+
+def built(out, ns="bwss"):
+    return load(out / ns / "read" / "fixture.json")
+
+
+def test_zero_sources_build_nothing(tmp_path):
+    (tmp_path / "src").mkdir()
+    assert run("build", tmp_path / "src", tmp_path / "out") == 0
+    assert list((tmp_path / "out").rglob("*.json")) == []
+    assert run("check", tmp_path / "src", tmp_path / "out") == 0
+
+
+def test_build_is_deterministic(tree, tmp_path):
+    src, _ = tree
+    a, b = tmp_path / "a", tmp_path / "b"
+    assert run("build", src, a) == 0
+    assert run("build", src, b) == 0
+    names = sorted(p.relative_to(a).as_posix() for p in a.rglob("*.json"))
+    assert names == ["bwss/read/fixture.json", "obsidian/read/fixture.json"]
+    for n in names:
+        assert (a / n).read_bytes() == (b / n).read_bytes()
+        assert (a / n).read_bytes().endswith(b"}\n")
+
+
+def test_check_detects_stale(tree):
+    src, out = tree
+    assert run("build", src, out) == 0
+    assert run("check", src, out) == 0
+    target = out / "bwss" / "read" / "fixture.json"
+    target.write_text(target.read_text(encoding="utf-8").replace("generator", "generatoR"))
+    assert run("check", src, out) == 1
+
+
+def test_check_detects_extra_file(tree, capsys):
+    src, out = tree
+    assert run("build", src, out) == 0
+    (out / "bwss" / "read" / "old.json").write_text("{}\n")
+    assert run("check", src, out) == 1
+    assert "stale: bwss/read/old.json" in capsys.readouterr().out
+    # build removes it again
+    assert run("build", src, out) == 0
+    assert not (out / "bwss" / "read" / "old.json").exists()
+    assert run("check", src, out) == 0
+
+
+def test_ns_expanded(tree):
+    src, out = tree
+    assert run("build", src, out) == 0
+    acc = account_org()
+    for ns in ("bwss", "obsidian"):
+        doc = built(out, ns)
+        assert doc["namespace"] == ns and "namespaces" not in doc
+        plain = gen.decrypt(doc["ciphers"][0], acc)
+        assert [f["name"] for f in plain["fields"]] == [f"{ns}:id", f"{ns}:empty"]
+        assert plain["name"] == f"Login {ns}"
+
+
+def test_item_key_used(tree):
+    import bwcrypto
+
+    src, out = tree
+    run("build", src, out)
+    acc = account_org()
+    c = built(out)["ciphers"][0]
+    user_key = base64.b64decode(acc["userKey"])
+    assert "key" in c
+    with pytest.raises(ValueError):
+        bwcrypto.dec_string(c["name"], user_key)
+    item_key = bwcrypto.dec_string(c["key"], user_key)
+    assert len(item_key) == 64
+    assert bwcrypto.dec_string(c["name"], item_key) == b"Login bwss"
+    assert "key" not in built(out)["ciphers"][1]
+
+
+def test_org_cipher_uses_org_key(tree):
+    import bwcrypto
+
+    src, out = tree
+    run("build", src, out)
+    c = built(out)["ciphers"][2]
+    org_key = base64.b64decode(acc_org_key("org-a"))
+    assert bwcrypto.dec_string(c["Name"], org_key) == b"Org login"
+
+
+def acc_org_key(org_id):
+    return next(o["key"] for o in account_org()["organizations"] if o["id"] == org_id)
+
+
+def test_pascal_case_emitted(tree):
+    src, out = tree
+    run("build", src, out)
+    c = built(out)["ciphers"][2]
+    assert {"Id", "Type", "Name", "Notes", "Login", "OrganizationId", "xFlag"} <= set(c)
+    assert "name" not in c and "itemKey" not in c and "pascalCase" not in c and "extra" not in c
+    plain = gen.decrypt(c, account_org())
+    assert plain["name"] == "Org login" and plain["notes"] == "n" and plain["login"] is None
+
+
+def test_null_vs_empty_preserved(tree):
+    src, out = tree
+    run("build", src, out)
+    acc = account_org()
+    c1, c2, _ = built(out)["ciphers"]
+    assert c2["notes"] is None and c2["fields"] is None
+    assert c1["notes"] is not None and c1["notes"].startswith("2.")
+    p1 = gen.decrypt(c1, acc)
+    assert p1["notes"] == ""
+    assert p1["login"]["totp"] is None
+    assert p1["login"]["password"] == "pw-ünï-😀"
+    assert p1["fields"][1]["value"] is None
+    assert p1["login"]["passwordHistory"][0]["password"] == "old"
+    assert built(out)["ciphers"][1]["secureNote"] == {"type": 0}
+
+
+def test_invalid_source_names_file(tree, capsys):
+    src, out = tree
+    bad = {**FIXTURE, "bogus": 1}
+    (src / "read" / "fixture.json").write_text(json.dumps(bad), encoding="utf-8")
+    assert run("build", src, out) == 1
+    assert "fixture.json" in capsys.readouterr().err
