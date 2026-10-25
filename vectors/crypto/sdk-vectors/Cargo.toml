@@ -1,0 +1,14 @@
+# Generates COSE (EncString type 7) vectors with Bitwarden's own SDK, and
+# checks that the SDK accepts what the plugin encrypts. See main.rs.
+[package]
+name = "sdk-vectors"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bitwarden-crypto = { git = "https://github.com/bitwarden/sdk-internal", rev = "3d1643792b202961a84db83f6e45d9b5e2bb1ffe", features = ["no-memory-hardening"] }
+serde_json = "1"
+
+# Not part of any workspace.
+[workspace]
