@@ -21,9 +21,8 @@ a list of stale files otherwise):
 uv run vectors/gen/gen.py check
 ```
 
-The generator arrives in later commits; these are the intended commands.
 Run the tests with:
 
 ```bash
-uv run --with jsonschema --with pytest pytest vectors/gen -q
+uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi pytest vectors/gen -q
 ```

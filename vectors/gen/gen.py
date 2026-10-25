@@ -11,6 +11,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -112,7 +113,9 @@ def cmd_accounts(_args: argparse.Namespace) -> int:
 #       "login.passwordHistory[0].password"
 #   iv_for(seed, sid, ns, cid, "key")                 IV of the wrapped item key
 #   derive(seed, 64, sid, ns, cid, "itemKey")         the 64-byte item key
-# A cipher in operation.fresh uses the same labels with an extra "fresh"
+# A cipher in operation.fresh with the id of a cipher in ciphers[] that has itemKey
+# reuses that cipher's item key (re-wrapped with a fresh IV). Otherwise it uses the
+# same labels with an extra "fresh"
 # component right after <cid> (before <jsonpath>, "key" and "itemKey").
 
 
@@ -184,7 +187,9 @@ class _Encryptor:
         return bwcrypto.enc_string(plain.encode("utf-8"), self.key, iv)
 
 
-def encrypt_cipher(src: dict, account: dict, sid: str, ns: str, fresh: bool = False) -> dict:
+def encrypt_cipher(
+    src: dict, account: dict, sid: str, ns: str, fresh: bool = False, same_as: dict | None = None
+) -> dict:
     """Server-shaped cipher from a plaintext one (``{ns}`` already expanded)."""
     seed = base64.b64decode(account["seed"])
     owner = _owner_key(account, src.get("organizationId"))
@@ -194,7 +199,11 @@ def encrypt_cipher(src: dict, account: dict, sid: str, ns: str, fresh: bool = Fa
         if k in src:
             out[k] = src[k]
     if src.get("itemKey"):
-        item_key = bwcrypto.derive(seed, 64, *e.base, "itemKey")
+        if same_as is not None and same_as.get("itemKey"):
+            # a server keeps the item key across edits: reuse the original's
+            item_key = bwcrypto.derive(seed, 64, sid, ns, src["id"], "itemKey")
+        else:
+            item_key = bwcrypto.derive(seed, 64, *e.base, "itemKey")
         out["key"] = bwcrypto.enc_string(item_key, owner, bwcrypto.iv_for(seed, *e.base, "key"))
         e.key = item_key
     else:
@@ -274,11 +283,16 @@ def render_scenario(src: dict, ns: str, account: dict) -> dict:
         out["local"] = body["local"]
     if "device" in body:
         out["device"] = body["device"]
+    ids = [c["id"] for c in body["ciphers"]]
+    dupes = sorted({i for i in ids if ids.count(i) > 1})
+    if dupes:
+        raise GenError(f"duplicate cipher ids: {', '.join(dupes)}")
     out["ciphers"] = [encrypt_cipher(c, account, sid, ns) for c in body["ciphers"]]
     if "operation" in body:
         op = dict(body["operation"])
         if "fresh" in op:
-            op["fresh"] = encrypt_cipher(op["fresh"], account, sid, ns, fresh=True)
+            original = next((c for c in body["ciphers"] if c["id"] == op["fresh"]["id"]), None)
+            op["fresh"] = encrypt_cipher(op["fresh"], account, sid, ns, True, original)
         out["operation"] = op
     out["expect"] = body["expect"]
     return out
@@ -316,28 +330,80 @@ def render_all(
     return files
 
 
-def _existing(out_dir: Path) -> set[str]:
-    if not out_dir.is_dir():
+NAMESPACES = ("bwss", "obsidian")
+
+
+def _walk_json(root: Path):
+    """Regular ``*.json`` files below ``root``; symlinks are never followed."""
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        dirnames[:] = [d for d in dirnames if not (Path(dirpath) / d).is_symlink()]
+        for name in filenames:
+            path = Path(dirpath) / name
+            if name.endswith(".json") and not path.is_symlink():
+                yield path
+
+
+def _is_ours(path: Path) -> bool:
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    gen_tag = doc.get("generator") if isinstance(doc, dict) else None
+    return isinstance(gen_tag, str) and gen_tag.startswith("dybw-vectors-gen")
+
+
+def _owned(out_root: Path) -> set[str]:
+    """Generated files below ``out_root/<ns>/``. Refuses a directory that holds
+    ``*.json`` files outside those subtrees (a wrong ``--out``)."""
+    if not out_root.is_dir():
         return set()
-    return {p.relative_to(out_dir).as_posix() for p in out_dir.rglob("*.json") if p.is_file()}
+    ns_roots = {out_root / ns for ns in NAMESPACES}
+    for ns_root in ns_roots:
+        if ns_root.is_symlink():
+            raise GenError(f"{ns_root} is a symlink")
+    foreign = []
+    for dirpath, dirnames, filenames in os.walk(out_root, followlinks=False):
+        here = Path(dirpath)
+        dirnames[:] = [
+            d for d in dirnames if (here / d) not in ns_roots and not (here / d).is_symlink()
+        ]
+        foreign += [here / n for n in filenames if n.endswith(".json")]
+    if foreign:
+        raise GenError(
+            f"refusing to use {out_root} as output: it holds JSON files outside "
+            f"{'/'.join(NAMESPACES)} subtrees, for example {foreign[0]}"
+        )
+    owned = set()
+    for ns_root in ns_roots:
+        if ns_root.is_dir():
+            owned |= {
+                p.relative_to(out_root).as_posix() for p in _walk_json(ns_root) if _is_ours(p)
+            }
+    return owned
 
 
 def build(src_dir: Path = SRC_DIR, out_dir: Path = OUT_DIR, accounts_dir: Path = ACCOUNTS_DIR):
-    """Write every generated file and remove stale ``*.json`` under ``out_dir``."""
+    """Write every generated file and remove stale generated files under
+    ``out_dir/<ns>/`` (only files whose ``generator`` marks them as ours)."""
     files = render_all(src_dir, accounts_dir)
     out_root = out_dir.resolve()
+    stale = sorted(_owned(out_root) - set(files))
     for rel, text in files.items():
         target = out_root / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
-    for rel in sorted(_existing(out_root) - set(files)):
-        stale = out_root / rel
-        if stale.is_file() and stale.suffix == ".json" and stale.is_relative_to(out_root):
-            stale.unlink()
-            print(f"removed {rel}")
-    for d in sorted((p for p in out_root.rglob("*") if p.is_dir()), reverse=True):
-        if not any(d.iterdir()):
-            d.rmdir()
+    for rel in stale:
+        (out_root / rel).unlink()
+        print(f"removed {rel}")
+    for ns in NAMESPACES:
+        ns_root = out_root / ns
+        if ns_root.is_dir() and not ns_root.is_symlink():
+            dirs = [
+                Path(d) for d, _, _ in os.walk(ns_root, topdown=False, followlinks=False)
+            ]
+            for d in dirs:
+                if not d.is_symlink() and not any(d.iterdir()):
+                    d.rmdir()
     return files
 
 
@@ -353,7 +419,7 @@ def check(
             problems.append(f"missing: {rel}")
         elif path.read_bytes() != text.encode("utf-8"):
             problems.append(f"differs: {rel}")
-    problems += [f"stale: {rel}" for rel in sorted(_existing(out_dir) - set(files))]
+    problems += [f"stale: {rel}" for rel in sorted(_owned(out_dir.resolve()) - set(files))]
     return problems
 
 

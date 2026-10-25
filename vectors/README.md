@@ -104,12 +104,21 @@ The source object with these differences:
 - `namespaces` is replaced by `namespace`, a string (`bwss` or `obsidian`);
   the file lives at `vectors/generated/<namespace>/<id>.json`;
 - `generator` (string) records the generator version;
-- `{ns}` is expanded everywhere;
+- `{ns}` is expanded in every string (and object key) except the top-level
+  `id` and `sections`; there is no escape for a literal `{ns}`;
 - every `ciphers[i]` (and `operation.fresh`) is a server-shaped cipher:
   - every string the server stores encrypted (`name`, `notes`, login
     `username`, `password`, `totp`, URIs, field names and values, history
     passwords) is an EncString of type 2, `2.<iv>|<data>|<mac>`;
-  - `key` is the per-item key (an EncString) when the source set `itemKey`;
+  - `key` is the per-item key when the source set `itemKey`: 64 bytes wrapped
+    as an EncString of type 2 under the owner key (the user key, or the
+    organization key when `organizationId` is set), and all the cipher's
+    strings are then encrypted under the item key. A `fresh` cipher with the
+    id of a cipher in `ciphers` reuses that cipher's item key;
+  - the source's `login.passwordHistory` moves to the cipher's top-level
+    `passwordHistory` (`PasswordHistory`); `login.uris[].match` is always
+    `null`; a type 2 cipher has `secureNote: { type: 0 }`;
+  - cipher ids are unique within `ciphers`;
   - keys are camelCase, or PascalCase (`Id`, `Name`, `Login`, `Uris`, ...)
     when the source set `pascalCase`; both spellings are accepted by the
     schema, and a cipher uses one of them;

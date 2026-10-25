@@ -415,7 +415,7 @@ def test_check_detects_stale(tree):
 def test_check_detects_extra_file(tree, capsys):
     src, out = tree
     assert run("build", src, out) == 0
-    (out / "bwss" / "read" / "old.json").write_text("{}\n")
+    (out / "bwss" / "read" / "old.json").write_text('{"generator": "dybw-vectors-gen 0"}\n')
     assert run("check", src, out) == 1
     assert "stale: bwss/read/old.json" in capsys.readouterr().out
     # build removes it again
@@ -499,3 +499,93 @@ def test_invalid_source_names_file(tree, capsys):
     (src / "read" / "fixture.json").write_text(json.dumps(bad), encoding="utf-8")
     assert run("build", src, out) == 1
     assert "fixture.json" in capsys.readouterr().err
+
+
+def test_build_refuses_foreign_json(tree):
+    src, _ = tree
+    out = src.parent / "wrongout"
+    out.mkdir()
+    (out / "x.json").write_text('{"keep": true}\n')
+    assert run("build", src, out) == 1
+    assert (out / "x.json").read_text() == '{"keep": true}\n'
+    assert not (out / "bwss").exists()
+
+
+def test_orphan_removal_only_ours(tree):
+    src, out = tree
+    run("build", src, out)
+    (out / "bwss" / "foreign.json").write_text('{"a": 1}\n')
+    assert run("check", src, out) == 0
+    run("build", src, out)
+    assert (out / "bwss" / "foreign.json").exists()
+
+
+def test_symlinked_dir_not_followed(tree, tmp_path):
+    src, out = tree
+    run("build", src, out)
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    victim = other / "v.json"
+    victim.write_text(json.dumps({"generator": "dybw-vectors-gen 1"}))
+    (out / "bwss" / "link").symlink_to(other, target_is_directory=True)
+    run("build", src, out)
+    assert victim.exists()
+
+
+def test_duplicate_cipher_ids_rejected(tree, capsys):
+    src, out = tree
+    dup = {**FIXTURE, "ciphers": [FIXTURE["ciphers"][1], FIXTURE["ciphers"][1]]}
+    (src / "read" / "fixture.json").write_text(json.dumps(dup), encoding="utf-8")
+    assert run("build", src, out) == 1
+    assert "duplicate cipher ids" in capsys.readouterr().err
+
+
+def test_fresh_keeps_item_key_and_round_trips(tree):
+    import bwcrypto
+
+    src, out = tree
+    fresh = {**FIXTURE["ciphers"][0], "name": "Fresh {ns}"}
+    doc = {**FIXTURE, "operation": {"kind": "set-value", "id": "c1", "value": "v", "fresh": fresh}}
+    (src / "read" / "fixture.json").write_text(json.dumps(doc), encoding="utf-8")
+    assert run("build", src, out) == 0
+    acc = account_org()
+    built_doc = built(out)
+    orig, fr = built_doc["ciphers"][0], built_doc["operation"]["fresh"]
+    user_key = base64.b64decode(acc["userKey"])
+    assert bwcrypto.dec_string(fr["key"], user_key) == bwcrypto.dec_string(orig["key"], user_key)
+    assert fr["name"] != orig["name"]
+    assert gen.decrypt(fr, acc)["name"] == "Fresh bwss"
+    assert gen.decrypt(fr, acc)["login"]["password"] == "pw-ünï-😀"
+
+
+def test_pascal_full_cipher_round_trips(tree):
+    src, out = tree
+    full = {**FIXTURE["ciphers"][0], "pascalCase": True}
+    full["id"] = "p1"
+    doc = {**FIXTURE, "ciphers": [full]}
+    (src / "read" / "fixture.json").write_text(json.dumps(doc), encoding="utf-8")
+    assert run("build", src, out) == 0
+    c = built(out)["ciphers"][0]
+    assert {"Login", "Fields", "PasswordHistory", "Key"} <= set(c)
+    assert set(c["Login"]) == {"Username", "Password", "Totp", "Uris"}
+    want = gen.decrypt({k: v for k, v in c.items()}, account_org())
+    assert want["login"]["uris"] == ["https://example.invalid"]
+    assert want["login"]["passwordHistory"][0]["password"] == "old"
+    assert [f["value"] for f in want["fields"]] == ["token", None]
+
+
+def test_item_key_org_cipher_under_org_key(tree):
+    import bwcrypto
+
+    src, out = tree
+    c = {**FIXTURE["ciphers"][2], "id": "o1", "itemKey": True, "pascalCase": False}
+    doc = {**FIXTURE, "ciphers": [c]}
+    (src / "read" / "fixture.json").write_text(json.dumps(doc), encoding="utf-8")
+    assert run("build", src, out) == 0
+    got = built(out)["ciphers"][0]
+    org_key = base64.b64decode(acc_org_key("org-a"))
+    item_key = bwcrypto.dec_string(got["key"], org_key)
+    assert len(item_key) == 64
+    assert bwcrypto.dec_string(got["name"], item_key) == b"Org login"
+    with pytest.raises(ValueError):
+        bwcrypto.dec_string(got["key"], base64.b64decode(account_org()["userKey"]))
