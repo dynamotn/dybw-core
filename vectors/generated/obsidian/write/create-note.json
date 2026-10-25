@@ -1,0 +1,48 @@
+{
+  "id": "write/create-note",
+  "spec": "1.5",
+  "sections": [
+    "§6.2"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [],
+  "operation": {
+    "kind": "create",
+    "id": "alpha",
+    "value": "alpha-secret",
+    "folderId": "f1"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "POST",
+          "cipher": null,
+          "type": 2,
+          "name": "alpha",
+          "notes": null,
+          "login": null,
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "alpha-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": "f1",
+          "lastKnownRevisionDate": null,
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

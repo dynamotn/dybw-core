@@ -1,0 +1,68 @@
+{
+  "id": "write/note-body",
+  "spec": "1.5",
+  "sections": [
+    "§5",
+    "§6.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.R/6UzmmXSjCdnTH9L9r/Xw==|Jgm5F3QDlazP7u/YzX+9/g==|4ys2dg+UOygxlxn9Ra18vYOXOp8IQLIW/ndzsakchEE=",
+      "notes": "2.e7OSVgrFLcAln+ilSfsVDQ==|EC1W/WIwWmH/E40ZcrVb4w==|18wn6usPrQEjt1vUfjfH5Cfr2awHhzPniFprLjOK9K0=",
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.vIcHj/YbCQqcj6W3jUajfw==|GHWvSYAvef5WWU339//Cpw==|QgsGx3yWWHH1vreYbm3wQ9LPnmBflG4yhxOemb8lM9k=",
+          "value": "2.EEmPvlNNhmkKrFsrxCwlwg==|pflXvoE5fnok8EDXASJizQ==|2V7UTNaqNyzd6up9yTJTOXgkcLqw5noUpAWWcky/IZA=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new body"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": "new body",
+          "login": null,
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

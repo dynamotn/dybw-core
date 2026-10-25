@@ -1,0 +1,73 @@
+{
+  "id": "write/delete-strips-then-trashes",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§8.2"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note c1",
+      "notes": "the secret",
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:location",
+          "value": "notes",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:service",
+          "value": "example",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "delete",
+    "id": "alpha"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": null,
+          "login": null,
+          "fields": [],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        },
+        {
+          "method": "trash",
+          "cipher": "c1"
+        }
+      ]
+    }
+  }
+}

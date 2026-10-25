@@ -1,0 +1,95 @@
+{
+  "id": "write/item-key",
+  "spec": "1.5",
+  "sections": [
+    "§4",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "key": "2.0ERSrII7KA6Qit5GOVVSwQ==|Fec4/GfDfpgPabJU5qPja+C+M8IVUGE9hlqhQaUNHQXMSvhICjPoFIb9BPqOuYrdqh/1yBas4CiGgzZv1wKhBipc0ex74s8r33iySKhOMSQ=|DQtSeoQlBTcMZks5ufTEdtAgbP0jYk2+Xk5rze8Xh0M=",
+      "name": "2.u/pdFNP53oe/fP+z6RY0vg==|CRu4XEM9lJNyD8Vbrp99XQ==|w0kIssi9FmSofPmX6UcAxD+elyYw0UZUrwbH3QlbcpY=",
+      "notes": null,
+      "login": {
+        "username": "2.fU3KKj6Isi/Gc8viDac/Rg==|rAUECTo8BtzoO+49QttupA==|4CK8rTQqqHSrYGphfM64oKqNQkkn3jhOxniEatcexcs=",
+        "password": "2.tmyJaQjp5Jk/XYee3DYIZw==|c4D4fKUYroGtvWMzgplyYQ==|H3S0l1hSCdcZ7zcCpFS64C9FngssXioBfMT6S1PzbEM=",
+        "uris": [
+          {
+            "uri": "2.vNyEYYd5S3kIf/f5/pLukw==|uVKEnHsXcM8D+6hZXIeh32AGBLCG5Y0cU92Q7V9i0HU=|V7MQjx63y0PyFxpamDHaaS5RkJr84/vvarDrnHZuLOw=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.67F1nZxgEABmVHYDAcKs/A==|xD5631N1fQLMihVnBFoTOA==|ho8rN/TRNtUsRfagCGdOtlZz4CiHyrKCaHKvOsNzXFU=",
+          "value": "2.JV47ijRxiqQQ0gm6g1qwRA==|3R3kLb14angxUfdnr24n5w==|etKGjDpELV/oy7w4QnUj0RnaV0feH7JT0l2dip3tffg=",
+          "type": 0
+        },
+        {
+          "name": "2./Lxy0fxR16NqmxHUZuyFxg==|BCxHGTBlmJPIgoIdMHP99g==|vKVZZOrHqx247loNJ45oswRkg3txtg1a//l+43uEFic=",
+          "value": "2.gq94YFA39T84gbcXkqlH0A==|dWJiCflfNTUCkF46G3glgQ==|hlHj/4qVeDTNid1ElVNiMAPLxmZsnMGYSTR0PwH5EvU=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "bwss:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

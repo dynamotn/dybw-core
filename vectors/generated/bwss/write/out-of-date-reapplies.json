@@ -1,0 +1,130 @@
+{
+  "id": "write/out-of-date-reapplies",
+  "spec": "1.5",
+  "sections": [
+    "§6.5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.fUHPmpNIwJfKLyvDngon+w==|p5rvSvvuncddFYeAGsvzeg==|LL9Sm4aQzkhmSM1PAImy4TzOl02AehtibzomAkGWDsE=",
+      "notes": null,
+      "login": {
+        "username": "2.juULZzrqhfYTuxFg/Jb1Vg==|zW9vGdPI37uZsnbEx3q1ZQ==|2k0jI/nqObToVmCSDooYGrrk1yG+zBe6YE9mVUJM2cA=",
+        "password": "2.xrZbxySXUGHlS5FIaT926g==|9FDDQ9wml0R1TRSGG45iWg==|6z8c0qiDOB4+YBhuztXs4MuH7f+yV33MDIgsCwVy8gU=",
+        "uris": [
+          {
+            "uri": "2.G7VikSfDNGS44IlHoDKmdA==|+kEocNJVRBNsH9J5+34WoidbJP4i9o/CswJg1Z8aXFE=|KYJWw02A7fkGWyiUzKzpN+pJ9VXh1Hodi07M3RvwpoU=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.+DbCl7nMpJYI/gO+CkKTMA==|PHTdQyFf/IW7+DJAZ2fjNA==|y8rvJ1I8m0FOng9zmNViRHXgOMROyq5+wUgG3MPiaKM=",
+          "value": "2./MFZ2s/Dz+CWutD89jGBEw==|gy3uBW9v8t85j0o22ZR66A==|7o4bK4UF2Qt9EQRCpqRCxM7vGzaDi0QJnXWMT2x/Df0=",
+          "type": 0
+        },
+        {
+          "name": "2.sYbGzs1exHvwcgO3pFXw5Q==|KD9xkgtDDEHbSOGNrVOIxQ==|1Tfxl/55J8eu1K+mKQG/1hlfVE6RU/3rEuFUW7H6dr0=",
+          "value": "2.b7GnyczVU/p8dOpon4S5EQ==|J0unpf/1yQqyGn9GBv4lyw==|z9OsbpzP0YE60nug4AWTrhVTbjg69Uq1qerPkAOaJjE=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret",
+    "fresh": {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.67ZuZMexyWrtLpFUj0oezA==|J8zxsuv8rjR6viQWrg5ALp9mG+3g8KNHXnVHxyJT8qw=|7cQ/IJ9+tyow17Xa12RW9WWen4xp60mar1RQieL0uBc=",
+      "notes": null,
+      "login": {
+        "username": "2.otz9WLtJ1MLWuDdhx4S6sQ==|qCssEYQ6ipCoyr3oaqLntA==|HxqKaCDpJhwnwO8oEs8uQpThfo5h8oHcz9qkEv/o/8I=",
+        "password": "2.5VCfFaczkmrSMdmA5JJSxg==|sknAvCYlj6Hc5O84KLOsBg==|84YG8VySlCEgb2zVX0af2Yw3+5zCyiT/tThKFntgk2Y=",
+        "uris": [
+          {
+            "uri": "2.00np/Kl5Fi4Vlqz972s6KQ==|2KTbSr141EcPKHY3CegaGw5/ddWxUsyyl7gb+0eVqLA=|427VFYQx8prh4RGNmqmIP+ZES/EfTlzpqIqSqKaqh1E=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.NKU8UPl8CEQ2lI860txgJw==|U1OXrIxSyZVeRIH7hRhKEg==|SuC3SQHzOs/lhUwdLuKxsKPjKG4ehn2rAk685oEvC2I=",
+          "value": "2.0hybhWuRzm74/jFaP6JTiw==|TBzrbclc6CdeJRcjwhjhQw==|EuFWFB2lhUfG59e+5jDgfCimZ1oROLrNGlPXx1mokeI=",
+          "type": 0
+        },
+        {
+          "name": "2.VAy6FL6tITdLUIGp9OFN5g==|VQxZtJSVBpogDLl0X/bIHQ==|HW68LJe0EKDoqPU/bwWVRgZOdeEq+VuvEoc5xhgcxRk=",
+          "value": "2.gliTw87Gat+d4xcENBxmaA==|O2tT97nZyluCjHvQVpgCTQ==|gmJURQEKKJevMO6joUiNv/2Uf6y1ZWKIW+HHAaCBi1c=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Renamed elsewhere",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "bwss:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-02-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

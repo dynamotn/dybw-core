@@ -1,0 +1,126 @@
+{
+  "id": "write/out-of-date-reapplies",
+  "spec": "1.5",
+  "sections": [
+    "§6.5"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "old-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret",
+    "fresh": {
+      "id": "c1",
+      "type": 1,
+      "name": "Renamed elsewhere",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "old-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Renamed elsewhere",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "{ns}:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-02-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

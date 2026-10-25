@@ -1,0 +1,130 @@
+{
+  "id": "write/out-of-date-reapplies",
+  "spec": "1.5",
+  "sections": [
+    "§6.5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.6VuFqxeZB6msdCqQ+iFE+A==|UpkxIHFr8gL3fPrIRYsyEg==|uvKoDchgqOKfoH9wLtCiJAKG9bOxx4pY5rf+/15nVyc=",
+      "notes": null,
+      "login": {
+        "username": "2.h0ZnzWoW9f9vGe9U0xNHLQ==|inFSBc681u7LLTpSA12vBQ==|QTAN7sxpGIj2uv2I9CO3ogQPvqsDE+1s/MKEE78LaV4=",
+        "password": "2.VkuA98EHx45/zjlm6NhuIQ==|U5ItWxReQY0xGVm+CJoQ+A==|D3d+AE5qesZlutvBaAIFPXhCaxJWUPz/pBmscMXdipE=",
+        "uris": [
+          {
+            "uri": "2.6p4UnzVS6Xx4fq4qPCw+EA==|/yto0dr9Sndq4qGzXvyV8hw42kXPTvvezXICN+Z6oWY=|pZ2eD4fBrfRcNByQrW8/cy44bSXpXkJgWTwnVUQ2c5M=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.hZ9J8L/5+3RgaRMh+YS31w==|QhBjbkkpZIRTKVSaVtY3ZQ==|359xATKrwny2wAUizHaTS4g+ZFnY1S61fp32YNqbk0c=",
+          "value": "2.PFwJE044KnroBZF8erwd7w==|oOb39jHROOQnXSz1CVoZOw==|swFH8Tdecly5ZC7rYo4AFJeeHAvPAJGpzQq2hp8xE7o=",
+          "type": 0
+        },
+        {
+          "name": "2.IjK0mbRfDfVzDz3jqq2yrA==|H4qd2ecWsG2NBx6Fs6FdMOQXngDQhofla7UWVm2JHu0=|IAApKUpzID31szpSb0pxUojArypuM4DJZyYd8PkVC5A=",
+          "value": "2.hmwD18DQnNrgJhT96kI2gg==|7itJ2RUhoskMTSFkg/itww==|M+btkg47cuLVwMrWfyMYA2nGMCmMBuowphVYskAOEWE=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret",
+    "fresh": {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.f+w5r0tOC7M1T5xYj9aHBg==|cDnpHP1o5rJ0xTR7D4DRqwZQYAj6xneYmTQtN7pvmvM=|yAQyLZvD3H8YMUrPe7JTw5UG85xC0ICsxxIfTHgY44g=",
+      "notes": null,
+      "login": {
+        "username": "2.TofG3+q/1WtKdbauWVBuqw==|LMeD/lFQqg2APt5IqQx3pQ==|1Jq6qix7K7YZpk+52nnzTaifDaeSi98BibV+yxmc5xk=",
+        "password": "2.J+zCVJITIL8Iv4SzanVO+w==|p/+66zvBRO3OFJNmr/KeEg==|GGQbY/cuEcZMp8z6lCzsO96R0w9LfUZeMvsQ17/GmvQ=",
+        "uris": [
+          {
+            "uri": "2.d+5EQ9VZW8cD5hJuWUBmZw==|9tra4xhgOq/LB8rbutUsFqeRO6Mhgukdr5sHaC92buQ=|xJiE2IeOJ0U/Bcirv7DZUs6hL7kruC0Os44zhTtzA94=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.7ePuBHQCWcpBk40TsTU4vg==|8alXnXfkGsxsPOFxyCSJ+g==|lEsxoF/WfNrCb1JzjNDo9+lv15JZlQkuPB6IvULJe8s=",
+          "value": "2.tBWo8xdD/EcpMwBgGxQOwQ==|TISyWU37eXw1hSjjUMU9mg==|oOZ98WGk8ZNAsuDYtshZbWsGB4SEEOI3Wiq9wLi/o5k=",
+          "type": 0
+        },
+        {
+          "name": "2.KA1TymUJfuVqWTCyWcP4lw==|TCm8K3PU5jDmShDtV0NyAvSIpKaPdG0OidSiYCBOQWQ=|zy9K7EADZoU+olNvzj7auAFK/fpnYp6IDdNCTP9EyoU=",
+          "value": "2.XrGEJyGusZ271NQyZrtVdQ==|a54Vxg/CwKnPjIUFTBsJwQ==|hJT2ewSODrf1XFxCpkEAlSH431g5fVpJDS4KP1ma3Yk=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Renamed elsewhere",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-02-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

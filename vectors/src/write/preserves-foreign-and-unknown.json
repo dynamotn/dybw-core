@@ -1,0 +1,164 @@
+{
+  "id": "write/preserves-foreign-and-unknown",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": "user notes",
+      "login": {
+        "username": "me",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid",
+          "androidapp://example.invalid"
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-1",
+            "lastUsedDate": "2025-12-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "plain",
+          "value": "no namespace",
+          "type": 0
+        },
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "pam:id",
+          "value": "other-tool",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "old-secret",
+          "type": 1
+        },
+        {
+          "name": "{ns}:future",
+          "value": "unknown own field",
+          "type": 0
+        },
+        {
+          "name": "pam:password",
+          "value": "foreign-secret",
+          "type": 1
+        }
+      ],
+      "folderId": "f1",
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true,
+      "extra": {
+        "xArchivedDate": "2026-03-01T00:00:00.000Z",
+        "xFuture": {
+          "kind": 7,
+          "list": [
+            1,
+            "a",
+            null
+          ]
+        }
+      }
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": "user notes",
+          "login": {
+            "username": "me",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid",
+              "androidapp://example.invalid"
+            ],
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "passwordHistory": [
+              "old-1"
+            ]
+          },
+          "fields": [
+            {
+              "name": "plain",
+              "value": "no namespace",
+              "type": 0
+            },
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "pam:id",
+              "value": "other-tool",
+              "type": 0
+            },
+            {
+              "name": "{ns}:password",
+              "value": "new-secret",
+              "type": 1
+            },
+            {
+              "name": "{ns}:future",
+              "value": "unknown own field",
+              "type": 0
+            },
+            {
+              "name": "pam:password",
+              "value": "foreign-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": "f1",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {
+            "xArchivedDate": "2026-03-01T00:00:00.000Z",
+            "xFuture": {
+              "kind": 7,
+              "list": [
+                1,
+                "a",
+                null
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

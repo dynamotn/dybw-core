@@ -1,0 +1,59 @@
+{
+  "id": "write/oversize-refused-user-notes",
+  "spec": "1.5",
+  "sections": [
+    "§6.4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.NY/wZl52AEZdzu8E8DO7Sg==|fbgzv8L4vAxcLdOwhJ8j+A==|TlAZA/QsVpuOJCYPX25WCx8z/6JHmUws4eP9Pc0ip5c=",
+      "notes": "2.bGsG5Z8WUEH6EMYxk61WAw==|Oivhrl+aeuc0jIcixFeU0A==|ImcX2OdKPgdzp3VR5b2O1UELMIBORKkG29TbfyLIi+c=",
+      "login": {
+        "username": "2.0/qvxGK4vVGBQcd2XvaKBQ==|bJUIQjtcic738i2IJI0xPQ==|LSG+1RiH23BCPYVAD20ZZyoshKDEPdkaoYlhgApe79Y=",
+        "password": "2.9ag4d+TGb8j5oHQ241X+/w==|LM7H7QYUj5LK7Efqmisz8Q==|jOQR9UiIrTsoQUjaUKOS9HzFI2jhG691L5ub4KMo3bs=",
+        "uris": [
+          {
+            "uri": "2.yLtvrRz970wbmgzqAM5WMg==|GNr6c5gMm+Gbm3ZAjcE694fmgwMkFxxnQccORGIAZjY=|cUqcawAQWA5OZSS+of9p4YM9WaK1dK6HwfSYN0bXDCY=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.ou99xpCFoK04lVW7tGrh/A==|cG/jp7d7YGxetpBN3NXhgw==|m4gqh3n5ttr5cw/rFB+BgJE3sLRsrUpfT4HWG3mJM/c=",
+          "value": "2.vxWET6JIQ/KxVPfNxV9mMg==|30/Iia3iw2ySIup1hMQZFA==|uw92b9GXOS2EggGDbQISdWWEOZ7KsRnAaHnS4zehHfc=",
+          "type": 0
+        },
+        {
+          "name": "2.qgWQgy07N6tw+WAAJjuBLw==|dXAtrwJzQjErwjPc5Ywoa6misTsMPfnK8picbJHB/rY=|0jkicI+JUSmVFnj4eej3zsNPN4aQ/ACBD0NQA49upxU=",
+          "value": "2.lEC6dcjrvNgNhDlLHEuDSw==|76l4G2MhZkC+3W457UZigA==|oMdg6xFKU8yQOu5cSV/tHrXl8nWyEz0BFpstQ49jXkA=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "expect": {
+    "write": {
+      "error": "notes-hold-user-text"
+    }
+  }
+}

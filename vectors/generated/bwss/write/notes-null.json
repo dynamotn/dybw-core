@@ -1,0 +1,93 @@
+{
+  "id": "write/notes-null",
+  "spec": "1.5",
+  "sections": [
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.Cx49h2U1x3vDIt+1AoDuZw==|0s9yFheZktgZ7wxYjZVBdA==|9KMSYIrfFEkRM4mCHaAbF126XcmM7nEkesKIl02O/6k=",
+      "notes": null,
+      "login": {
+        "username": "2.k9mMVLTkYp9huaID0RuZPw==|GAdTP9/Zwe17bxUJrmAcpw==|/3SQ9XqgMx4kArc3XT5wDTFhIjAMGJybs8hgTmDWdug=",
+        "password": "2.nt39kNFe6pGcDUe3Wj1u5A==|cE9hgyywBVyLPa3AFfOb0A==|Bcbuk6p7k302IhmIuOhn6gpAVJCPvb/uGyNgN+dSJmM=",
+        "uris": [
+          {
+            "uri": "2.qp9jIxrbChRVw3nTLVkVeg==|3HYtqGYoOHm0gqJGwUaoFzzuT8AueuhMMqrBAhn5iZU=|frGIcZnhB5k3vz1IV0oXtMExWuCocPGVaRWceqjtZ0Q=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.7vg1R2nd+vILVi0prkJ8bw==|sf2j5O+BCWyye/lLk3ExEQ==|IGuIcssZ2dVd9qWJDF3mYq49cVxfShhxMPL7QC2WVTk=",
+          "value": "2.btWKaDaWhCzPspP8x8Rmmg==|5twZ3+68NPkgSmuguuWl0A==|CGsB2BXrkokq6+absFB5w1sZ2vSo0E/6/nERhl8ycn0=",
+          "type": 0
+        },
+        {
+          "name": "2.o+nQJc7DdOGSGvEHpHdG0Q==|p2MYHs3IhDebIO0un63tEQ==|AM1wvBh8cw9LFVPtuFAWCIV2WV1POuu81iNoYNAcWIo=",
+          "value": "2.UkqpLP/XybuaXs1bonf5dQ==|t7EKxkZL5KE6AteF4UMK4Q==|kljTaKKH60GuNjgVO1kfReKmJ6QI15eeqH9PH0019vY=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "bwss:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "id": "write/location-notes",
+  "spec": "1.5",
+  "sections": [
+    "§5",
+    "§6.1",
+    "§6.4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.c9NSQ0H0Qu8SXgtk1/HOPA==|nABZMGlzMGNzwu15Fk/SFA==|1rzkkzyBXLJfEDlqEXJFSfkb2hNr7XBOlv5933gDSBA=",
+      "notes": "2.sYruq8vgfq1w4GXATPrHqw==|gj7kqVLo0aJQLcPwoM4FMw==|nzL9bnI4ZPNPp6P/h/gTwvNBlr2NKWrsTBDYEVIwSLM=",
+      "login": {
+        "username": "2.sFpWwXo2E/XCdTkUQgVO0g==|OfdJu8rS46OmjtWL0vN/sw==|WzjAVEruz3btsxIvCBce2Vf68TKmVlkEA91RMy0kwJM=",
+        "password": "2.SymlN3CfLIzajmaRAQlHHg==|SqKZYeMMr40+djc2spZDxQ==|hW8csXbcPZRKTo4eYoaTuVqsG9KtQv6fTHAdEZdX+Yw=",
+        "uris": [
+          {
+            "uri": "2.8B3MfPNsyjmKKgSv5NDvUw==|cXyZLz5DxLCPyXoc4H6GxDXN2BxcSTT/4NDcXMer4Wo=|wPwFlSXZTuRTktJqqwNJwPsSr5/0jcEPkSOIAKRkTlM=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.xcksT7C2aYbLRLJA1Ffnxg==|AlDRf8XincKpnk1JgSu5vA==|qarQiLigJfIrVL7s9ZsVwNHqSYbZRlvqM+XCiGyKHAU=",
+          "value": "2.rkAuBXndQ/Y9cthC5Kr1ig==|3z46/5uuy/I83a/v1anUhQ==|CudNdbSbvUJ1KecXN8u/f+DesSOjXSOWQq2oXj1AcPU=",
+          "type": 0
+        },
+        {
+          "name": "2.ob75/MnwOevq9L12ToTWaw==|zpwqeN35Kv3oFDdE6fUKSwt5HGUSmNKb9RGMnRzUVlQ=|0v6slluxNrlXp3riAfiiF0Ug4JvbGPz+2jttCxmWN4I=",
+          "value": "2.HdVx1fefu3DgBf3vegy+2Q==|GlHSBEuqSbjvm6l9o9p01A==|sADDzMHdFHqcsuW/myS1E98Er1AlLXRv80ILXl5Wqt8=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": "new-secret",
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "obsidian:location",
+              "value": "notes",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

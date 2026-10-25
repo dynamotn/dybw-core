@@ -1,0 +1,115 @@
+{
+  "id": "write/fits-again-clears-stale-notes",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§5",
+    "§6.4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.5SaxeRMkdBEDK7JqjjILHQ==|qGurfgXQ3YjyYVSmDZBi3Q==|cc9XG00Nqrw9sNfHREEGH1Tb3fE2ZsuJU1b23UnUUCA=",
+      "notes": "2.ChdYCUQrKwobE0zoQiBRyw==|ccYXpb8i3qkYLEmCGRMFjg==|spAXqYjWCSSSeUIF9sRiUAKRgCjTWvh8+fl/jwF6NCM=",
+      "login": {
+        "username": "2.gfu/9ut7kYrI54zDtx1sAg==|SfCGpmBfxRXfdXVFfhGdDw==|8kSgvaI4wc7es69Fe+bxgVI8RbZ914G0l+q7fA3gLAM=",
+        "password": "2.GU36rDgnw639leN30ogoLg==|uPXzmlb1KF5bkJRWT6oCmg==|1b6nrTWfkr4I8WqfyIGaw+HBZSSj/AJsn9cAASX4p6A=",
+        "uris": [
+          {
+            "uri": "2.LSblJceBdSCgNiC1rBB4Wg==|0mW3z7GdOOge9l8xqQHtHxCg201cP8QVFZuL1WaSziM=|KOIDwZPaBykgYRENTRTIqGc+PK7NMtIZA6bXKzbm15w=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.OnSd2Hh4M8NKqgLdHZAW2Q==|m+rV2E5Hyr4GV3ruK09GSg==|vryAjDsZsaLV04E+vGemPYorg9CdQ5n/kKL88xIg6ho=",
+          "value": "2.jByTayeU2oN52gj/V+OGCg==|SCGrsph4jJkIlXC3D3717Q==|6QqYMMQnBFYpmofVyEqNPc0hKWOrNSfemxAhoSU/V+A=",
+          "type": 0
+        },
+        {
+          "name": "2.gVjn7pdqb18MJIP8jGqL6w==|l2YEQXsv+Pyimvk/UUfMGA==|b/u7WpQfG6g2jPb0nsaAzRzgGxS6dS26WbdtV7F25EA=",
+          "value": "2.YgfK+6mONDvsvLvn+PjXKw==|zbykjjzN760xxvEgaQMQNw==|bW4Q1CnkkQK2FednDUoerfQDm8j8di+JfjGGBuzAIOc=",
+          "type": 0
+        },
+        {
+          "name": "2.XXXT/PL9Sf9s+hkpSGPkrw==|3WjzyuDm0QP/ScVNBRFbpA==|WybQPI5gnyne8hBFclDpbaIseMnHUx1RT0kvGPg4SnA=",
+          "value": "2.QZQKVuTwsSGHD9kJQYssyw==|x8l1kh/Hwt6epxFP3kYnBw==|F60EuNIpzRAg7oItgxOf0LlcuNid6Iw7lflN+tpExIM=",
+          "type": 0
+        },
+        {
+          "name": "2.skf1INdZxtOGT76LHReqLA==|ntM5YtQe03hK6urD0QjC3w==|cGb1UFuSHdMaH5MGeqEWSoETNP2Eb6syE2Vl7PAZ+mk=",
+          "value": "2.ux/3gTe5DxJoqmpM/oeQpA==|enBN1+nhm1gHoS9MmhJ/ew==|iWBwxL+brf+QbLSa0YQ+e+NMm6Z9CzAsORgihG281A0=",
+          "type": 1
+        },
+        {
+          "name": "2.3GKG6Y66L3oOiExrz+cGdg==|N+WU30X1bN2B+sMRddoHcg==|xgK82mr4NOCNez6Dmqf4FAAz+hTlBaLQSI+3QI+vvk0=",
+          "value": "2.cEwP0bmR7eef3A58F+2o3g==|rESTSUagkfqrdC6cRRTPwA==|3zJ0bOD4dmAZhb6BwL89UbQ64j4/9q/zVAxhjS8uTPo=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "pam:id",
+              "value": "other-tool",
+              "type": 0
+            },
+            {
+              "name": "bwss:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

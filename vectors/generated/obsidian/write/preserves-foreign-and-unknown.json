@@ -1,0 +1,166 @@
+{
+  "id": "write/preserves-foreign-and-unknown",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": "f1",
+      "organizationId": null,
+      "name": "2.UCzPkhVi53DXfS1Huzk+jA==|XYyTOXSH+zYBs5Yr5R5KhQ==|WIkVzJyKB7PsMVPpMz0pmIKcrlf3esPY7DopVv8+YZk=",
+      "notes": "2.Fn1c4x+6BvVPx680WMevEA==|y6MQq3mMIWkdVBsKl7Ap5w==|z5DgmNgx7Kv21Lfh3oDK4RjubEBChSJVrLtZ4KSenys=",
+      "login": {
+        "username": "2.hqn4fXXnbK2bFWnC0HvMbQ==|o1O8eyaH+ADZbxdv0+2KAg==|cdxHoV/ZpJRBhNzrKqwNcWf2wrlgJ4HLW0b0C1VXoN8=",
+        "password": "2.L7M3LK8f1Jye+0Pd8zbI+g==|mV1ulA521ikFrTMakF2jTQ==|BRnOxWb2QG9lT/cj5ef77JH8viPHFOAJuhwVz/9UnuY=",
+        "uris": [
+          {
+            "uri": "2.0PGPWyEItguHHSzf3CahiQ==|3gJPwkvmYE1ve73T4UjSXE+PZDPXugYvI8V9azKZQFU=|JC0Tu+jN+cOxNQIUQcN34oiMN5m9zmyjzurYFtgesI0=",
+            "match": null
+          },
+          {
+            "uri": "2.lkYJEECdc/5Prhs2Iu5EQA==|y4PPvn3xb2aw78t2hzHl71fhMvXZC0PJ6Ne4UkUjjCc=|7M5GUCKZOOJxCM+wAgeB3WqXse5lmMwtX/9twvY5K/g=",
+            "match": null
+          }
+        ],
+        "totp": "2.El+D/fsJuclIajKs0sS4NA==|Y8GzIc+NXJIk9MILTX60raUJQTuC2nir84zvcySBZlmVVvwkRA88+OWzBYJ9ncVD|kfg/BRI852rKo3Ul2a3N7NPMpOFwAN2cZJ+HCnpAtoA="
+      },
+      "fields": [
+        {
+          "name": "2.mRgdu+BNdg+LS5qHrl6o0g==|sxcxnAMbDV+tL1/xsP5jQg==|pRfsn87zDDAJ58w7Pb+ozTcPr26BYgdI+AvUNyQAjxg=",
+          "value": "2.PDZ0c+webcnRTuDMZsCyEA==|s+HSWyGOZJw74HBtpJp8tw==|rpLfaRvwtJ5Uo8Ar93ITDxko4NGO8BmmBatbdNe3xW4=",
+          "type": 0
+        },
+        {
+          "name": "2.LT6s/Iyap4XzNhRsO3cnXg==|PtDsfZ4xWkd6QFsAbCidag==|JDI5gdVtIZUzAzdIeMbvyvsAj68Gmpay0NDp88Sx/Lk=",
+          "value": "2.cDa6vv+SuImwgIVwNtlIDQ==|NP6YWyXudAzcJ8JutbMyaA==|5IayrR2bx0VtVfBNaAv/OU8t2XbGUrdGsAGf+XTLHhg=",
+          "type": 0
+        },
+        {
+          "name": "2.a162PDenrp9hyEef6JIMxA==|jep4Tv5/Gh7N8/3FdbaePg==|CR6dHnwn3KAsf7sPidfPDHc3rEi9oPfShXJJCEFhB3g=",
+          "value": "2.Ms6L9RaqdSzj39ubj7788Q==|N5fhZD9Uci4LyXNRq9jzpg==|t6xkYOdiFH7ZFUz8F1H/NnQWg+Wudm15ane+9RLy9uo=",
+          "type": 0
+        },
+        {
+          "name": "2.yRcbU+rbALB1JXNpPfv3RQ==|dp2ChfRzJ7yYLoKmqAPjW66+UspELkGrgmpbzzNWcAk=|25bwoc+ygTOFov/NWGhA9EMjPXiCt3FScFuOEM6niWU=",
+          "value": "2.hNId/fmr3Fz66ENo5cfLqw==|WPwZUlN1FJt94j16ftX/1w==|wuOSBQIThcmGnZLZILfgmm0SjZ/VIlwDqddYm75ERnc=",
+          "type": 1
+        },
+        {
+          "name": "2.1Uwbt62RNdK09526YLtyoQ==|zDiRPSvRwngP8Keq2qeW7g==|e0XCHEVTBaCwI+wR/18KC5VkZO9ejErXs+b0CzQhPVM=",
+          "value": "2.Oqa+1Lnp6bPZdNSSH60nRw==|Iq915DEz64jRIY0WGC4qJjQa+5xW6YpShrfm/g1/J+4=|DI5W9eRgnyfLpaaCVv2nprHU0Hk0M1ZkyUbMgCHNJGw=",
+          "type": 0
+        },
+        {
+          "name": "2.uqJV5qYKOxahOFnbF0/Hqw==|2rsUJmZ+1M3nv26BqYaInQ==|pV63gX5cqEC7GAOiJQBd8nqRknymR4m8mrKJvVHqza8=",
+          "value": "2.NtKCYNUkuN/Qq3HL7/WMdw==|+9Sn2Blpz29EyWeX1+iosw==|6RiPZs/FSyk6kk/jepNEHqkQ22x4HWlguH9LEDBUV8o=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.XXwC0PbL4bfsKxc+AoA1Xg==|EBW1dUKcX+Jp8XG4Wk7sqQ==|ZXJOf5aQQLI9rvUgsj8CJxbnP/UV9x2Ep+lAJEm9Ie4=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true,
+      "xArchivedDate": "2026-03-01T00:00:00.000Z",
+      "xFuture": {
+        "kind": 7,
+        "list": [
+          1,
+          "a",
+          null
+        ]
+      }
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": "user notes",
+          "login": {
+            "username": "me",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid",
+              "androidapp://example.invalid"
+            ],
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "passwordHistory": [
+              "old-1"
+            ]
+          },
+          "fields": [
+            {
+              "name": "plain",
+              "value": "no namespace",
+              "type": 0
+            },
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "pam:id",
+              "value": "other-tool",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "new-secret",
+              "type": 1
+            },
+            {
+              "name": "obsidian:future",
+              "value": "unknown own field",
+              "type": 0
+            },
+            {
+              "name": "pam:password",
+              "value": "foreign-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": "f1",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {
+            "xArchivedDate": "2026-03-01T00:00:00.000Z",
+            "xFuture": {
+              "kind": 7,
+              "list": [
+                1,
+                "a",
+                null
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

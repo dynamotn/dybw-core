@@ -1,0 +1,114 @@
+{
+  "id": "write/duplicate-field",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§6.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.27OR9D+FaVNnfzBv52U/1A==|M+SbKfyxWNGqpTWG3zLipw==|3uMFQQ7zb3WnBPT5PkN0AvkmYgG0boIGb3OQn36Mjb0=",
+      "notes": null,
+      "login": {
+        "username": "2.YjGv8gC/iYlNo5JlXSAMlA==|xRxVcWCx7W/nOe7Zn6LplA==|E7ZrNjFYd+Wc6L1kR6BWT1AMhwCqREP+IJd7Klfpr5s=",
+        "password": "2.BidEelJa1Uebqdz2n956NQ==|6S6vhf+8aTS50STdsH5nBQ==|0GQJSCFIr3/DKjhaFm/9fa2+8p/rmL5jX0T/hHL2ESA=",
+        "uris": [
+          {
+            "uri": "2.yKKJa2EoI4ZGhWKJJkGQXw==|YyG66o7FTlIsa6gsp6Ld7SU1bOIJbhxd2HASvqIDRHw=|j3EUJyvEp9A2BLlzNBjnjdfNlY9sK9vAXeJs+G5AfuI=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.xgD+namTkg6lj5lkPvx6GQ==|sxHkG5vR/Z8MA8DapScu+w==|R7s9qhYe3L7JJhDRS3yyzlopzgBzZrKbNH4iJE4kRg0=",
+          "value": "2.pkZPMFg/p+ax2YP6gTcDLA==|HZsk8dzWLQWndgvP+P4Zbg==|N8eXUnmX7MjodQK3YLzm2gGaVVujOtvczFsDWDv2/tE=",
+          "type": 0
+        },
+        {
+          "name": "2.VDVyXffCHy3+udgPjfXITA==|HZq8dcbR4Reu2zIzYKfbyA2CGGkrVtD97XCjR8DAtnI=|axFDwZrNNXvGHEAi+oxTOMU5G2m3kUwlmM4YQop54Vg=",
+          "value": "2.DIHe9ykgFZuYxXHQfFO+0A==|PipXeWBYy5B8OTuZ93R/sg==|1+rwPLXt2VfRHeu+BsebbIPAQpo0w76NrRK1Qk4jaBM=",
+          "type": 1
+        },
+        {
+          "name": "2.bIxO39cIi7EJcXo9oV/E8g==|NwI7pwHMndAKozk6lIfzog==|t3fDku1Cw1gZRPqC8dgXPUGe4RIXxt1JmCIQNvNzq50=",
+          "value": "2.VgFNqipQirvC7LYdl3APBA==|fXZK4bbQgt0k7SpLp+TBwA==|e6oGZ1hZPQvhnC2wa6GYjP3KV6NlksqulePt6i6tpMQ=",
+          "type": 0
+        },
+        {
+          "name": "2.OK8RdDin9T2sBN7LK7pKcg==|P1H2P58+Cgltlqq2QKISRelXz57u7O6YP8YpaR4IYo4=|qhmhYlj6eK2EY0y7A3jMgKAoVVILyzYZxS5bmA0mBlM=",
+          "value": "2.7WsVXwi3M/QJj60r807Vig==|xNcIVfX19Qv43M1zKXIddw==|T3OloUcmZHFhryG9MAIs2GtmgEy+hb6hpQVPdtpZ6jA=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "login-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "new-secret",
+              "type": 1
+            },
+            {
+              "name": "pam:id",
+              "value": "other-tool",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "second",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

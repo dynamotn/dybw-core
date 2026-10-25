@@ -1,0 +1,77 @@
+{
+  "id": "write/delete-keeps-foreign",
+  "spec": "1.5",
+  "sections": [
+    "§3.3",
+    "§8.2"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.lFGFEkpIrOiCyvHDRYf8qw==|CgbzdqP3/6Zw1CdigprOrQ==|59d7uO0ETJntuEW5a84ENj9oYAFuQrSXGUxEdXsu58M=",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.Qv/08+pe1hbso94r/XtD6w==|jzFnkJEZsYuTE8pwLuAAjA==|5hqkKusG6jwlKD4ECoWFijUfLr8KoIYt9ZA/+w/CCig=",
+          "value": "2.vkUs/OFez5gMun0vXRtDlw==|pNZ9Vek2DfTG5uNBV65vqA==|VO+dQEHxvPX6Zk4byusuxXpKQY+MXF/lgRiA6W2rIQM=",
+          "type": 0
+        },
+        {
+          "name": "2.AMyZuj6cUK4H1ZQifK0giA==|zQ9U9i0oAeiHiTXkmMCaNA==|hgCohZ5pSuTA/ooW5EyGh+qQEtJr1H6z7XQ9n+4gdio=",
+          "value": "2.OG8YMQ5ZQVgFM1r95TOk0A==|DDIRtsBNSwkJ6eGpLBw0Xg==|qcL4++qOIE/F6E7KLdvhFJ56bpnWUBSKCL1GMjTnkX8=",
+          "type": 0
+        },
+        {
+          "name": "2.mmKwETMoSYluZcjjkTqnmA==|+/fBZACzbznuWf5DSIfDVQ==|/C32VD0yNC1stiCOtReFMYBa9be42lLPwS7vj7pCRVg=",
+          "value": "2.hC2f+DTe2echgeux49UqOQ==|8VYCOLcVPlA7m9SuUsWkUQ==|XcK8T2TAu9oB21LOUpY9CS2cO14tK/CijS9J3qPUpjI=",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "delete",
+    "id": "alpha"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": null,
+          "login": null,
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "shared",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}
