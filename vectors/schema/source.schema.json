@@ -231,6 +231,14 @@
         "pascalCase": {
           "type": "boolean"
         },
+        "tamper": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(name|notes|key|login\\.(username|password|totp)|login\\.uris\\[[0-9]+\\]\\.uri|login\\.passwordHistory\\[[0-9]+\\]\\.password|fields\\[[0-9]+\\]\\.(name|value))$"
+          }
+        },
         "extra": {
           "type": "object",
           "propertyNames": {
@@ -699,6 +707,12 @@
                       "login-password",
                       "note-body"
                     ]
+                  },
+                  "attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
                   }
                 },
                 "additionalProperties": false,

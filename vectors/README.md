@@ -53,6 +53,7 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | `creationDate`, `revisionDate`, `deletedDate` | ISO 8601 or `null` | `null` | |
 | `edit`, `viewPassword` | bool | `true` | Organization permissions |
 | `pascalCase` | bool | `false` | `true` emits the server keys in PascalCase |
+| `tamper` | array of paths | `[]` | Source only, never emitted: each listed string is encrypted, then the first byte of its MAC is flipped, so it fails the MAC check. Paths are `name`, `notes`, `key` (the wrapped item key), `login.username`, `login.password`, `login.totp`, `login.uris[i].uri`, `login.passwordHistory[i].password`, `fields[i].name`, `fields[i].value`; each must be a string the cipher actually encrypts |
 | `extra` | object | `{}` | Unknown properties, passed through verbatim. Every key must match `^x[A-Za-z0-9]+$` (the `x` convention), so it can never collide with a known key |
 
 ### `device`
@@ -85,7 +86,10 @@ change to `fresh`.
   - `items`: `[{ cipher, id, value, source }]`, sorted by `id`, with `source`
     one of `field`, `notes`, `login-password`, `note-body`. `value` is the
     decoded secret: base64 is decoded, and binary values are written as
-    `"base64:<b64>"`.
+    `"base64:<b64>"`. An optional `attributes` (object, name to value) lists
+    the item's stored lookup attributes (`{ns}:attr:<name>`, data model §3.4)
+    with names after the prefix and values exactly as stored; derived
+    attributes are not listed. When it is absent, attributes are not checked.
   - `skipped`: `[{ cipher, reason }]`, with `reason` from the table below.
   - `uninspectable`: `[cipher id]`.
   - `duplicates`: `[{ id, kept, left: [cipher id] }]`.

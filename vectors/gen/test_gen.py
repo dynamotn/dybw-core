@@ -589,3 +589,83 @@ def test_item_key_org_cipher_under_org_key(tree):
     assert bwcrypto.dec_string(got["name"], item_key) == b"Org login"
     with pytest.raises(ValueError):
         bwcrypto.dec_string(got["key"], base64.b64decode(account_org()["userKey"]))
+
+
+def tampered_tree(tmp_path, tamper, item_key=False):
+    src = tmp_path / "src"
+    (src / "read").mkdir(parents=True)
+    doc = {
+        **MINIMAL,
+        "id": "read/tamper",
+        "ciphers": [
+            {
+                "id": "c1",
+                "type": 2,
+                "name": "Note",
+                "notes": "body",
+                "itemKey": item_key,
+                "fields": [
+                    {"name": "{ns}:id", "value": "a", "type": 0},
+                    {"name": "other", "value": "v", "type": 0},
+                ],
+                "tamper": tamper,
+            }
+        ],
+    }
+    (src / "read" / "tamper.json").write_text(json.dumps(doc), encoding="utf-8")
+    return src, tmp_path / "out"
+
+
+def test_tamper_breaks_only_the_listed_mac(tmp_path):
+    import bwcrypto
+
+    src, out = tampered_tree(tmp_path, ["fields[1].name"])
+    assert run("build", src, out) == 0
+    c = load(out / "bwss" / "read" / "tamper.json")["ciphers"][0]
+    assert "tamper" not in c
+    key = base64.b64decode(gen.load_account("pbkdf2")["userKey"])
+    with pytest.raises(ValueError):
+        bwcrypto.dec_string(c["fields"][1]["name"], key)
+    assert bwcrypto.dec_string(c["fields"][0]["name"], key) == b"bwss:id"
+    assert bwcrypto.dec_string(c["fields"][1]["value"], key) == b"v"
+    assert bwcrypto.dec_string(c["notes"], key) == b"body"
+    # same IV and ciphertext as the untampered string: only the MAC differs
+    clean_src, clean_out = tampered_tree(tmp_path / "clean", [])
+    assert run("build", clean_src, clean_out) == 0
+    clean = load(clean_out / "bwss" / "read" / "tamper.json")["ciphers"][0]
+    t_head, t_mac = c["fields"][1]["name"].rsplit("|", 1)
+    c_head, c_mac = clean["fields"][1]["name"].rsplit("|", 1)
+    assert t_head == c_head and t_mac != c_mac
+
+
+def test_tamper_item_key(tmp_path):
+    import bwcrypto
+
+    src, out = tampered_tree(tmp_path, ["key"], item_key=True)
+    assert run("build", src, out) == 0
+    c = load(out / "bwss" / "read" / "tamper.json")["ciphers"][0]
+    key = base64.b64decode(gen.load_account("pbkdf2")["userKey"])
+    with pytest.raises(ValueError):
+        bwcrypto.dec_string(c["key"], key)
+
+
+def test_tamper_path_must_be_encrypted(tmp_path, capsys):
+    src, out = tampered_tree(tmp_path, ["login.password"])
+    assert run("build", src, out) == 1
+    assert "tamper paths not encrypted: login.password" in capsys.readouterr().err
+
+
+def test_tamper_rejects_unknown_path(tmp_path):
+    src, out = tampered_tree(tmp_path, ["revisionDate"])
+    assert run("build", src, out) == 1
+
+
+def test_read_item_attributes_optional_strings():
+    item = {"cipher": "c1", "id": "a", "value": "v", "source": "field"}
+    with_attrs = {**MINIMAL, "expect": {"read": {"items": [{**item, "attributes": {"host": " a "}}],
+                                                 "skipped": [], "uninspectable": []}}}
+    check(with_attrs, SOURCE_SCHEMA)
+    bad = json.loads(json.dumps(with_attrs))
+    bad["expect"]["read"]["items"][0]["attributes"]["host"] = 1
+    with pytest.raises(jsonschema.ValidationError):
+        check(bad, SOURCE_SCHEMA)

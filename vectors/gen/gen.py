@@ -113,6 +113,9 @@ def cmd_accounts(_args: argparse.Namespace) -> int:
 #       "login.passwordHistory[0].password"
 #   iv_for(seed, sid, ns, cid, "key")                 IV of the wrapped item key
 #   derive(seed, 64, sid, ns, cid, "itemKey")         the 64-byte item key
+# A path listed in a cipher's source-only ``tamper`` gets its EncString's first MAC
+# byte flipped after encryption (see tamper_mac); every listed path must be one
+# the cipher actually encrypts, and ``tamper`` itself is never emitted.
 # A cipher in operation.fresh with the id of a cipher in ciphers[] that has itemKey
 # reuses that cipher's item key (re-wrapped with a fresh IV). Otherwise it uses the
 # same labels with an extra "fresh"
@@ -174,17 +177,36 @@ def _pascal(key: str) -> str:
     return key[:1].upper() + key[1:]
 
 
+def tamper_mac(enc: str) -> str:
+    """The same EncString with the first MAC byte flipped: it parses, but its
+    MAC check fails."""
+    head, mac = enc.rsplit("|", 1)
+    raw = bytearray(base64.b64decode(mac))
+    raw[0] ^= 0x01
+    return f"{head}|{bwcrypto.b64(bytes(raw))}"
+
+
 class _Encryptor:
-    def __init__(self, seed: bytes, sid: str, ns: str, cid: str, fresh: bool) -> None:
+    def __init__(
+        self, seed: bytes, sid: str, ns: str, cid: str, fresh: bool, tamper: list[str] = ()
+    ) -> None:
         self.seed = seed
         self.base = (sid, ns, cid) + (("fresh",) if fresh else ())
         self.key = b""
+        self.tamper = set(tamper)
+        self.tampered: set[str] = set()
+
+    def finish(self, enc: str, path: str) -> str:
+        if path in self.tamper:
+            self.tampered.add(path)
+            return tamper_mac(enc)
+        return enc
 
     def enc(self, plain: str | None, path: str) -> str | None:
         if plain is None:
             return None
         iv = bwcrypto.iv_for(self.seed, *self.base, path)
-        return bwcrypto.enc_string(plain.encode("utf-8"), self.key, iv)
+        return self.finish(bwcrypto.enc_string(plain.encode("utf-8"), self.key, iv), path)
 
 
 def encrypt_cipher(
@@ -193,7 +215,7 @@ def encrypt_cipher(
     """Server-shaped cipher from a plaintext one (``{ns}`` already expanded)."""
     seed = base64.b64decode(account["seed"])
     owner = _owner_key(account, src.get("organizationId"))
-    e = _Encryptor(seed, sid, ns, src["id"], fresh)
+    e = _Encryptor(seed, sid, ns, src["id"], fresh, src.get("tamper", []))
     out: dict = {"id": src["id"], "type": src["type"]}
     for k in ("folderId", "organizationId"):
         if k in src:
@@ -204,7 +226,9 @@ def encrypt_cipher(
             item_key = bwcrypto.derive(seed, 64, sid, ns, src["id"], "itemKey")
         else:
             item_key = bwcrypto.derive(seed, 64, *e.base, "itemKey")
-        out["key"] = bwcrypto.enc_string(item_key, owner, bwcrypto.iv_for(seed, *e.base, "key"))
+        out["key"] = e.finish(
+            bwcrypto.enc_string(item_key, owner, bwcrypto.iv_for(seed, *e.base, "key")), "key"
+        )
         e.key = item_key
     else:
         e.key = owner
@@ -254,6 +278,9 @@ def encrypt_cipher(
     for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword"):
         if k in src:
             out[k] = src[k]
+    missing = sorted(e.tamper - e.tampered)
+    if missing:
+        raise GenError(f"cipher {src['id']!r}: tamper paths not encrypted: {', '.join(missing)}")
     return _apply_case(out, src.get("pascalCase", False), src.get("extra", {}))
 
 
@@ -438,7 +465,8 @@ def _camel(value):
 
 def decrypt(cipher: dict, account: dict) -> dict:
     """Plaintext of a generated cipher (camelCase or PascalCase): the source
-    shape, without the generator-only flags. Fails on a wrong key (MAC check)."""
+    shape, without the generator-only flags. Fails on a wrong key, or on a
+    string the source tampered (MAC check)."""
     c = _camel(cipher)
     owner = _owner_key(account, c.get("organizationId"))
     key = owner
