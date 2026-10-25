@@ -126,7 +126,10 @@ change to `fresh`.
 
   The plan covers every id found in the read items, in `device.base` or in
   `device.pendingCreates`; an id that needs nothing has no entry, and an id
-  known only to `local` is not planned. The `confirmed` marker the plugin puts
+  known only to `local` is not planned. An id whose `device.base` cipher is
+  still present but uninspectable is held as it is (data model §4) and gets
+  no entry; a trashed cipher is not present, so its id counts as deleted
+  remotely (§8.1). The `confirmed` marker the plugin puts
   on a push the user just agreed to is not part of the plan, because no vector
   answers a conflict yet; it returns when answers and overrides enter the
   format (M3).
@@ -188,9 +191,9 @@ The source object with these differences:
 | `organizationId`, `folderId` | string or `null` |
 | `lastKnownRevisionDate` | string or `null` |
 | `hasItemKey` | bool |
-| `extra` | the unknown properties passed through (`x` keys, as in a cipher) |
+| `extra` | the unknown properties passed through: the `^x[A-Za-z0-9]+$` keys only, as in a cipher. Any other key of the request that is not in this table is ignored |
 
-A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`. The
+A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`; no M1 vector carries one, so this applies once a vector does (M3). Only the plugin's adapter handles `<now>` today (it freezes the clock); bwss's adapter will need a fixed clock then. The
 comparison is a deep equality after both sides are canonicalized: the adapters
 canonicalize the tool's real request by decrypting it with the scenario's keys.
 
@@ -225,9 +228,9 @@ Used in `expect.read.skipped[].reason`.
 | `encoding-on-user-source` | An encoding mark sits on a value the user typed (such as the login password) |
 | `unknown-location` | The `{ns}:location` mark names a location that does not exist |
 | `unknown-encoding` | The `{ns}:encoding` mark names an encoding that does not exist, or that the namespace does not implement. A namespace that implements no encoding (`obsidian`) reports it for every non-blank mark, before any other encoding check (such as `encoding-on-user-source`) |
-| `invalid-id` | The `{ns}:id` mark is not a valid identifier |
-| `reserved-id` | The `{ns}:id` mark uses a reserved identifier |
+| `invalid-id` | The `{ns}:id` mark is not a valid identifier. No vector in M1: each tool maps its own message to it |
+| `reserved-id` | The `{ns}:id` mark uses a reserved identifier. No vector in M1: each tool maps its own message to it |
 | `view-password-hidden` | An organization hides the password from this user |
 | `organizations-off` | Reserved, not used in read skips: an organization cipher the tool does not read is listed in `uninspectable` (data model §4, §9) |
 | `undecryptable` | Reserved, not used in read skips: a cipher whose item key or field names fail to decrypt is listed in `uninspectable` (data model §4) |
-| `newer-format` | The mark was written by a newer data model than this tool supports |
+| `newer-format` | Reserved, no vector in M1: the mark was written by a newer data model than this tool supports |

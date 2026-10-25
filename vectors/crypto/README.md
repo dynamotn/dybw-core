@@ -4,9 +4,9 @@ Copied byte for byte from the tools that own them today. The copied
 scripts are not lint-fixed on purpose: they must stay identical to their
 source so the hashes below can be checked.
 
-Plugin = `~/Working/personal/obsidian/keychain-bitwarden` at commit `b9beff5`
-(path prefix `test/fixtures/`). bwss = `~/Working/personal/tools/bwss` at
-commit `dc65284` (path prefix `tests/fixtures/`).
+Plugin = the `keychain-bitwarden` repository at commit `b9beff5` (path
+prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
+`dc65284` (path prefix `tests/fixtures/`).
 
 | File here | Source repo | Source path | Commit | sha256 |
 |---|---|---|---|---|
