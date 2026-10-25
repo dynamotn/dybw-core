@@ -1,0 +1,75 @@
+{
+  "id": "sync/trashed-is-deleted-remotely",
+  "spec": "1.5",
+  "sections": [
+    "§4",
+    "§8.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "old-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.dcNIF67WUNc0FhGj2bZCsA==|VGN9Ebb/Cr3xYlzxQxGRrg==|6clDz7Vx+TSAFzPguR915eonXOmA59ngFJ7bjgXdswc=",
+      "notes": null,
+      "login": {
+        "username": "2.aIonPE+hxZa/mKxUpjSdqQ==|3NL6jZH8Lb3gz/UF6tRQrA==|7DalloTvK3IFisqpIdQXnSapRzySgNNj4e7zAp2rMsI=",
+        "password": "2.z1+fUa2qEiTNodOR+hIXcA==|U+KgC36YsA/i0Er+sgsuFA==|9VwrChCWbohyuKfxMGimroK6WiZ42/iUscI5FQ2JF94=",
+        "uris": [
+          {
+            "uri": "2.qxuD/xKUgEtMPh8I/j+jBA==|BClo2FUre8Ovu93QodxUlhsAYgYjNNxvz0VOhWiaYZM=|SiIrgD2cCXsl3OGwVC/3KI5ML34cgBba6xPEbnyeLjM=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.j6TUA2Ayx3cHkYcvTO4xjg==|mxlAWaXGwe65HMAssAXlZQ==|4Y57HZSEe5iSsEZBQgPuNh/LtzYs4pVEJQMWoxCfcu4=",
+          "value": "2.XlstGUpGtV8AUenjpv/C3g==|QF0IINjCpbmw2AaGwu1g2g==|R6vvEXd7SJ/0rUyiKgTvFrhRI4apMhOP0QO+MBoPDY8=",
+          "type": 0
+        },
+        {
+          "name": "2.R4ELMKTXKpRnn3eWgE0VQw==|wlAAeb+v24wm9X7UJ50V3lkFbVxicj4KV1mPGyrQXDE=|r5UaaqKs4hFLovrXtnp/SMWoFJcIexmdaqI9lTvVhyM=",
+          "value": "2.BnY0V8QbcgV4ZXJTO87a3Q==|Pzkno0hjTbEC9F2Vc3CU+g==|WgEND8+jEcr9+6ifO32+ood/NVrOg/xSKPKKfmiUoLM=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-02-01T00:00:00.000Z",
+      "deletedDate": "2026-02-01T00:00:00.000Z",
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "clear-local",
+        "id": "alpha"
+      }
+    ]
+  }
+}
