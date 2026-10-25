@@ -1,0 +1,12 @@
+{
+  "name": "pbkdf2",
+  "email": "pbkdf2@vectors.invalid",
+  "password": "vectors-pbkdf2-password",
+  "kdf": {
+    "type": "pbkdf2",
+    "iterations": 600000
+  },
+  "seed": "uhMmd3n0ZTshBcAaYfQ9tZ+Lh7Wc7G9FiDup9WsGEBE=",
+  "userKey": "OarBLFeXnfJup9zQP9RHWCFgrTehBER9Po9vFeV39Tp+Pr2dMmmHN57uoH7dqX31LVCs6BtaQ7gAPcd6Icg+xQ==",
+  "profileKey": "2.i8kWlJpkBIlQNEsIQHe7yg==|gVpFnvKEofwA3e7PrRWtB/Xilo7/RYG87RVpyPU89Mss9OttJttG1KuxyzKd6n8zeBc6/5Z/9Cs8N5ZZU91yerrvhpPiln3pDNdNi9Vg/5Y=|o4JKGpcG33gTOxKljcHzzOqQRzWvtvJzohdxuiHv5Dk="
+}

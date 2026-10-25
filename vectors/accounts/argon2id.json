@@ -1,0 +1,14 @@
+{
+  "name": "argon2id",
+  "email": "argon2id@vectors.invalid",
+  "password": "vectors-argon2id-password",
+  "kdf": {
+    "type": "argon2id",
+    "iterations": 3,
+    "memory": 64,
+    "parallelism": 4
+  },
+  "seed": "hdDYmyDRvmNDZUSC7eGqNnAyiFPZ04WEzRU+naMstCU=",
+  "userKey": "aMgFok9ewU4Kynn2jDCH/8myDaOBe5y/vYhvwfrVwPY5m4xx8AgDdz2OJPmITJ5chbpdUdFTSXUfWOZFrGuQTw==",
+  "profileKey": "2.aaigOfQqgJmJsIfrSAbgnQ==|6Y8+W8UvEns8DDV7xkpOAH9nvZf8QwlErkzl4zkfBwxEsZHjjuGBUhHsTLqQ4q3eYn4alzLnZTnK0QkAbLLK2O6ZuWpsMMau3Lx+fiVNXW0=|QMIeLFg/0G/D1XiWhKPzjX5vxUfVKbVbkheALfBztwc="
+}

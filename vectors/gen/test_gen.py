@@ -1,12 +1,16 @@
 """Tests for the scenario schemas (and, in later commits, the generator)."""
 
+import base64
 import json
 import re
+import sys
 from pathlib import Path
 
 import jsonschema
 import pytest
 from referencing import Registry, Resource
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 VECTORS = Path(__file__).resolve().parent.parent
 SOURCE_SCHEMA = VECTORS / "schema" / "source.schema.json"
@@ -198,3 +202,117 @@ def test_unexpanded_ns_id_rejected():
     rejects(with_expect({"read": {"items": [item], "skipped": [], "uninspectable": []}}))
     check(with_expect({"read": {"items": [{**item, "id": "bwss-x"}], "skipped": [], "uninspectable": []}}),
           SOURCE_SCHEMA)
+
+
+# --- crypto and accounts ----------------------------------------------------
+
+ACCOUNTS = VECTORS / "accounts"
+KAT = VECTORS / "crypto" / "vectors.json"
+
+
+def _account_files() -> list[Path]:
+    return sorted(ACCOUNTS.glob("*.json"))
+
+
+def test_master_key_matches_kat():
+    import bwcrypto
+
+    kat = load(KAT)
+    pbkdf2 = {"type": "pbkdf2", "iterations": kat["pbkdf2"]["iterations"]}
+    argon = {
+        "type": "argon2id",
+        "iterations": kat["argon2id"]["iterations"],
+        "memory": kat["argon2id"]["memory"],
+        "parallelism": kat["argon2id"]["parallelism"],
+    }
+    mk = bwcrypto.master_key(kat["password"], kat["email"], pbkdf2)
+    assert base64.b64encode(mk).decode() == kat["pbkdf2"]["masterKey"]
+    assert base64.b64encode(bwcrypto.stretch(mk)).decode() == kat["pbkdf2"]["stretched"]
+    mk = bwcrypto.master_key(kat["password"], kat["email"], argon)
+    assert base64.b64encode(mk).decode() == kat["argon2id"]["masterKey"]
+
+
+def test_enc_string_matches_kat():
+    import bwcrypto
+
+    kat = load(KAT)
+    key = base64.b64decode(kat["userKey"])
+    iv = bytes(range(100, 116))
+    for case in kat["encStrings"]:
+        assert bwcrypto.enc_string(case["plain"].encode(), key, iv) == case["enc"]
+
+
+def test_enc_string_round_trip():
+    import bwcrypto
+
+    k = bytes(range(64))
+    iv = bytes(range(16))
+    s = bwcrypto.enc_string(b"x", k, iv)
+    assert bwcrypto.dec_string(s, k) == b"x"
+    head, rest = s.split(".", 1)
+    iv_b, ct_b, mac_b = rest.split("|")
+    mac = bytearray(base64.b64decode(mac_b))
+    mac[0] ^= 1
+    bad = f"{head}.{iv_b}|{ct_b}|{base64.b64encode(bytes(mac)).decode()}"
+    with pytest.raises(ValueError):
+        bwcrypto.dec_string(bad, k)
+
+
+def test_iv_for_is_deterministic_and_path_sensitive():
+    import bwcrypto
+
+    seed = b"s" * 32
+    assert bwcrypto.iv_for(seed, "a", "b") == bwcrypto.iv_for(seed, "a", "b")
+    assert len(bwcrypto.iv_for(seed, "a")) == 16
+    assert bwcrypto.iv_for(seed, "a", "b") != bwcrypto.iv_for(seed, "a", "c")
+
+
+def test_accounts_exist():
+    assert {p.stem for p in _account_files()} == {"pbkdf2", "argon2id", "org"}
+
+
+def test_accounts_unlock():
+    import bwcrypto
+
+    for path in _account_files():
+        acc = load(path)
+        mk = bwcrypto.master_key(acc["password"], acc["email"], acc["kdf"])
+        user_key = bwcrypto.dec_string(acc["profileKey"], bwcrypto.stretch(mk))
+        assert user_key == base64.b64decode(acc["userKey"])
+        assert len(user_key) == 64
+
+
+def test_rsa_oaep_wrap_decrypts_with_cryptography():
+    import bwcrypto
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+
+    acc = load(ACCOUNTS / "org.json")
+    priv = serialization.load_der_private_key(base64.b64decode(acc["privateKey"]), None)
+    pub = serialization.load_der_public_key(base64.b64decode(acc["publicKey"]))
+    assert priv.public_key().public_numbers() == pub.public_numbers()
+    assert priv.key_size == 2048
+    assert [o["id"] for o in acc["organizations"]] == ["org-a", "org-b"]
+    for org in acc["organizations"]:
+        key = base64.b64decode(org["key"])
+        assert len(key) == 64
+        typ, body = org["wrapped"].split(".", 1)
+        assert typ == "4"
+        oaep = padding.OAEP(mgf=padding.MGF1(hashes.SHA1()), algorithm=hashes.SHA1(), label=None)
+        assert priv.decrypt(base64.b64decode(body), oaep) == key
+    # type 3 (SHA-256) too
+    pub_der = base64.b64decode(acc["publicKey"])
+    wrapped = bwcrypto.rsa_oaep_wrap(b"k" * 64, pub_der, sha1=False, seed=b"\x07" * 32)
+    typ, body = wrapped.split(".", 1)
+    assert typ == "3"
+    oaep = padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
+    assert priv.decrypt(base64.b64decode(body), oaep) == b"k" * 64
+
+
+def test_drbg_rsa_is_deterministic():
+    import bwcrypto
+
+    a = bwcrypto.rsa_key_from_seed(b"\x01" * 32, bits=512)
+    b = bwcrypto.rsa_key_from_seed(b"\x01" * 32, bits=512)
+    c = bwcrypto.rsa_key_from_seed(b"\x02" * 32, bits=512)
+    assert a.private_numbers() == b.private_numbers() != c.private_numbers()
