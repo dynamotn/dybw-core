@@ -78,6 +78,7 @@ pub trait KdfRunner {
     async fn argon2id(&self, input: Argon2Input) -> Result<Zeroizing<[u8; 32]>, PortError>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
     Text(String),
     Binary(Vec<u8>),
