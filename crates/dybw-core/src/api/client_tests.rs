@@ -1,8 +1,9 @@
 use super::*;
+use crate::ports::Clock;
 use crate::ports::{HttpResponse, PortError};
 use crate::testing::block_on;
 use serde_json::json;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::Rc;
 
@@ -12,11 +13,23 @@ type Replies = Rc<RefCell<VecDeque<Result<HttpResponse, PortError>>>>;
 struct Fake {
     sent: Sent,
     replies: Replies,
+    refuses: Rc<Cell<bool>>,
 }
+
+struct TestClock(Rc<Cell<i64>>);
+
+impl Clock for TestClock {
+    fn now_ms(&self) -> i64 {
+        self.0.get()
+    }
+    async fn sleep_ms(&self, _ms: u64) {}
+}
+
+const SYNC: &str = r#"{"Profile":{"Id":"user-1","Key":"2.uk"},"Folders":null}"#;
 
 impl Http for Fake {
     fn refuses_redirects(&self) -> bool {
-        true
+        self.refuses.get()
     }
     async fn send(&self, req: HttpRequest) -> Result<HttpResponse, PortError> {
         self.sent.borrow_mut().push(req);
@@ -25,9 +38,11 @@ impl Http for Fake {
 }
 
 struct Rig {
-    client: Client<Fake>,
+    client: Client<Fake, TestClock>,
     sent: Sent,
     replies: Replies,
+    now: Rc<Cell<i64>>,
+    refuses: Rc<Cell<bool>>,
 }
 
 type Seen = (Method, String, Vec<(String, String)>, Option<Vec<u8>>);
@@ -36,9 +51,11 @@ impl Rig {
     fn new() -> Self {
         let sent = Sent::default();
         let replies = Replies::default();
-        let device = DeviceInfo { identifier: "dev-1".into(), name: "Test device".into(), device_type: 21 };
+        let (now, refuses) = (Rc::new(Cell::new(1_000_000)), Rc::new(Cell::new(true)));
+        let fake = Fake { sent: sent.clone(), replies: replies.clone(), refuses: refuses.clone() };
         let urls = resolve_server_urls("https://bw.example.org").unwrap();
-        Rig { client: Client::new(Fake { sent: sent.clone(), replies: replies.clone() }, urls, device), sent, replies }
+        let client = Client::new(fake, TestClock(now.clone()), urls, device()).unwrap();
+        Rig { client, sent, replies, now, refuses }
     }
     fn reply(&self, status: u16, body: &str) {
         self.replies
@@ -51,13 +68,23 @@ impl Rig {
     }
     fn synced(&mut self) {
         self.login();
-        self.reply(200, r#"{"Profile":{"Id":"user-1"},"Folders":[]}"#);
+        self.reply(200, SYNC);
         block_on(self.client.sync()).unwrap();
     }
     fn last(&self) -> Seen {
         let sent = self.sent.borrow();
         let r = sent.last().unwrap();
         (r.method, r.url.clone(), r.headers.clone(), r.body.as_ref().map(|b| b.to_vec()))
+    }
+}
+
+fn device() -> DeviceInfo {
+    DeviceInfo {
+        identifier: "dev-1".into(),
+        name: "Test device".into(),
+        device_type: 21,
+        client_name: "test-tool".into(),
+        client_version: "9.9.9".into(),
     }
 }
 
@@ -104,7 +131,7 @@ fn resolve_urls() {
         assert!(resolve_server_urls(bad).unwrap_err().to_string().contains("credentials"), "{bad}");
     }
     let e = resolve_server_urls("https://u:hunter2@[bad").unwrap_err().to_string();
-    assert!(e.starts_with("unexpected response: invalid server URL") && !e.contains("hunter2"));
+    assert!(e.starts_with("invalid server URL") && !e.contains("hunter2"));
 }
 
 #[test]
@@ -112,7 +139,7 @@ fn origins_are_scheme_host_and_port() {
     assert_eq!(origin_of("https://bw.example.org/vault/identity").unwrap(), "https://bw.example.org");
     assert_eq!(origin_of("http://127.0.0.1:80/identity").unwrap(), "http://127.0.0.1");
     assert_eq!(origin_of("HTTPS://BW.Example.org:443/x").unwrap(), "https://bw.example.org");
-    assert!(matches!(origin_of("not a url"), Err(ApiError::Protocol(_))));
+    assert!(matches!(origin_of("not a url"), Err(ApiError::Invalid(_))));
 }
 
 #[test]
@@ -125,13 +152,16 @@ fn normalize_keys_lowercases_first_letter_recursively() {
 #[test]
 fn login_sends_client_credentials() {
     let mut rig = Rig::new();
-    rig.login();
+    let tricky = ApiKey { client_secret: Zeroizing::new("a+b&c=d e".into()), ..key() };
+    rig.reply(200, r#"{"access_token":"tok","expires_in":3600}"#);
+    block_on(rig.client.login(&tricky)).unwrap();
     let (method, url, headers, body) = rig.last();
     assert_eq!((method, url.as_str()), (Method::Post, "https://bw.example.org/identity/connect/token"));
+    assert_eq!(rig.sent.borrow()[0].max_body, MAX_BODY);
     assert_eq!(header(&headers, "Content-Type"), Some("application/x-www-form-urlencoded; charset=utf-8"));
     assert_eq!(header(&headers, "Device-Type"), Some("21"));
-    assert_eq!(header(&headers, "Bitwarden-Client-Name"), Some("Test device"));
-    assert!(header(&headers, "Bitwarden-Client-Version").is_some());
+    assert_eq!(header(&headers, "Bitwarden-Client-Name"), Some("test-tool"));
+    assert_eq!(header(&headers, "Bitwarden-Client-Version"), Some("9.9.9"));
     assert!(header(&headers, "Authorization").is_none());
     let form: Vec<(String, String)> =
         url::form_urlencoded::parse(&body.unwrap()).map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
@@ -139,13 +169,18 @@ fn login_sends_client_credentials() {
     assert_eq!(get("grant_type"), Some("client_credentials"));
     assert_eq!(get("scope"), Some("api"));
     assert_eq!(get("client_id"), Some("user.x"));
-    assert_eq!(get("client_secret"), Some("s3cret-value"));
+    assert_eq!(get("client_secret"), Some("a+b&c=d e"));
+    assert_eq!(
+        String::from_utf8(rig.sent.borrow()[0].body.as_ref().unwrap().to_vec()).unwrap(),
+        "grant_type=client_credentials&scope=api&client_id=user.x&client_secret=a%2Bb%26c%3Dd+e\
+         &deviceType=21&deviceIdentifier=dev-1&deviceName=Test+device"
+    );
     assert_eq!(get("deviceType"), Some("21"));
     assert_eq!(get("deviceIdentifier"), Some("dev-1"));
     assert_eq!(get("deviceName"), Some("Test device"));
     assert_eq!(rig.client.access_token(), Some("tok"));
 
-    rig.reply(200, r#"{"Profile":{"Id":"u"}}"#);
+    rig.reply(200, r#"{"Profile":{"Id":"u","Key":"k"}}"#);
     block_on(rig.client.sync()).unwrap();
     let (method, url, headers, body) = rig.last();
     assert_eq!((method, url.as_str()), (Method::Get, "https://bw.example.org/api/sync?excludeDomains=true"));
@@ -182,7 +217,7 @@ fn api_key_bound_to_origin() {
 fn a_bad_identity_url_sends_nothing() {
     let mut rig = Rig::new();
     rig.client.urls.identity = "not a url".into();
-    assert!(matches!(block_on(rig.client.login(&key())), Err(ApiError::Protocol(_))));
+    assert!(matches!(block_on(rig.client.login(&key())), Err(ApiError::Invalid(_))));
     assert!(rig.sent.borrow().is_empty());
 }
 
@@ -334,7 +369,7 @@ fn writes_name_their_owner_and_encode_ids() {
     assert!(matches!(block_on(rig.client.update_cipher("c", body.clone())), Err(ApiError::NotSynced)));
     assert_eq!(rig.sent.borrow().len(), 1, "only the login went out");
 
-    rig.reply(200, r#"{"Profile":{"Id":"user-1"}}"#);
+    rig.reply(200, SYNC);
     block_on(rig.client.sync()).unwrap();
     rig.reply(200, "{}");
     block_on(rig.client.create_cipher(body.clone())).unwrap();
@@ -365,12 +400,26 @@ fn writes_name_their_owner_and_encode_ids() {
 fn sync_needs_a_profile_id() {
     let mut rig = Rig::new();
     rig.login();
-    for body in ["{}", "", r#"{"Profile":{"Id":5}}"#] {
+    for body in ["{}", "", r#"{"Profile":{"Id":5}}"#, r#"{"Profile":{"Id":"","Key":"k"}}"#] {
         rig.reply(200, body);
         let r = block_on(rig.client.sync());
         assert!(matches!(&r, Err(ApiError::Protocol(m)) if m == "sync response has no profile"), "{body}");
     }
-    rig.reply(200, r#"{"Profile":{"Id":"u"},"Ciphers":[{"Id":"c"}]}"#);
+    for body in [r#"{"Profile":{"Id":"u"}}"#, r#"{"Profile":{"Id":"u","Key":""},"UserDecryption":{}}"#] {
+        rig.reply(200, body);
+        let r = block_on(rig.client.sync());
+        assert!(matches!(&r, Err(ApiError::Protocol(m)) if m == "sync response has no account key"), "{body}");
+    }
+    assert!(
+        matches!(block_on(rig.client.create_cipher(Map::new())), Err(ApiError::NotSynced)),
+        "a refused sync learns nothing"
+    );
+    // The newer servers' key location, and missing lists become empty ones.
+    let newer = r#"{"Profile":{"Id":"u"},"UserDecryption":{"MasterPasswordUnlock":{"MasterKeyEncryptedUserKey":"2.k"}},"Folders":[{"Id":"f"}]}"#;
+    rig.reply(200, newer);
+    let v = block_on(rig.client.sync()).unwrap();
+    assert_eq!((v["ciphers"].clone(), v["folders"][0]["id"].clone()), (json!([]), json!("f")));
+    rig.reply(200, r#"{"Profile":{"Id":"u","Key":"k"},"Ciphers":[{"Id":"c"}]}"#);
     assert_eq!(block_on(rig.client.sync()).unwrap()["ciphers"][0]["id"], "c");
 }
 
@@ -404,4 +453,100 @@ fn responses_over_the_limit_are_refused() {
         rig.reply(status, "12345678");
         assert!(!matches!(block_on(rig.client.prelogin("a")), Err(ApiError::TooLarge)));
     }
+}
+
+#[test]
+fn the_token_is_renewed_a_minute_before_it_expires() {
+    let mut rig = Rig::new();
+    rig.login(); // at 1_000_000, expires_in 3600: renewed from +3_540_000
+    assert_eq!(rig.client.access_token(), Some("tok"));
+    rig.now.set(1_000_000 + 3_540_000 - 1);
+    assert_eq!(rig.client.access_token(), Some("tok"));
+    rig.reply(200, SYNC);
+    block_on(rig.client.sync()).unwrap();
+    assert_eq!(rig.sent.borrow().len(), 2, "no re-login before the margin");
+
+    rig.now.set(1_000_000 + 3_540_000);
+    assert_eq!(rig.client.access_token(), None);
+    rig.reply(200, r#"{"access_token":"tok2"}"#);
+    rig.reply(200, SYNC);
+    block_on(rig.client.sync()).unwrap();
+    let sent = rig.sent.borrow();
+    assert_eq!(sent.len(), 4);
+    assert_eq!(sent[2].url, "https://bw.example.org/identity/connect/token");
+    let form = String::from_utf8(sent[2].body.as_ref().unwrap().to_vec()).unwrap();
+    assert!(form.contains("client_id=user.x&client_secret=s3cret-value"), "re-login uses the stored key");
+    let auth = sent[3].headers.iter().find(|(k, _)| k == "Authorization").unwrap();
+    assert_eq!(auth.1, "Bearer tok2");
+}
+
+#[test]
+fn a_short_lived_token_lasts_a_minute() {
+    let mut rig = Rig::new();
+    rig.reply(200, r#"{"access_token":"tok","expires_in":10}"#);
+    block_on(rig.client.login(&key())).unwrap();
+    rig.now.set(1_000_000 + 59_999);
+    assert_eq!(rig.client.access_token(), Some("tok"));
+    rig.now.set(1_000_000 + 60_000);
+    assert_eq!(rig.client.access_token(), None);
+}
+
+#[test]
+fn a_failed_renewal_surfaces_and_sends_nothing_else() {
+    let mut rig = Rig::new();
+    rig.login();
+    rig.now.set(1_000_000 + 3_540_000);
+    rig.reply(400, r#"{"error_description":"invalid_client"}"#);
+    let e = block_on(rig.client.revision_date()).unwrap_err();
+    assert_eq!(e.to_string(), "HTTP 400 (server says: invalid_client)");
+    assert_eq!(rig.sent.borrow().len(), 2, "the call itself was not sent");
+}
+
+#[test]
+fn credentials_never_go_through_a_client_that_follows_redirects() {
+    let mut rig = Rig::new();
+    rig.refuses.set(false);
+    let e = block_on(rig.client.login(&key())).unwrap_err();
+    assert!(matches!(e, ApiError::RedirectsNotRefused) && !e.is_transient() && !e.to_string().is_empty());
+    assert!(rig.sent.borrow().is_empty());
+
+    rig.refuses.set(true);
+    rig.synced();
+    let before = rig.sent.borrow().len();
+    rig.refuses.set(false);
+    let c = &mut rig.client;
+    assert!(matches!(block_on(c.sync()), Err(ApiError::RedirectsNotRefused)));
+    assert!(matches!(block_on(c.get_cipher("x")), Err(ApiError::RedirectsNotRefused)));
+    assert!(matches!(block_on(c.create_cipher(Map::new())), Err(ApiError::RedirectsNotRefused)));
+    assert!(matches!(block_on(c.update_cipher("x", Map::new())), Err(ApiError::RedirectsNotRefused)));
+    assert!(matches!(block_on(c.trash_cipher("x")), Err(ApiError::RedirectsNotRefused)));
+    assert!(matches!(block_on(c.create_folder("x")), Err(ApiError::RedirectsNotRefused)));
+    assert!(matches!(block_on(c.revision_date()), Err(ApiError::RedirectsNotRefused)));
+    assert_eq!(rig.sent.borrow().len(), before);
+}
+
+#[test]
+fn device_info_with_control_characters_is_refused() {
+    let urls = || resolve_server_urls("https://bw.example.org").unwrap();
+    let make = |d| {
+        Client::new(
+            Fake { sent: Sent::default(), replies: Replies::default(), refuses: Rc::new(Cell::new(true)) },
+            TestClock(Rc::new(Cell::new(0))),
+            urls(),
+            d,
+        )
+    };
+    for i in 0..4 {
+        let mut d = device();
+        let field = match i {
+            0 => &mut d.identifier,
+            1 => &mut d.name,
+            2 => &mut d.client_name,
+            _ => &mut d.client_version,
+        };
+        field.push_str("x\r\nInjected: 1");
+        let e = make(d).err().unwrap();
+        assert!(matches!(&e, ApiError::Invalid(m) if m.contains("control characters")), "{i}");
+    }
+    assert!(make(device()).is_ok());
 }

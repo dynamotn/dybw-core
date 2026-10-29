@@ -2,7 +2,7 @@
 //! Ciphers stay JSON values, so an edit passes every field this client does not model back to the server.
 
 use crate::crypto::KdfParams;
-use crate::ports::{Http, HttpRequest, Method};
+use crate::ports::{Clock, Http, HttpRequest, Method};
 use serde_json::{Map, Value, json};
 use url::Url;
 use zeroize::Zeroizing;
@@ -18,6 +18,12 @@ pub enum ApiError {
     Http { status: u16, message: String },
     #[error("unexpected response: {0}")]
     Protocol(String),
+    /// A rejected input (server URL, device info); the text is shown as it is.
+    #[error("{0}")]
+    Invalid(String),
+    /// The HTTP adapter would follow a redirect, which could carry the API key or token to another host.
+    #[error("the HTTP client follows redirects; refusing to send credentials")]
+    RedirectsNotRefused,
     #[error("not logged in")]
     NotLoggedIn,
     #[error("the response is larger than the limit")]
@@ -57,7 +63,7 @@ pub fn resolve_server_urls(server_url: &str) -> Result<ServerUrls, ApiError> {
     let trimmed = server_url.trim();
     let raw = if trimmed.is_empty() { "https://vault.bitwarden.com" } else { trimmed };
     // The text is not echoed: the URL may hold a password.
-    let url = Url::parse(raw).map_err(|e| ApiError::Protocol(format!("invalid server URL: {e}")))?;
+    let url = Url::parse(raw).map_err(|e| ApiError::Invalid(format!("invalid server URL: {e}")))?;
     let host = url.host_str().unwrap_or_default();
     let loopback = matches!(host, "localhost" | "127.0.0.1" | "[::1]");
     if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
@@ -66,7 +72,7 @@ pub fn resolve_server_urls(server_url: &str) -> Result<ServerUrls, ApiError> {
         ));
     }
     if !url.username().is_empty() || url.password().is_some() {
-        return Err(ApiError::Protocol("the server URL must not contain credentials".into()));
+        return Err(ApiError::Invalid("the server URL must not contain credentials".into()));
     }
     let cloud = |tld: &str| ServerUrls {
         api: format!("https://api.bitwarden.{tld}"),
@@ -111,7 +117,7 @@ pub fn normalize_keys(value: Value) -> Value {
 pub fn origin_of(url: &str) -> Result<String, ApiError> {
     Url::parse(url)
         .map(|u| u.origin().ascii_serialization())
-        .map_err(|e| ApiError::Protocol(format!("invalid URL: {e}")))
+        .map_err(|e| ApiError::Invalid(format!("invalid URL: {e}")))
 }
 
 pub struct ApiKey {
@@ -137,26 +143,62 @@ pub struct DeviceInfo {
     pub name: String,
     /// The server's `DeviceType` number.
     pub device_type: u8,
+    /// `Bitwarden-Client-Name`, supplied by the tool.
+    pub client_name: String,
+    /// `Bitwarden-Client-Version`, supplied by the tool.
+    pub client_version: String,
 }
 
-pub struct Client<H: Http> {
+struct Session {
+    token: Zeroizing<String>,
+    /// Clock time (ms) after which the token is renewed: a minute before the server's expiry.
+    renew_at_ms: i64,
+    key: ApiKey,
+}
+
+pub struct Client<H: Http, C: Clock> {
     http: H,
+    clock: C,
     urls: ServerUrls,
     device: DeviceInfo,
-    token: Option<Zeroizing<String>>,
+    session: Option<Session>,
     user_id: Option<String>,
     /// `MAX_BODY`; tests lower it.
     body_limit: usize,
 }
 
-impl<H: Http> Client<H> {
-    pub fn new(http: H, urls: ServerUrls, device: DeviceInfo) -> Self {
-        Client { http, urls, device, token: None, user_id: None, body_limit: MAX_BODY }
+impl<H: Http, C: Clock> Client<H, C> {
+    /// Refuses device info with control characters: it becomes header values.
+    pub fn new(http: H, clock: C, urls: ServerUrls, device: DeviceInfo) -> Result<Self, ApiError> {
+        let texts = [&device.identifier, &device.name, &device.client_name, &device.client_version];
+        if texts.iter().any(|t| t.chars().any(char::is_control)) {
+            return Err(ApiError::Invalid("device info must not contain control characters".into()));
+        }
+        Ok(Client { http, clock, urls, device, session: None, user_id: None, body_limit: MAX_BODY })
     }
 
-    /// The bearer token, for the hub URL.
+    /// The bearer token while it is valid, for the hub URL.
     pub fn access_token(&self) -> Option<&str> {
-        self.token.as_ref().map(|t| t.as_str())
+        let s = self.session.as_ref().filter(|s| self.clock.now_ms() < s.renew_at_ms)?;
+        Some(s.token.as_str())
+    }
+
+    /// Refuses to send credentials through a client that follows redirects, then renews a token that is
+    /// within a minute of expiry with the stored API key.
+    async fn ensure_login(&mut self) -> Result<(), ApiError> {
+        if !self.http.refuses_redirects() {
+            return Err(ApiError::RedirectsNotRefused);
+        }
+        let s = self.session.as_ref().ok_or(ApiError::NotLoggedIn)?;
+        if self.clock.now_ms() >= s.renew_at_ms {
+            let key = ApiKey {
+                origin: s.key.origin.clone(),
+                client_id: s.key.client_id.clone(),
+                client_secret: Zeroizing::new(s.key.client_secret.as_str().to_owned()),
+            };
+            self.login(&key).await?;
+        }
+        Ok(())
     }
 
     /// Sends one request and returns the body of a 2xx answer.
@@ -167,11 +209,14 @@ impl<H: Http> Client<H> {
         mut headers: Vec<(String, String)>,
         body: Option<Zeroizing<Vec<u8>>>,
     ) -> Result<Zeroizing<Vec<u8>>, ApiError> {
-        headers.push(("Bitwarden-Client-Name".into(), self.device.name.clone()));
-        headers.push(("Bitwarden-Client-Version".into(), env!("CARGO_PKG_VERSION").into()));
+        headers.push(("Bitwarden-Client-Name".into(), self.device.client_name.clone()));
+        headers.push(("Bitwarden-Client-Version".into(), self.device.client_version.clone()));
         headers.push(("Device-Type".into(), self.device.device_type.to_string()));
-        let res =
-            self.http.send(HttpRequest { method, url, headers, body }).await.map_err(|e| ApiError::Network(e.0))?;
+        let res = self
+            .http
+            .send(HttpRequest { method, url, headers, body, max_body: self.body_limit })
+            .await
+            .map_err(|e| ApiError::Network(e.0))?;
         if res.body.len() > self.body_limit {
             return Err(ApiError::TooLarge);
         }
@@ -182,18 +227,19 @@ impl<H: Http> Client<H> {
     }
 
     /// An authenticated call with an optional JSON body; the answer is parsed and normalized.
-    async fn authed(&self, method: Method, path: &str, body: Option<Value>) -> Result<Value, ApiError> {
+    async fn authed(&mut self, method: Method, path: &str, body: Option<Value>) -> Result<Value, ApiError> {
         self.authed_raw(method, path, body).await.map(|b| parse_json(&b))
     }
 
     async fn authed_raw(
-        &self,
+        &mut self,
         method: Method,
         path: &str,
         body: Option<Value>,
     ) -> Result<Zeroizing<Vec<u8>>, ApiError> {
-        let token = self.token.as_ref().ok_or(ApiError::NotLoggedIn)?;
-        let mut headers = vec![("Authorization".to_owned(), format!("Bearer {}", token.as_str()))];
+        self.ensure_login().await?;
+        let token = self.session.as_ref().map(|s| s.token.as_str()).unwrap_or_default();
+        let mut headers = vec![("Authorization".to_owned(), format!("Bearer {token}"))];
         let body = body.map(|b| {
             headers.push(("Content-Type".into(), "application/json".into()));
             Zeroizing::new(b.to_string().into_bytes())
@@ -225,6 +271,9 @@ impl<H: Http> Client<H> {
         if key.origin != origin_of(&self.urls.identity)? {
             return Err(ApiError::WrongOrigin);
         }
+        if !self.http.refuses_redirects() {
+            return Err(ApiError::RedirectsNotRefused);
+        }
         let mut form = url::form_urlencoded::Serializer::new(String::new());
         form.append_pair("grant_type", "client_credentials")
             .append_pair("scope", "api")
@@ -238,37 +287,60 @@ impl<H: Http> Client<H> {
         let url = format!("{}/connect/token", self.urls.identity);
         let res = parse_json(&self.call(Method::Post, url, headers, Some(body)).await?);
         // Moved out of the parsed value, so no second copy of the token is left behind.
-        let token = match res {
-            Value::Object(mut m) => m.remove("access_token"),
-            _ => None,
+        let (token, expires_in) = match res {
+            Value::Object(mut m) => (m.remove("access_token"), m.get("expires_in").and_then(Value::as_u64)),
+            _ => (None, None),
         };
-        match token {
-            Some(Value::String(t)) => {
-                self.token = Some(Zeroizing::new(t));
-                Ok(())
-            }
-            _ => Err(ApiError::Protocol("no access token".into())),
-        }
+        let Some(Value::String(token)) = token else {
+            return Err(ApiError::Protocol("no access token".into()));
+        };
+        // Renewed a minute before the server's expiry, but never sooner than a minute from now.
+        let ttl_s = expires_in.unwrap_or(3600).saturating_sub(60).max(60);
+        let ttl_ms = i64::try_from(ttl_s).unwrap_or(i64::MAX).saturating_mul(1000);
+        let renew_at_ms = self.clock.now_ms().saturating_add(ttl_ms);
+        let key = ApiKey {
+            origin: key.origin.clone(),
+            client_id: key.client_id.clone(),
+            client_secret: Zeroizing::new(key.client_secret.as_str().to_owned()),
+        };
+        self.session = Some(Session { token: Zeroizing::new(token), renew_at_ms, key });
+        Ok(())
     }
 
+    /// `/sync`, with missing `folders` and `ciphers` as empty lists. A response without a profile id or an
+    /// account key is refused.
     pub async fn sync(&mut self) -> Result<Value, ApiError> {
-        let body = self.authed(Method::Get, "/sync?excludeDomains=true", None).await?;
-        let id = body.pointer("/profile/id").and_then(Value::as_str);
-        self.user_id = Some(id.ok_or_else(|| ApiError::Protocol("sync response has no profile".into()))?.to_owned());
+        let mut body = self.authed(Method::Get, "/sync?excludeDomains=true", None).await?;
+        let text = |p: &str| body.pointer(p).and_then(Value::as_str).filter(|t| !t.is_empty());
+        let id = text("/profile/id").ok_or_else(|| ApiError::Protocol("sync response has no profile".into()))?;
+        let id = id.to_owned();
+        if text("/profile/key").or(text("/userDecryption/masterPasswordUnlock/masterKeyEncryptedUserKey")).is_none() {
+            return Err(ApiError::Protocol("sync response has no account key".into()));
+        }
+        // The profile id above proves `body` is an object.
+        for map in body.as_object_mut().into_iter() {
+            for list in ["folders", "ciphers"] {
+                let slot = map.entry(list).or_insert(Value::Null);
+                if slot.is_null() {
+                    *slot = json!([]);
+                }
+            }
+        }
+        self.user_id = Some(id);
         Ok(body)
     }
 
     /// The account's revision date as the server sends it (a number or a string), as raw text: it is only compared.
-    pub async fn revision_date(&self) -> Result<String, ApiError> {
+    pub async fn revision_date(&mut self) -> Result<String, ApiError> {
         let body = self.authed_raw(Method::Get, "/accounts/revision-date", None).await?;
         Ok(String::from_utf8_lossy(&body).trim().to_owned())
     }
 
-    pub async fn get_cipher(&self, id: &str) -> Result<Value, ApiError> {
+    pub async fn get_cipher(&mut self, id: &str) -> Result<Value, ApiError> {
         self.authed(Method::Get, &format!("/ciphers/{}", enc(id)), None).await
     }
 
-    pub async fn create_folder(&self, encrypted_name: &str) -> Result<Value, ApiError> {
+    pub async fn create_folder(&mut self, encrypted_name: &str) -> Result<Value, ApiError> {
         self.authed(Method::Post, "/folders", Some(json!({ "name": encrypted_name }))).await
     }
 
@@ -279,23 +351,19 @@ impl<H: Http> Client<H> {
         Ok(Value::Object(body))
     }
 
-    pub async fn create_cipher(&self, body: Map<String, Value>) -> Result<Value, ApiError> {
-        self.require_login()?;
+    pub async fn create_cipher(&mut self, body: Map<String, Value>) -> Result<Value, ApiError> {
+        self.ensure_login().await?;
         self.authed(Method::Post, "/ciphers", Some(self.with_owner(body)?)).await
     }
 
-    pub async fn update_cipher(&self, id: &str, body: Map<String, Value>) -> Result<Value, ApiError> {
-        self.require_login()?;
+    pub async fn update_cipher(&mut self, id: &str, body: Map<String, Value>) -> Result<Value, ApiError> {
+        self.ensure_login().await?;
         self.authed(Method::Put, &format!("/ciphers/{}", enc(id)), Some(self.with_owner(body)?)).await
     }
 
     /// Moves the cipher to the trash, where any Bitwarden client can restore it.
-    pub async fn trash_cipher(&self, id: &str) -> Result<(), ApiError> {
+    pub async fn trash_cipher(&mut self, id: &str) -> Result<(), ApiError> {
         self.authed(Method::Put, &format!("/ciphers/{}/delete", enc(id)), None).await.map(|_| ())
-    }
-
-    fn require_login(&self) -> Result<(), ApiError> {
-        self.token.as_ref().map(|_| ()).ok_or(ApiError::NotLoggedIn)
     }
 }
 

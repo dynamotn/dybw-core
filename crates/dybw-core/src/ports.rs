@@ -28,6 +28,8 @@ pub struct HttpRequest {
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: Option<Zeroizing<Vec<u8>>>,
+    /// Largest response body the caller accepts. See [`Http::send`].
+    pub max_body: usize,
 }
 
 pub struct HttpResponse {
@@ -38,6 +40,8 @@ pub struct HttpResponse {
 pub trait Http {
     /// Whether the host refuses to follow redirects (ADR 0018, handled in M6).
     fn refuses_redirects(&self) -> bool;
+    /// Adapters must stop reading and fail once the response body exceeds `req.max_body` (the announced length
+    /// first, then while streaming), so a hostile server cannot make the host buffer an unbounded body.
     async fn send(&self, req: HttpRequest) -> Result<HttpResponse, PortError>;
 }
 
@@ -135,7 +139,8 @@ mod tests {
     fn ports_run_without_send() {
         let seen = Rc::new(RefCell::new(Vec::new()));
         let fake = Fake(seen.clone());
-        let req = HttpRequest { method: Method::Get, url: "https://x/y".into(), headers: vec![], body: None };
+        let req =
+            HttpRequest { method: Method::Get, url: "https://x/y".into(), headers: vec![], body: None, max_body: 1 };
         assert!(fake.refuses_redirects());
         assert_eq!(block_on(fake.send(req)).unwrap().status, 200);
         assert_eq!(seen.borrow().first().unwrap().url, "https://x/y");
