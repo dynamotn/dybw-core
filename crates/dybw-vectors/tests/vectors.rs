@@ -40,7 +40,7 @@ fn check_flags_listed_passes() {
     // b fails unlisted; c is listed but passed.
     let err = check(results, &map(&[("c", "why")])).unwrap_err();
     assert!(err.contains("b: boom"), "{err}");
-    assert!(err.contains("c") && err.contains("passed"), "{err}");
+    assert!(err.contains("c: listed as failing") && err.contains("passed"), "{err}");
     assert!(!err.contains("a:"), "{err}");
     // Exactly the listed vectors fail: fine.
     let results = vec![("a".to_owned(), Ok(())), ("b".to_owned(), Err("boom".to_owned()))];
@@ -55,4 +55,14 @@ fn every_vector_deserializes_with_its_account() {
             assert!(dir.join("accounts").join(format!("{}.json", s.account)).is_file(), "{}", path.display());
         }
     }
+}
+
+#[test]
+fn write_expect_refuses_unknown_keys() {
+    use dybw_vectors::scenario::WriteExpect;
+    let parse = |v: serde_json::Value| serde_json::from_value::<WriteExpect>(v);
+    assert!(matches!(parse(serde_json::json!({ "requests": [] })).unwrap(), WriteExpect::Requests(_)));
+    assert!(matches!(parse(serde_json::json!({ "error": "too-long" })).unwrap(), WriteExpect::Error(_)));
+    assert!(parse(serde_json::json!({ "requests": [], "extra": 1 })).is_err());
+    assert!(parse(serde_json::json!({ "error": "too-long", "extra": 1 })).is_err());
 }

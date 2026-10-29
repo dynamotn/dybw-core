@@ -137,3 +137,22 @@ fn canonicalize_decrypts_with_the_item_key_and_marks_now() {
     let other = SymmetricKey::generate(&rng).unwrap();
     assert!(canonicalize(&sent, &other, &BTreeMap::new()).is_err());
 }
+
+#[test]
+fn server_percent_decodes_cipher_ids() {
+    let dir = vectors_dir().unwrap();
+    let keys = account_keys(&dir, "pbkdf2", false);
+    let server = VectorServer::new(keys.profile, vec![json!({ "id": "c 1/é", "name": "n" })], keys.prelogin);
+    let mut api = client(server.clone());
+    block_on(async {
+        api.login(&api_key()).await.unwrap();
+        api.sync().await.unwrap();
+        // The client percent-encodes the id; the server matches and records it decoded, as decodeURIComponent.
+        assert_eq!(api.get_cipher("c 1/é").await.unwrap()["name"], "n");
+        api.update_cipher("c 1/é", serde_json::Map::new()).await.unwrap();
+        api.trash_cipher("c 1/é").await.unwrap();
+    });
+    let sent = server.sent.borrow();
+    assert!(matches!(&sent[0], Sent::Put { cipher, .. } if cipher == "c 1/é"), "{sent:?}");
+    assert!(matches!(&sent[1], Sent::Trash { cipher } if cipher == "c 1/é"), "{sent:?}");
+}

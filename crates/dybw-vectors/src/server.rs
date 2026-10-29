@@ -2,6 +2,7 @@
 
 use dybw_core::api::{ServerUrls, resolve_server_urls};
 use dybw_core::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
+use percent_encoding::percent_decode_str;
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -95,7 +96,13 @@ impl Http for VectorServer {
             let raw = req.body.as_deref().map_or(&[][..], Vec::as_slice);
             serde_json::from_slice(raw).map_err(|_| PortError("request body is not JSON".into()))
         };
-        let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+        // Each segment percent-decoded, as the plugin's decodeURIComponent; one that is not UTF-8 matches nothing.
+        let decoded: Vec<String> = path
+            .trim_start_matches('/')
+            .split('/')
+            .map(|s| percent_decode_str(s).decode_utf8().map_or_else(|_| "\u{fffd}".into(), |d| d.into_owned()))
+            .collect();
+        let segments: Vec<&str> = decoded.iter().map(String::as_str).collect();
         match (req.method, segments.as_slice()) {
             (Method::Post, ["identity", "connect", "token"]) => {
                 json_response(200, &json!({ "access_token": "vectors-token", "expires_in": 3600 }))

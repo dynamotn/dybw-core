@@ -299,6 +299,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "dybw-core",
+ "percent-encoding",
  "serde",
  "serde_json",
  "zeroize",

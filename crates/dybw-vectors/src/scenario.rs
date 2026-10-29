@@ -151,8 +151,20 @@ pub struct Duplicate {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum WriteExpect {
-    Requests { requests: Vec<Value> },
-    Error { error: String },
+    Requests(WriteRequests),
+    Error(WriteError),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WriteRequests {
+    pub requests: Vec<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WriteError {
+    pub error: String,
 }
 
 #[derive(Debug, Deserialize)]
