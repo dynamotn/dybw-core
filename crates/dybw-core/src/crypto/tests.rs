@@ -111,7 +111,8 @@ fn malformed_and_unsupported_inputs() {
     for pre in ["02.", "+2.", "2 .", "."] {
         assert_eq!(k.decrypt(&format!("{pre}{body}")).unwrap_err(), CryptoError::Malformed, "{pre}");
     }
-    assert_eq!(k.decrypt("7.abc").unwrap_err(), CryptoError::UnsupportedType(7));
+    assert_eq!(k.decrypt("7.abc").unwrap_err(), CryptoError::WrongKey);
+    assert_eq!(k.decrypt("9.abc").unwrap_err(), CryptoError::UnsupportedType(9));
     assert_eq!(k.decrypt("0.a|b|c").unwrap_err(), CryptoError::UnsupportedType(0));
     assert_eq!(SymmetricKey::from_bytes(&[0; 63]).unwrap_err(), CryptoError::Malformed);
 }
@@ -135,7 +136,8 @@ fn round_trip() {
 fn bad_padding_is_decrypt_error() {
     use aes::cipher::{BlockModeEncrypt, KeyIvInit, block_padding::NoPadding};
     let k = SymmetricKey::generate(&SeededRandom::new(3)).unwrap();
-    let (enc, mac) = k.parts();
+    let SymmetricKey::Legacy(l) = &k else { unreachable!() };
+    let (enc, mac) = l.parts();
     let iv = [7u8; 16];
     let ct = cbc::Encryptor::<aes::Aes256>::new(&(*enc).into(), &iv.into()).encrypt_padded_vec::<NoPadding>(&[0u8; 16]);
     let tag = key_hmac(mac, &iv, &ct);
@@ -184,7 +186,7 @@ fn kdf_bounds() {
 fn debug_and_errors_are_redacted() {
     let k = SymmetricKey::generate(&SeededRandom::new(2)).unwrap();
     assert_eq!(format!("{k:?}"), "SymmetricKey(<redacted>)");
-    let SymmetricKey::Legacy(inner) = &k;
+    let SymmetricKey::Legacy(inner) = &k else { unreachable!() };
     assert_eq!(format!("{inner:?}"), "LegacyKey(<redacted>)");
     let key_b64 = B64.encode(k.to_bytes().as_slice());
     let plain_b64 = B64.encode(b"secret-plaintext");

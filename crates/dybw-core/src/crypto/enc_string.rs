@@ -1,4 +1,5 @@
 use super::CryptoError;
+use super::cose::{ContentFormat, cose_decrypt, cose_encrypt, parse_cose_key};
 use super::key::{SymmetricKey, hmac};
 use crate::ports::Random;
 use aes::cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7};
@@ -11,38 +12,66 @@ type Enc = cbc::Encryptor<aes::Aes256>;
 type Dec = cbc::Decryptor<aes::Aes256>;
 
 impl SymmetricKey {
-    /// Encrypts into a type 2 string `2.iv|ct|mac` under a fresh random IV.
+    /// Encrypts under the key's own EncString type: `2.iv|ct|mac` for a legacy key, `7.<COSE_Encrypt0>` for a COSE key.
     pub fn encrypt(&self, plain: &[u8], rng: &impl Random) -> Result<String, CryptoError> {
-        let mut iv = [0u8; 16];
-        rng.fill(&mut iv)?;
-        let (enc, mac) = self.parts();
-        let ct = Enc::new(&(*enc).into(), &iv.into()).encrypt_padded_vec::<Pkcs7>(plain);
-        let tag = hmac(mac, &[&iv, &ct]);
-        Ok(format!("2.{}|{}|{}", B64.encode(iv), B64.encode(&ct), B64.encode(tag)))
+        self.encrypt_as(plain, ContentFormat::OctetStream, rng)
     }
 
     pub fn encrypt_str(&self, plain: &str, rng: &impl Random) -> Result<String, CryptoError> {
-        self.encrypt(plain.as_bytes(), rng)
+        self.encrypt_as(plain.as_bytes(), ContentFormat::Utf8, rng)
     }
 
-    /// Dispatches on the type prefix: `2.` here, anything else is unsupported.
+    /// `format` labels type 7 content (authenticated, and checked on decrypt); type 2 carries no label.
+    pub fn encrypt_as(&self, plain: &[u8], format: ContentFormat, rng: &impl Random) -> Result<String, CryptoError> {
+        match self {
+            SymmetricKey::Legacy(k) => {
+                let mut iv = [0u8; 16];
+                rng.fill(&mut iv)?;
+                let (enc, mac) = k.parts();
+                let ct = Enc::new(&(*enc).into(), &iv.into()).encrypt_padded_vec::<Pkcs7>(plain);
+                let tag = hmac(mac, &[&iv, &ct]);
+                Ok(format!("2.{}|{}|{}", B64.encode(iv), B64.encode(&ct), B64.encode(tag)))
+            }
+            SymmetricKey::Cose(k) => Ok(format!("7.{}", cose_encrypt(k, plain, format, rng)?)),
+        }
+    }
+
+    /// Bytes or a PKCS#8 key: what a type 7 string may hold besides text and keys.
     pub fn decrypt(&self, s: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+        Ok(self.open(s, &[ContentFormat::OctetStream, ContentFormat::Pkcs8])?.0)
+    }
+
+    /// Dispatches on the type prefix: `2.` for a legacy key, `7.` for a COSE key; a value of the other type is
+    /// `WrongKey`, any other number `UnsupportedType`. A type 7 value must hold one of the `expected` formats.
+    fn open(
+        &self,
+        s: &str,
+        expected: &[ContentFormat],
+    ) -> Result<(Zeroizing<Vec<u8>>, Option<ContentFormat>), CryptoError> {
         let (ty, rest) = s.split_once('.').ok_or(CryptoError::Malformed)?;
         // Exact decimal strings only: "02" and "+2" are not type 2 (bwss matches the string "2").
-        if ty == "2" {
-            return self.decrypt2(rest);
-        }
-        match ty.parse::<u8>() {
-            Ok(n) if n.to_string() == ty => Err(CryptoError::UnsupportedType(n)),
-            _ => Err(CryptoError::Malformed),
+        match (ty, self) {
+            ("2", SymmetricKey::Legacy(k)) => Ok((Self::decrypt2(k.parts(), rest)?, None)),
+            ("7", SymmetricKey::Cose(k)) => {
+                let (plain, format) = cose_decrypt(k, rest)?;
+                if !expected.contains(&format) {
+                    return Err(CryptoError::Malformed);
+                }
+                Ok((plain, Some(format)))
+            }
+            ("2" | "7", _) => Err(CryptoError::WrongKey),
+            _ => match ty.parse::<u8>() {
+                Ok(n) if n.to_string() == ty => Err(CryptoError::UnsupportedType(n)),
+                _ => Err(CryptoError::Malformed),
+            },
         }
     }
 
     /// The MAC is checked in constant time before anything is decrypted.
     #[expect(clippy::expect_used, reason = "HMAC accepts a key of any length")]
-    fn decrypt2(&self, rest: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
-        let mut parts = rest.split('|');
-        let (Some(iv), Some(ct), Some(mac), None) = (parts.next(), parts.next(), parts.next(), parts.next()) else {
+    fn decrypt2(parts: (&[u8; 32], &[u8; 32]), rest: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+        let mut fields = rest.split('|');
+        let (Some(iv), Some(ct), Some(mac), None) = (fields.next(), fields.next(), fields.next(), fields.next()) else {
             return Err(CryptoError::Malformed);
         };
         let dec = |s: &str| B64.decode(s).map_err(|_| CryptoError::Malformed);
@@ -51,7 +80,7 @@ impl SymmetricKey {
         if mac.len() != 32 || ct.is_empty() || ct.len() % 16 != 0 {
             return Err(CryptoError::Malformed);
         }
-        let (enc, mkey) = self.parts();
+        let (enc, mkey) = parts;
         let mut m = <Hmac<Sha256> as KeyInit>::new_from_slice(mkey).expect("HMAC accepts any key length");
         m.update(&iv);
         m.update(&ct);
@@ -64,12 +93,16 @@ impl SymmetricKey {
 
     /// Non-UTF-8 plaintext is `Decrypt`; validated in place so no unwiped copy lands in an error.
     pub fn decrypt_str(&self, s: &str) -> Result<Zeroizing<String>, CryptoError> {
-        let bytes = self.decrypt(s)?;
+        let (bytes, _) = self.open(s, &[ContentFormat::Utf8])?;
         std::str::from_utf8(&bytes).map(|t| Zeroizing::new(t.to_owned())).map_err(|_| CryptoError::Decrypt)
     }
 
-    /// Decrypts a wrapped key (a user key or an item key).
+    /// Decrypts a wrapped key (a user key or an item key); a type 7 value says whether it holds a COSE key.
     pub fn decrypt_key(&self, s: &str) -> Result<SymmetricKey, CryptoError> {
-        SymmetricKey::from_bytes(&self.decrypt(s)?)
+        let (bytes, format) = self.open(s, &[ContentFormat::LegacyKey, ContentFormat::CoseKey])?;
+        match format {
+            Some(ContentFormat::CoseKey) => Ok(SymmetricKey::Cose(parse_cose_key(&bytes)?)),
+            _ => SymmetricKey::from_bytes(&bytes),
+        }
     }
 }

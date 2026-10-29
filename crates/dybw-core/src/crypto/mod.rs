@@ -1,9 +1,13 @@
-//! Bitwarden client-side cryptography: keys, EncString type 2, and the KDFs.
+//! Bitwarden client-side cryptography: keys, EncString types 2 and 7, and the KDFs.
 
+mod aead;
+mod cbor;
+mod cose;
 mod enc_string;
 mod kdf;
 mod key;
 
+pub use cose::{ContentFormat, CoseAlgorithm};
 #[cfg(feature = "native")]
 pub use kdf::NativeArgon2;
 pub use kdf::{KdfParams, MasterKey, derive_master_key, hash_master_password};
@@ -37,3 +41,7 @@ impl From<crate::ports::PortError> for CryptoError {
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod cose_tests;
