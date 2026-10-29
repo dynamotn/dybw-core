@@ -14,8 +14,9 @@ use zeroize::Zeroizing;
 const TYPE_LOGIN: u64 = 1;
 const TYPE_SECURE_NOTE: u64 = 2;
 
-/// Where a marked item's secret was read from (§5).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Where a marked item's secret was read from (§5). Serialized as its code, for the write queue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ValueSource {
     /// `{ns}:password`.
     Field,
@@ -141,14 +142,14 @@ pub struct ScanReport {
     pub present: BTreeSet<String>,
 }
 
-fn trashed(cipher: &Value) -> bool {
+pub(crate) fn trashed(cipher: &Value) -> bool {
     cipher.get("deletedDate").is_some_and(|d| !d.is_null())
 }
 
 /// Bitwarden's blob form, with the SDK's own gate: `data` parses as a JSON object holding a `format_version` key
 /// (sdk-internal 3d16437, bitwarden-vault/src/cipher/blob/sealed.rs from_opaque_string). Whatever else it holds,
 /// the SDK cannot read it either, so it is held.
-fn is_blob(cipher: &Value) -> bool {
+pub(crate) fn is_blob(cipher: &Value) -> bool {
     cipher
         .get("data")
         .and_then(Value::as_str)

@@ -250,6 +250,27 @@ fn enc_structure(protected: &[u8]) -> Vec<u8> {
     ]))
 }
 
+fn protected_header(key: &CoseKey, format: ContentFormat) -> Vec<u8> {
+    cbor::encode(&Cbor::Map(vec![
+        (int(H_ALG), key.alg.value()),
+        (int(H_CONTENT_TYPE), format.value()),
+        (int(H_KID), Cbor::Bytes(key.id.to_vec())),
+    ]))
+}
+
+/// The byte length of the COSE_Encrypt0 `cose_encrypt` builds for `len` bytes of text, without encrypting: the text
+/// is padded to its block, and both AEADs add a 16-byte tag.
+pub fn cose_text_len(key: &CoseKey, len: usize) -> usize {
+    let ct = TEXT_BLOCK * (1 + len / TEXT_BLOCK) + 16;
+    let unprotected = Cbor::Map(vec![(int(H_IV), Cbor::Bytes(vec![0; NONCE_SIZE]))]);
+    let message = Cbor::Array(vec![
+        Cbor::Bytes(protected_header(key, ContentFormat::Utf8)),
+        unprotected,
+        Cbor::Bytes(vec![0; ct]),
+    ]);
+    cbor::encode(&message).len()
+}
+
 /// Encrypts into a COSE_Encrypt0 and returns its base64, the body of an EncString type 7 (without the `7.`).
 pub fn cose_encrypt(
     key: &CoseKey,
@@ -258,11 +279,7 @@ pub fn cose_encrypt(
     rng: &impl Random,
 ) -> Result<String, CryptoError> {
     key.require(KeyOp::Encrypt)?;
-    let protected = cbor::encode(&Cbor::Map(vec![
-        (int(H_ALG), key.alg.value()),
-        (int(H_CONTENT_TYPE), format.value()),
-        (int(H_KID), Cbor::Bytes(key.id.to_vec())),
-    ]));
+    let protected = protected_header(key, format);
     let padded;
     let data: &[u8] = if format == ContentFormat::Utf8 {
         padded = pad(plain, TEXT_BLOCK * (1 + plain.len() / TEXT_BLOCK))?;

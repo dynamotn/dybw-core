@@ -1,5 +1,5 @@
 use super::CryptoError;
-use super::cose::{ContentFormat, cose_decrypt, cose_encrypt, parse_cose_key};
+use super::cose::{ContentFormat, cose_decrypt, cose_encrypt, cose_text_len, parse_cose_key};
 use super::key::{SymmetricKey, hmac};
 use crate::ports::Random;
 use aes::cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7};
@@ -41,6 +41,16 @@ impl SymmetricKey {
                 Ok(format!("2.{}|{}|{}", B64.encode(iv), B64.encode(&ct), B64.encode(tag)))
             }
             SymmetricKey::Cose(k) => Ok(format!("7.{}", cose_encrypt(k, plain, format, rng)?)),
+        }
+    }
+
+    /// The length of what `encrypt_str` returns for a text of `len` bytes, without encrypting it (data model §6.4
+    /// limits encrypted characters; type 7 strings are longer than type 2 ones).
+    pub fn encrypted_str_len(&self, len: usize) -> usize {
+        let b64 = |n: usize| n.div_ceil(3) * 4;
+        match self {
+            SymmetricKey::Legacy(_) => "2.".len() + b64(16) + 1 + b64(16 * (len / 16 + 1)) + 1 + b64(32),
+            SymmetricKey::Cose(k) => "7.".len() + b64(cose_text_len(k, len)),
         }
     }
 

@@ -5,6 +5,7 @@ pub mod fields;
 pub mod namespace;
 pub mod orgs;
 pub mod scan;
+pub mod write;
 
 pub use namespace::{Encodings, IdProblem, Namespace};
 pub use orgs::{OrgProblem, unlock_organizations};
@@ -46,3 +47,7 @@ mod scan_tests;
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod orgs_tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod write_tests;
