@@ -2,6 +2,7 @@
 
 pub mod canonical;
 pub mod keys;
+pub mod run;
 pub mod scenario;
 pub mod server;
 

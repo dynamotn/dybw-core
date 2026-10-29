@@ -6,3 +6,4 @@ pub mod crypto;
 pub mod ports;
 #[cfg(feature = "testing")]
 pub mod testing;
+pub mod vault;

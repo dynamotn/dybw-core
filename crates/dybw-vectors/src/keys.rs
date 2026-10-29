@@ -1,8 +1,9 @@
 //! The fixed accounts of `vectors/accounts/`, unlocked by the core's own code.
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
-use dybw_core::crypto::{AwsLcRsa, ContentFormat, SymmetricKey, unwrap_org_key};
+use dybw_core::crypto::{AwsLcRsa, ContentFormat, Marker, SymmetricKey, unwrap_org_key};
 use dybw_core::testing::{SeededRandom, block_on};
+use dybw_core::vault::{Keys, Namespace};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -15,6 +16,14 @@ pub struct ScenarioKeys {
     pub profile: Value,
     /// The server's answer to prelogin for this account's KDF.
     pub prelogin: Value,
+}
+
+impl ScenarioKeys {
+    /// Moves the keys into the core's `Keys`, with the namespace's value marker; nothing is cloned.
+    pub fn into_keys(self, ns: &Namespace) -> Keys {
+        let marker = Marker::new(&self.user, ns.marks);
+        Keys { user: self.user, orgs: self.orgs, marker }
+    }
 }
 
 fn text<'a>(v: &'a Value, key: &str, what: &str) -> &'a str {

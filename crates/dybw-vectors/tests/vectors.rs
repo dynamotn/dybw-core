@@ -66,3 +66,17 @@ fn write_expect_refuses_unknown_keys() {
     assert!(parse(serde_json::json!({ "requests": [], "extra": 1 })).is_err());
     assert!(parse(serde_json::json!({ "error": "too-long", "extra": 1 })).is_err());
 }
+
+#[test]
+fn read_vectors() {
+    let dir = vectors_dir().unwrap();
+    let mut results = Vec::new();
+    for ns in ["bwss", "obsidian"] {
+        for (_, s) in load_all(&dir, ns).into_iter().filter(|(_, s)| s.expect.read.is_some()) {
+            let result = dybw_vectors::run::read(&dir, &s).map_err(|e| format!("[{ns}] {e}"));
+            results.push((s.id, result));
+        }
+    }
+    assert!(results.len() > 50, "only {} read vectors", results.len());
+    check(results, &expected_failures()).unwrap();
+}
