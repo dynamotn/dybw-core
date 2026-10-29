@@ -1,0 +1,4 @@
+# dybw conformance vectors that dybw-core deliberately fails: `<vector id> <reason>`.
+# A listed vector that passes fails the run (dybw_vectors::check).
+#
+# M2: no first-set vector may be listed (plan §Expected failures)

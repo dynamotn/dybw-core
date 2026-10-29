@@ -301,6 +301,7 @@ dependencies = [
  "dybw-core",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
