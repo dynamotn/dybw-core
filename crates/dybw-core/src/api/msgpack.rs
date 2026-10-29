@@ -2,7 +2,10 @@
 //! the network: every read is checked against the bytes left before anything is allocated and nesting is limited, so
 //! malformed data is an error, never a hang or a huge allocation.
 
+use std::collections::HashSet;
+
 const MAX_DEPTH: usize = 32;
+const MAX_SAFE_INT: u128 = (1 << 53) - 1;
 
 /// Why a message could not be decoded. Messages name the problem, never the data.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -90,13 +93,18 @@ impl<'a> Reader<'a> {
     }
 
     fn map(&mut self, n: usize, depth: usize) -> Result<Msg, MsgPackError> {
-        let mut out = Vec::new();
+        let (mut out, mut seen) = (Vec::new(), HashSet::new());
         for _ in 0..n {
             let key = match read(self, depth + 1)? {
                 Msg::Str(s) => s,
-                Msg::Int(i) => i.to_string(),
+                // Beyond 2^53 the plugin sees a bigint, which it refuses as a key.
+                Msg::Int(i) if i.unsigned_abs() <= MAX_SAFE_INT => i.to_string(),
                 _ => return Err(MsgPackError::Malformed),
             };
+            // A set, not a scan: a 1 MiB frame holds ~500k entries. The plugin keeps the last duplicate; refusing is stricter.
+            if !seen.insert(key.clone()) {
+                return Err(MsgPackError::Malformed);
+            }
             out.push((key, read(self, depth + 1)?));
         }
         Ok(Msg::Map(out))

@@ -64,26 +64,37 @@ fn msgpack_wide_headers() {
 
 #[test]
 fn msgpack_rejects() {
+    use MsgPackError::{Malformed, TooDeep, Truncated};
     let mut deep = vec![0x91; 33];
     deep.push(0xc0);
     let mut ok = vec![0x91; 32];
     ok.push(0xc0);
-    for (bytes, why) in [
-        (vec![], "empty"),
-        (vec![0xcd, 0x01], "truncated int"),
-        (vec![0xa3, b'a'], "truncated str"),
-        (vec![0xa1, 0xff], "invalid utf-8"),
-        (vec![0x81, 0x90, 0x01], "array key"),
-        (vec![0x81, 0xca, 0, 0, 0, 0, 0x01], "float key"),
-        (deep, "depth 33"),
-        (vec![0xd7, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0xc0], "trailing"),
-        (vec![0xd6, 0xff, 0, 0, 0], "truncated timestamp"),
-        (vec![0xd5, 0xff, 0, 0], "timestamp length 2"),
-        (vec![0xc1], "unknown byte"),
+    for (bytes, want, why) in [
+        (vec![], Truncated, "empty"),
+        (vec![0xcd, 0x01], Truncated, "truncated int"),
+        (vec![0xa3, b'a'], Truncated, "truncated str"),
+        (vec![0xa1, 0xff], Malformed, "invalid utf-8"),
+        (vec![0x81, 0x90, 0x01], Malformed, "array key"),
+        (vec![0x81, 0xca, 0, 0, 0, 0, 0x01], Malformed, "float key"),
+        (deep, TooDeep, "depth 33"),
+        (vec![0xd7, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0xc0], Malformed, "trailing"),
+        (vec![0xd6, 0xff, 0, 0, 0], Truncated, "truncated timestamp"),
+        (vec![0xd5, 0xff, 0, 0], Malformed, "timestamp length 2"),
+        (vec![0xc1], Malformed, "unknown byte"),
+        (vec![0x82, 0xa1, b'k', 0x01, 0xa1, b'k', 0x02], Malformed, "repeated string key"),
+        (vec![0x82, 0x05, 0x01, 0x05, 0x02], Malformed, "repeated integer key"),
+        (vec![0x82, 0x01, 0x01, 0xa1, b'1', 0x02], Malformed, "int 1 and str \"1\" are one key"),
+        (vec![0x81, 0xcf, 0, 0x20, 0, 0, 0, 0, 0, 0, 0], Malformed, "uint64 key beyond 2^53"),
+        (vec![0x81, 0xd3, 0xff, 0xdf, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0], Malformed, "int64 key below -2^53"),
     ] {
-        assert!(decode_msgpack(&bytes).is_err(), "{why}");
+        assert_eq!(decode_msgpack(&bytes), Err(want), "{why}");
     }
     assert!(decode_msgpack(&ok).is_ok());
+    // The largest safe integer is still a key.
+    let max = [0x81, 0xcf, 0, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc0];
+    assert_eq!(decode_msgpack(&max).unwrap(), Msg::Map(vec![("9007199254740991".into(), Msg::Nil)]));
+    // A leading BOM is kept (the plugin's TextDecoder strips it).
+    assert_eq!(decode_msgpack(&[0xa3, 0xef, 0xbb, 0xbf]).unwrap(), Msg::Str("\u{feff}".into()));
 }
 
 #[test]
@@ -97,8 +108,12 @@ fn msgpack_huge_array_header_fails_without_allocating() {
 fn signalr_frames() {
     assert_eq!(split_signalr_frames(&[2, 1, 2, 1, 3], 8).unwrap(), vec![&[1u8, 2][..], &[3][..]]);
     assert!(split_signalr_frames(&[], 8).unwrap().is_empty());
-    assert!(split_signalr_frames(&[0x80, 0x80, 0x80, 0x80, 0x80, 0x01], 8).is_err(), "6-byte prefix");
-    assert!(split_signalr_frames(&[0x80], 8).is_err(), "truncated prefix");
+    assert_eq!(
+        split_signalr_frames(&[0x80, 0x80, 0x80, 0x80, 0x80, 0x01], 8),
+        Err(MsgPackError::Malformed),
+        "6-byte prefix"
+    );
+    assert_eq!(split_signalr_frames(&[0x80], 8), Err(MsgPackError::Malformed), "truncated prefix");
     assert_eq!(split_signalr_frames(&[9, 0], 8), Err(MsgPackError::TooLarge));
     assert_eq!(split_signalr_frames(&[3, 1], 8), Err(MsgPackError::Truncated));
     let mut big = vec![0x80, 0x80, 0x40]; // exactly 1 MiB
