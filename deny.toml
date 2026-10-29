@@ -1,0 +1,6 @@
+[bans]
+deny = [{ name = "rsa" }, { name = "openssl" }]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

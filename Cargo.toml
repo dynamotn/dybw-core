@@ -1,0 +1,28 @@
+[workspace]
+members = ["crates/dybw-core", "crates/dybw-vectors"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.89"
+version = "0.1.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+
+# KDF tests run in debug builds; keep the hashing crates fast.
+[profile.dev.package.pbkdf2]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.hmac]
+opt-level = 3
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3

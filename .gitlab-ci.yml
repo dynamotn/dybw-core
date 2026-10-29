@@ -1,0 +1,77 @@
+# CI for GitLab: lint and vectors, tests, and the 100% coverage gates
+# (lines on stable, branches on a pinned nightly).
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v/
+
+stages: [check, test]
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo-home
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  UV_VERSION: 0.10.6
+  # Newest nightly that builds the workspace; bump it here only.
+  NIGHTLY: nightly-2026-10-01
+  LLVM_COV_VERSION: ^0.9
+
+default:
+  image: rust:1-trixie
+  interruptible: true
+
+.cargo-cache:
+  cache:
+    key:
+      prefix: $CI_JOB_NAME
+      files: [Cargo.lock]
+    paths:
+      - .cargo-home/registry/index/
+      - .cargo-home/registry/cache/
+      - target/
+
+check:
+  stage: check
+  extends: .cargo-cache
+  script:
+    - rustup component add rustfmt clippy
+    - curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | sh
+    - export PATH="$HOME/.local/bin:$PATH"
+    - apt-get update && apt-get install -y --no-install-recommends ripgrep
+    - cargo fmt --all --check
+    - cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+    - cargo tree -p dybw-core -e normal --no-default-features --prefix none | rg -c '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) ' ; test $? -eq 1
+    - uv run vectors/gen/gen.py check
+
+test:
+  stage: test
+  extends: .cargo-cache
+  script:
+    - cargo test --workspace --all-features --locked
+
+coverage-lines:
+  stage: test
+  extends: .cargo-cache
+  script:
+    - rustup component add llvm-tools-preview
+    - cargo install cargo-llvm-cov --locked --version "$LLVM_COV_VERSION"
+    - cargo llvm-cov --workspace --all-features --locked --ignore-filename-regex 'crates/dybw-vectors/' --fail-under-lines 100
+
+# cargo-llvm-cov has no branch threshold flag: read the percentage from the JSON summary.
+coverage-branches:
+  stage: test
+  extends: .cargo-cache
+  script:
+    - rustup toolchain install "$NIGHTLY" --profile minimal --component llvm-tools-preview
+    - rustup default "$NIGHTLY"
+    - cargo install cargo-llvm-cov --locked --version "$LLVM_COV_VERSION"
+    - >-
+      cargo llvm-cov --branch --workspace --all-features --locked
+      --ignore-filename-regex 'crates/dybw-vectors/' --json --summary-only --output-path branches.json
+    - >-
+      python3 -c "import json,sys; p=json.load(open('branches.json'))['data'][0]['totals']['branches']['percent'];
+      print('branch coverage', p); sys.exit(0 if p >= 100 else 1)"

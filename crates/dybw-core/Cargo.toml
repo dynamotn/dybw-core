@@ -1,0 +1,17 @@
+[package]
+name = "dybw-core"
+description = "Shared core of bwss and the Obsidian plugin: Bitwarden crypto, API, vault and sync rules"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[features]
+default = ["native"]
+native = []
+testing = []
+
+[dependencies]
+zeroize = { version = "1.9.1", features = ["derive"] }
+
+[lints]
+workspace = true

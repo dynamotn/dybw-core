@@ -1,0 +1,16 @@
+[package]
+name = "dybw-vectors"
+description = "Conformance vector runner for dybw-core"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+base64 = "0.23.1"
+dybw-core = { path = "../dybw-core", features = ["testing"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[lints]
+workspace = true
