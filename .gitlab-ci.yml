@@ -44,7 +44,10 @@ check:
     - apt-get update && apt-get install -y --no-install-recommends ripgrep
     - cargo fmt --all --check
     - cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-    - cargo tree -p dybw-core -e normal --no-default-features --prefix none | rg -c '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) ' ; test $? -eq 1
+    - |
+      if cargo tree -p dybw-core -e normal --no-default-features --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) '; then
+        echo "forbidden dependency in dybw-core"; exit 1
+      fi
     - uv run vectors/gen/gen.py check
 
 test:
@@ -72,6 +75,11 @@ coverage-branches:
     - >-
       cargo llvm-cov --branch --workspace --all-features --locked
       --ignore-filename-regex 'crates/dybw-vectors/' --json --summary-only --output-path branches.json
-    - >-
-      python3 -c "import json,sys; p=json.load(open('branches.json'))['data'][0]['totals']['branches']['percent'];
-      print('branch coverage', p); sys.exit(0 if p >= 100 else 1)"
+    - |
+      python3 - <<'PY'
+      import json, sys
+      b = json.load(open("branches.json"))["data"][0]["totals"]["branches"]
+      print("branch coverage", b)
+      # A KeyError above fails the job; a crate with no branches reports percent 0, which is not a miss.
+      sys.exit(0 if b["notcovered"] == 0 else 1)
+      PY
