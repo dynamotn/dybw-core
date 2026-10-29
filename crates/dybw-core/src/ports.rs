@@ -86,6 +86,8 @@ pub enum Frame {
 
 pub trait EventSocket {
     async fn send(&mut self, frame: Frame) -> Result<(), PortError>;
+    /// Must be cancel-safe: `run_hub` drops this future whenever its timer fires first, and no frame (nor part of
+    /// one) may be lost by that.
     async fn recv(&mut self) -> Option<Result<Frame, PortError>>;
     async fn close(&mut self);
 }

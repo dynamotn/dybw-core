@@ -253,7 +253,7 @@ impl Hub {
         self.ping_at = None;
         self.stable_at = None;
         let delays = &self.options.backoff_ms;
-        let delay = delays.get(self.attempt.min(delays.len().saturating_sub(1))).copied().unwrap_or(0);
+        let delay = delays.get(self.attempt.min(delays.len().saturating_sub(1))).copied().unwrap_or(0).max(1); // at least 1 ms, so an empty list is no busy loop
         self.attempt = self.attempt.saturating_add(1);
         out.push(HubOut::Reconnect { at_ms: now.saturating_add(ms(delay)) });
     }
@@ -309,9 +309,14 @@ async fn session<S: EventSocket, C: Clock>(
             pump.absorb(hub.on_close(clock.now_ms()), on_change);
             return;
         }
+        let now = clock.now_ms();
+        // Frames can arrive back to back and recv is polled first, so a due deadline is served before waiting.
+        if pump.wake.is_some_and(|t| t <= now) {
+            sends = pump.absorb(hub.on_tick(now), on_change);
+            continue;
+        }
         // A live connection always has a deadline (the idle timeout); the cap only keeps the sleep finite.
-        let wait =
-            pump.wake.map_or(u64::from(u32::MAX), |t| u64::try_from(t.saturating_sub(clock.now_ms())).unwrap_or(0));
+        let wait = pump.wake.map_or(u64::from(u32::MAX), |t| t.saturating_sub(now).unsigned_abs());
         let event = {
             let recv = pin!(socket.recv());
             let timer = pin!(clock.sleep_ms(wait));
@@ -344,12 +349,22 @@ pub async fn run_hub<E: Events, C: Clock>(
     stop: impl Fn() -> bool,
 ) {
     let mut pump = Pump { reconnect_at: clock.now_ms(), ..Pump::default() };
-    while !stop() {
-        let wait = pump.reconnect_at.saturating_sub(clock.now_ms());
-        if wait > 0 {
-            clock.sleep_ms(wait.unsigned_abs()).await;
+    loop {
+        // Until the next attempt, still serve the hub's own deadline: a change noted before the drop is reported
+        // after its settle time, not after the (possibly 5 minute) backoff.
+        loop {
             if stop() {
+                return;
+            }
+            let now = clock.now_ms();
+            if now >= pump.reconnect_at {
                 break;
+            }
+            let until = pump.wake.map_or(pump.reconnect_at, |t| t.min(pump.reconnect_at));
+            clock.sleep_ms(until.saturating_sub(now).unsigned_abs()).await;
+            let now = clock.now_ms();
+            if pump.wake.is_some_and(|t| t <= now) {
+                pump.absorb(hub.on_tick(now), &mut on_change);
             }
         }
         let socket = match url().await {

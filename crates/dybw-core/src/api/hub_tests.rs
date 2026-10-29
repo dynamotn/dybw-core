@@ -327,7 +327,7 @@ fn a_transport_that_ends_before_the_handshake_only_schedules_a_reconnect() {
 }
 
 #[test]
-fn an_empty_backoff_list_reconnects_at_once_and_custom_options_apply() {
+fn an_empty_backoff_list_still_waits_a_millisecond_and_custom_options_apply() {
     let options = HubOptions {
         ping_interval_ms: 10,
         server_timeout_ms: 20,
@@ -343,7 +343,7 @@ fn an_empty_backoff_list_reconnects_at_once_and_custom_options_apply() {
     assert_eq!(h.on_tick(105), [O::Changed, O::WakeAt(110)]);
     assert_eq!(strip(h.on_frame(bin(&invocation(0, Some(OTHER))), 106)), []);
     assert_eq!(h.on_tick(112), [O::Send(bin(&[0x02, 0x91, 0x06])), O::Changed, O::WakeAt(122)]);
-    assert_eq!(h.on_close(112), [O::Connected(false), O::Reconnect { at_ms: 112 }]);
+    assert_eq!(h.on_close(112), [O::Connected(false), O::Reconnect { at_ms: 113 }]);
 }
 
 // ---- run_hub ----
@@ -352,12 +352,15 @@ enum Step {
     Recv(Frame),
     Fail,
     Hang,
+    /// Always ready; every receive takes a second of the fake clock.
+    Spin(Frame),
 }
 
 struct Sock {
     steps: VecDeque<Step>,
     sent: Rc<RefCell<Vec<Frame>>>,
     closed: Rc<Cell<u32>>,
+    time: Rc<Cell<i64>>,
     fail_send: bool,
 }
 
@@ -372,6 +375,11 @@ impl EventSocket for Sock {
     async fn recv(&mut self) -> Option<Result<Frame, PortError>> {
         match self.steps.pop_front() {
             Some(Step::Recv(f)) => Some(Ok(f)),
+            Some(Step::Spin(f)) => {
+                self.time.set(self.time.get() + 1_000);
+                self.steps.push_front(Step::Spin(f.clone()));
+                Some(Ok(f))
+            }
             Some(Step::Fail) => Some(Err(PortError("recv".into()))),
             Some(Step::Hang) => {
                 self.steps.push_front(Step::Hang);
@@ -391,11 +399,21 @@ struct Fake {
     urls: RefCell<Vec<String>>,
     sent: Rc<RefCell<Vec<Frame>>>,
     closed: Rc<Cell<u32>>,
+    time: Rc<Cell<i64>>,
 }
 
 impl Fake {
+    fn clock(&self) -> StepClock {
+        StepClock(self.time.clone())
+    }
     fn sock(&self, steps: Vec<Step>, fail_send: bool) -> Option<Sock> {
-        Some(Sock { steps: steps.into(), sent: self.sent.clone(), closed: self.closed.clone(), fail_send })
+        Some(Sock {
+            steps: steps.into(),
+            sent: self.sent.clone(),
+            closed: self.closed.clone(),
+            time: self.time.clone(),
+            fail_send,
+        })
     }
     fn push(&self, s: Option<Sock>) {
         self.socks.borrow_mut().push_back(s);
@@ -411,7 +429,7 @@ impl Events for Fake {
 }
 
 /// Sleeping moves time on, so a hub waiting for its next deadline gets there.
-struct StepClock(Cell<i64>);
+struct StepClock(Rc<Cell<i64>>);
 
 impl Clock for StepClock {
     fn now_ms(&self) -> i64 {
@@ -434,7 +452,7 @@ fn run_hub_reports_a_change() {
     let fake = Fake::default();
     let steps = vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e])), Step::Recv(bin(&invocation(0, Some(OTHER)))), Step::Hang];
     fake.push(fake.sock(steps, false));
-    let clock = StepClock(Cell::new(0));
+    let clock = fake.clock();
     let changes = Cell::new(0);
     run(&fake, &clock, &[Some("wss://bw.test/hub")], &changes, &|| changes.get() > 0);
     assert_eq!(changes.get(), 1);
@@ -449,7 +467,7 @@ fn run_hub_backs_off_when_no_url_can_be_had_or_the_connect_fails() {
     let fake = Fake::default();
     fake.push(None);
     fake.push(fake.sock(vec![], false));
-    let clock = StepClock(Cell::new(0));
+    let clock = fake.clock();
     run(&fake, &clock, &[None, Some("a"), Some("b")], &Cell::new(0), &|| fake.urls.borrow().len() >= 2);
     assert_eq!(*fake.urls.borrow(), ["a", "b"]);
     assert_eq!(clock.now_ms(), 7_000, "2 s, then 5 s");
@@ -458,7 +476,7 @@ fn run_hub_backs_off_when_no_url_can_be_had_or_the_connect_fails() {
 #[test]
 fn run_hub_stops_during_the_wait_for_a_reconnect() {
     let fake = Fake::default();
-    let clock = StepClock(Cell::new(0));
+    let clock = fake.clock();
     run(&fake, &clock, &[None], &Cell::new(0), &|| clock.now_ms() >= 2_000);
     assert!(fake.urls.borrow().is_empty());
     assert_eq!(clock.now_ms(), 2_000);
@@ -468,7 +486,7 @@ fn run_hub_stops_during_the_wait_for_a_reconnect() {
 fn run_hub_starts_over_after_a_send_fails() {
     let fake = Fake::default();
     fake.push(fake.sock(vec![Step::Hang], true));
-    run(&fake, &StepClock(Cell::new(0)), &[Some("u")], &Cell::new(0), &|| fake.closed.get() >= 1);
+    run(&fake, &fake.clock(), &[Some("u")], &Cell::new(0), &|| fake.closed.get() >= 1);
     assert_eq!(fake.closed.get(), 1);
     assert!(fake.sent.borrow().is_empty());
 }
@@ -478,7 +496,7 @@ fn run_hub_follows_a_close_from_the_server() {
     let fake = Fake::default();
     let steps = vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e])), Step::Recv(bin(&framed(&[0x91, 0x07])))];
     fake.push(fake.sock(steps, false));
-    run(&fake, &StepClock(Cell::new(0)), &[Some("u")], &Cell::new(0), &|| fake.closed.get() >= 1);
+    run(&fake, &fake.clock(), &[Some("u")], &Cell::new(0), &|| fake.closed.get() >= 1);
     assert_eq!(fake.closed.get(), 1);
     assert_eq!(fake.sent.borrow().len(), 1, "only the handshake");
 }
@@ -489,8 +507,31 @@ fn run_hub_reconnects_after_the_socket_ends_or_fails() {
     fake.push(fake.sock(vec![], false));
     fake.push(fake.sock(vec![Step::Fail], false));
     fake.push(fake.sock(vec![], false));
-    let clock = StepClock(Cell::new(0));
+    let clock = fake.clock();
     run(&fake, &clock, &[Some("u"); 3], &Cell::new(0), &|| fake.urls.borrow().len() >= 3);
     assert_eq!(fake.closed.get(), 3);
     assert_eq!(clock.now_ms(), 7_000);
+}
+
+#[test]
+fn run_hub_reports_a_change_while_waiting_to_reconnect() {
+    let fake = Fake::default();
+    let steps = vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e])), Step::Recv(bin(&invocation(0, Some(OTHER)))), Step::Fail];
+    fake.push(fake.sock(steps, false));
+    let clock = fake.clock();
+    let changes = Cell::new(0);
+    run(&fake, &clock, &[Some("u"), Some("u")], &changes, &|| changes.get() > 0);
+    assert_eq!(changes.get(), 1);
+    assert_eq!(clock.now_ms(), 1_000, "at the settle time, before the reconnect at 2 s");
+    assert_eq!(fake.urls.borrow().len(), 1);
+}
+
+#[test]
+fn run_hub_ticks_even_when_the_server_never_stops_sending() {
+    let fake = Fake::default();
+    let steps = vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e])), Step::Spin(bin(&framed(&[0x91, 0x06])))];
+    fake.push(fake.sock(steps, false));
+    let clock = fake.clock();
+    run(&fake, &clock, &[Some("u")], &Cell::new(0), &|| clock.now_ms() > 20_000);
+    assert!(fake.sent.borrow().iter().any(|f| *f == bin(&[0x02, 0x91, 0x06])), "a ping went out");
 }
