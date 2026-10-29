@@ -129,7 +129,8 @@ change to `fresh`.
   known only to `local` is not planned. An id whose `device.base` cipher is
   still present but uninspectable is held as it is (data model §4) and gets
   no entry; a trashed cipher is not present, so its id counts as deleted
-  remotely (§8.1). The `confirmed` marker the plugin puts
+  remotely (§8.1), and so does a live, readable cipher whose marker was
+  removed (`sync/marker-removed-clears`). The `confirmed` marker the plugin puts
   on a push the user just agreed to is not part of the plan, because no vector
   answers a conflict yet; it returns when answers and overrides enter the
   format (M3).
