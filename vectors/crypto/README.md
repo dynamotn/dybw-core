@@ -20,6 +20,8 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
 | `sdk-vectors/src/main.rs` | plugin | `test/fixtures/sdk-vectors/src/main.rs` | `b9beff5` | `d96116f0730f0f2d75fb2a9f5193afd330b368c5f4597df9033ca8e0f355f123` |
 | `bwss/vectors.json` | bwss | `tests/fixtures/vectors.json` | `dc65284` | `29f34bf25c50a8f75a27aa568ffa5e0d505ca919a52f5a86c85696f37c20858f` |
 | `bwss/gen_vectors.py` | bwss | `tests/fixtures/gen_vectors.py` | `dc65284` | `c5fb2e57d917f4daf2a01421ae6802e95130540a816234f4cb24a57bb310df16` |
+| `marks.json` | dybw-core | `vectors/crypto/marks.json` | written for M2; checked against bwss `6a0bc62` and plugin `409d2a4` | `82552b222ac6a0127ab80e30fba30571d40455aa2b93af8e4f494cb5d4e2cb8b` |
+| `../gen/gen_marks.py` | dybw-core | `vectors/gen/gen_marks.py` | written for M2 | `06a2acf0ec8d3a92dcbcdecf3f6778a73fe906ae612df1b87ae5213a2784182c` |
 
 ## What each fixture covers
 
@@ -32,6 +34,11 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
   `cose-vectors.json` and verifies another implementation's output.
 - `msgpack.json`: MessagePack decoder cases (hex input, expected value).
 - `gen_msgpack.py`: reference generator for `msgpack.json`.
+- `marks.json`: value marks (HMAC-SHA256 of `id ‖ 0x00 ‖ text`) in both
+  tools' schemes for the `pbkdf2` and `org` user keys, written by
+  `../gen/gen_marks.py` (stdlib only). The first row of each scheme was
+  checked against bwss `value_mark` with `derive("value-mark")` and the
+  plugin's `ValueFingerprinter`.
 - `bwss/vectors.json`, `bwss/gen_vectors.py`: bwss's own crypto known-answer
   fixture and its generator (ruling R6). Both are identical to the plugin's
   `vectors.json` and `gen_vectors.py` (same sha256); they are kept for

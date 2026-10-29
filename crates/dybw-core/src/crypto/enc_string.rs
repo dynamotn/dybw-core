@@ -11,6 +11,14 @@ use zeroize::Zeroizing;
 type Enc = cbc::Encryptor<aes::Aes256>;
 type Dec = cbc::Decryptor<aes::Aes256>;
 
+/// The error for a type prefix the caller does not handle: `UnsupportedType` for a plain decimal, else `Malformed`.
+pub(super) fn unknown_type(ty: &str) -> CryptoError {
+    match ty.parse::<u8>() {
+        Ok(n) if n.to_string() == ty => CryptoError::UnsupportedType(n),
+        _ => CryptoError::Malformed,
+    }
+}
+
 impl SymmetricKey {
     /// Encrypts under the key's own EncString type: `2.iv|ct|mac` for a legacy key, `7.<COSE_Encrypt0>` for a COSE key.
     pub fn encrypt(&self, plain: &[u8], rng: &impl Random) -> Result<String, CryptoError> {
@@ -36,9 +44,14 @@ impl SymmetricKey {
         }
     }
 
-    /// Bytes or a PKCS#8 key: what a type 7 string may hold besides text and keys.
+    /// Bytes: a type 7 string must say it holds an octet stream (text, keys and PKCS#8 have their own calls).
     pub fn decrypt(&self, s: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
-        Ok(self.open(s, &[ContentFormat::OctetStream, ContentFormat::Pkcs8])?.0)
+        Ok(self.open(s, &[ContentFormat::OctetStream])?.0)
+    }
+
+    /// The account's private key (PKCS#8 DER); a type 7 string must be labelled PKCS#8, as the plugin requires.
+    pub fn decrypt_pkcs8(&self, s: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+        Ok(self.open(s, &[ContentFormat::Pkcs8])?.0)
     }
 
     /// Dispatches on the type prefix: `2.` for a legacy key, `7.` for a COSE key; a value of the other type is
@@ -60,10 +73,7 @@ impl SymmetricKey {
                 Ok((plain, Some(format)))
             }
             ("2" | "7", _) => Err(CryptoError::WrongKey),
-            _ => match ty.parse::<u8>() {
-                Ok(n) if n.to_string() == ty => Err(CryptoError::UnsupportedType(n)),
-                _ => Err(CryptoError::Malformed),
-            },
+            _ => Err(unknown_type(ty)),
         }
     }
 

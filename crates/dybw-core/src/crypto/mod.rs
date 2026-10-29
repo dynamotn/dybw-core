@@ -1,4 +1,5 @@
-//! Bitwarden client-side cryptography: keys, EncString types 2 and 7, and the KDFs.
+//! Bitwarden client-side cryptography: keys, EncString types 2 and 7, the KDFs, RSA-OAEP organization keys and
+//! value marks.
 
 mod aead;
 mod cbor;
@@ -6,12 +7,18 @@ mod cose;
 mod enc_string;
 mod kdf;
 mod key;
+mod mark;
+mod rsa;
 
 pub use cose::{ContentFormat, CoseAlgorithm};
 #[cfg(feature = "native")]
 pub use kdf::NativeArgon2;
 pub use kdf::{KdfParams, MasterKey, derive_master_key, hash_master_password};
 pub use key::{KeyRef, SymmetricKey};
+pub use mark::{MarkScheme, Marker};
+#[cfg(feature = "native")]
+pub use rsa::AwsLcRsa;
+pub use rsa::unwrap_org_key;
 
 /// Why a key could not be derived or a value could not be opened. Messages name the problem, never the data.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -45,3 +52,7 @@ mod tests;
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod cose_tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod rsa_mark_tests;

@@ -157,6 +157,11 @@ impl CoseKey {
         &self.id
     }
 
+    /// The raw 32-byte key, for the subkeys of `key.rs`.
+    pub(super) fn secret(&self) -> &[u8; 32] {
+        &self.key
+    }
+
     fn require(&self, op: KeyOp) -> Result<(), CryptoError> {
         self.ops.contains(&op).then_some(()).ok_or(CryptoError::WrongKey)
     }

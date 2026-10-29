@@ -7,13 +7,14 @@ version.workspace = true
 
 [features]
 default = ["native"]
-native = ["dep:argon2"]
+native = ["dep:argon2", "dep:aws-lc-rs"]
 testing = []
 
 [dependencies]
 aes = { version = "0.9.3", features = ["zeroize"] }
 aes-gcm = { version = "0.11.1", default-features = false, features = ["aes", "alloc", "zeroize"] }
 argon2 = { version = "0.6.0", default-features = false, features = ["alloc", "zeroize"], optional = true }
+aws-lc-rs = { version = "1.18.2", default-features = false, features = ["aws-lc-sys", "alloc"], optional = true }
 base64 = "0.23.1"
 chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["alloc", "zeroize"] }
 cbc = { version = "0.2.1", features = ["alloc", "zeroize"] }

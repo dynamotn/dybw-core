@@ -110,6 +110,37 @@ impl SymmetricKey {
         Self::from_bytes(b.as_ref())
     }
 
+    /// bwss `SymmetricKey::derive`: a key of its own for `purpose` (`value-mark`, `queue`, `acl-confirm`,
+    /// `vault-acl`), so nothing encrypted with this key can pass for data of that purpose.
+    pub fn derive_bwss(&self, purpose: &str) -> SymmetricKey {
+        let enc = self.expand_bwss(&format!("bwss {purpose} enc"));
+        let mac = self.expand_bwss(&format!("bwss {purpose} mac"));
+        Self::legacy(*enc, *mac)
+    }
+
+    /// HKDF-Expand for one block over bwss's PRK, `enc ‖ mac`. bwss has no COSE keys; a COSE key expands from its
+    /// 32-byte key, as the plugin does.
+    pub(super) fn expand_bwss(&self, info: &str) -> Zeroizing<[u8; 32]> {
+        let legacy;
+        let prk: &[u8] = match self {
+            SymmetricKey::Legacy(_) => {
+                legacy = self.to_bytes();
+                &legacy
+            }
+            SymmetricKey::Cose(c) => c.secret(),
+        };
+        Zeroizing::new(hmac(prk, &[info.as_bytes(), &[1]]))
+    }
+
+    /// The plugin's `deriveSubKey`: HKDF-Expand over the MAC half of a legacy key, or over a COSE key.
+    pub(super) fn expand_obsidian(&self, purpose: &str) -> Zeroizing<[u8; 32]> {
+        let prk: &[u8] = match self {
+            SymmetricKey::Legacy(k) => k.parts().1,
+            SymmetricKey::Cose(c) => c.secret(),
+        };
+        Zeroizing::new(hmac(prk, &[b"obsidian-keychain-bitwarden:", purpose.as_bytes(), &[1]]))
+    }
+
     pub fn generate_cose(alg: CoseAlgorithm, rng: &impl Random) -> Result<Self, CryptoError> {
         Ok(SymmetricKey::Cose(CoseKey::generate(alg, rng)?))
     }

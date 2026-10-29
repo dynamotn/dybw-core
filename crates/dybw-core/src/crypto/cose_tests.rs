@@ -89,7 +89,7 @@ fn cose_vectors_decrypt() {
             assert_eq!(user.decrypt_str(t["enc"].as_str().unwrap()).unwrap().as_str(), t["plain"].as_str().unwrap());
         }
         let p = &acc["privateKey"];
-        assert_eq!(user.decrypt(p["wrapped"].as_str().unwrap()).unwrap().to_vec(), b64(&p["pkcs8"]));
+        assert_eq!(user.decrypt_pkcs8(p["wrapped"].as_str().unwrap()).unwrap().to_vec(), b64(&p["pkcs8"]));
         for k in acc["itemKeys"].as_array().unwrap() {
             let item = user.decrypt_key(k["wrapped"].as_str().unwrap()).unwrap();
             assert_eq!(item.to_bytes().to_vec(), b64(&k["key"]));
