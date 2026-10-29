@@ -136,7 +136,8 @@ pub struct ScanReport {
     pub skipped: Vec<(String, SkipReason)>,
     pub uninspectable: Vec<(String, Uninspectable)>,
     pub duplicates: Vec<Duplicate>,
-    /// Every cipher id not in the trash.
+    /// Marked (skipped and duplicate losers included) or uninspectable cipher ids: a readable cipher without its
+    /// marker counts as deleted (§8.1), an uninspectable one is held (§4).
     pub present: BTreeSet<String>,
 }
 
@@ -155,9 +156,10 @@ fn is_blob(cipher: &Value) -> bool {
         .is_some_and(|v| v.as_object().is_some_and(|o| o.contains_key("format_version")))
 }
 
+/// Unix milliseconds; at or before the epoch counts as undated, as bwss.
 fn parse_date(s: &str) -> Option<i64> {
     let t = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).ok()?;
-    i64::try_from(t.unix_timestamp_nanos() / 1_000_000).ok()
+    i64::try_from(t.unix_timestamp_nanos() / 1_000_000).ok().filter(|&ms| ms > 0)
 }
 
 pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> Scan {
@@ -332,10 +334,11 @@ pub fn scan_vault(sync: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizat
     let mut present = BTreeSet::new();
     for cipher in sync.get("ciphers").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
         let cipher_id = cipher.get("id").and_then(Value::as_str).unwrap_or_default().to_owned();
-        if !trashed(cipher) {
+        let result = scan(cipher, ns, keys, allowed);
+        if !matches!(result, Scan::Unmarked) {
             present.insert(cipher_id.clone());
         }
-        match scan(cipher, ns, keys, allowed) {
+        match result {
             Scan::Unmarked => {}
             Scan::Marked(m) => marked.push(*m),
             Scan::Skipped(r) => skipped.push((cipher_id, r)),

@@ -164,6 +164,13 @@ fn item_metadata_attributes_and_tool_fields() {
     let mut c = k.login(&[("bwss:id", "x")], Some("pw"), None);
     c["creationDate"] = json!("2025-01-02T03:04:05.250+01:00");
     assert_eq!(marked(k.scan(&c)).creation_date, Some(1_735_783_445_250));
+    // At or before the Unix epoch counts as undated, as bwss.
+    for epoch in ["1970-01-01T00:00:00Z", "1969-12-31T23:59:59Z"] {
+        c["creationDate"] = json!(epoch);
+        assert_eq!(marked(k.scan(&c)).creation_date, None, "{epoch}");
+    }
+    c["creationDate"] = json!("1970-01-01T00:00:00.001Z");
+    assert_eq!(marked(k.scan(&c)).creation_date, Some(1));
     c["creationDate"] = json!("not a date");
     assert_eq!(marked(k.scan(&c)).creation_date, None);
     c["creationDate"] = Value::Null;
@@ -289,6 +296,13 @@ fn what_is_skipped_or_uninspectable() {
     let mut c = k.login(&[id], Some("pw"), None);
     c["fields"][0]["value"] = json!(BAD);
     assert_eq!(held(k.scan(&c)), Uninspectable::Marker);
+    // An empty-string marker is not a blank marker: it is no EncString, so the item is held (bwss).
+    c["fields"][0]["value"] = json!("");
+    assert_eq!(held(k.scan(&c)), Uninspectable::Marker);
+    // An empty-string login password once marked: held too.
+    let mut c = k.login(&[id], Some("pw"), None);
+    c["login"]["password"] = json!("");
+    assert_eq!(held(k.scan(&c)), Uninspectable::Value);
     let mut c = k.login(&[id, ("bwss:password", "pw")], None, None);
     c["fields"][1]["value"] = json!(BAD);
     assert_eq!(held(k.scan(&c)), Uninspectable::Value);
@@ -524,7 +538,9 @@ fn scan_vault_reports_everything_once() {
     assert_eq!(r.uninspectable, [("broken".to_owned(), Uninspectable::ItemKey)]);
     assert_eq!(r.duplicates, [dup("a", "c1", &["c2"])]);
     let present: Vec<&str> = r.present.iter().map(String::as_str).collect();
-    assert_eq!(present, ["broken", "c1", "c2", "card", "cz", "plain"]);
+    // §8.1: marked (skipped and duplicate losers included) or uninspectable; a readable unmarked cipher is not
+    // present, so a secret synced from it is cleared once its marker is removed.
+    assert_eq!(present, ["broken", "c1", "c2", "card", "cz"]);
     // No ciphers at all.
     let r = scan::scan_vault(&json!({}), &Namespace::BWSS, &k.keys, &Organizations::None);
     assert!(r.items.is_empty() && r.present.is_empty());
@@ -555,8 +571,9 @@ fn field_primitives() {
     assert_eq!(field_value(&c, 1, key).unwrap().as_str(), "");
     assert_eq!(field_value(&c, 0, key).unwrap().as_str(), "v");
     assert!(field_value(&c, 3, key).is_err());
-    // An empty string is no EncString: read as empty, like null (the plugin's decryptField).
-    assert_eq!(field_value(&json!({ "fields": [{ "name": null, "value": "" }] }), 0, key).unwrap().as_str(), "");
+    // A present string is always decrypted (bwss): "" is no EncString and fails; only null or absent is empty.
+    assert!(field_value(&json!({ "fields": [{ "name": null, "value": "" }] }), 0, key).is_err());
+    assert_eq!(field_value(&json!({ "fields": [{ "name": null }] }), 0, key).unwrap().as_str(), "");
     assert!(field_names(&json!({ "fields": null }), key).unwrap().is_empty());
     assert!(field_names(&json!({}), key).unwrap().is_empty());
     // The item key: its own when wrapped, else the owner's.

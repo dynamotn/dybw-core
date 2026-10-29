@@ -41,17 +41,18 @@ pub fn field_names(cipher: &Value, key: &SymmetricKey) -> Result<Vec<Option<Stri
         .collect()
 }
 
-/// Decrypts the value of the field at `index`; a `null` value is `""`, a missing field `Malformed`.
+/// Decrypts the value of the field at `index`; a `null` or absent value is `""`, a missing field `Malformed`.
 pub fn field_value(cipher: &Value, index: usize, key: &SymmetricKey) -> Result<Zeroizing<String>, CryptoError> {
     let field = field_array(cipher).get(index).ok_or(CryptoError::Malformed)?;
     decrypt_opt(field.get("value"), key)
 }
 
-/// A string the server may send as `null`, absent or empty: all three read as `""`.
+/// A string the server may send as `null` or leave out: both read as `""`. A present string is always decrypted
+/// (bwss), so `""`, which is no EncString, is an error.
 pub fn decrypt_opt(raw: Option<&Value>, key: &SymmetricKey) -> Result<Zeroizing<String>, CryptoError> {
     match raw.and_then(Value::as_str) {
-        Some(s) if !s.is_empty() => key.decrypt_str(s),
-        _ => Ok(Zeroizing::default()),
+        Some(s) => key.decrypt_str(s),
+        None => Ok(Zeroizing::default()),
     }
 }
 
