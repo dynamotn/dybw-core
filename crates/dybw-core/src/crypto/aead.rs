@@ -22,7 +22,7 @@ fn xaes_derive(key: &[u8; 32], prefix: &[u8]) -> Zeroizing<[u8; 32]> {
     let l = u128::from_be_bytes(l.into());
     let k1 = (l << 1) ^ if l >> 127 == 1 { 0x87 } else { 0 };
     let mut derived = Zeroizing::new([0u8; 32]);
-    for (i, out) in derived.chunks_exact_mut(16).enumerate() {
+    for (i, out) in derived.as_chunks_mut::<16>().0.iter_mut().enumerate() {
         let mut m = [0u8; 16];
         let (h, n) = m.split_at_mut(4);
         h.copy_from_slice(&[0, i as u8 + 1, b'X', 0]);

@@ -180,10 +180,14 @@ fn parse_map(v: &Cbor) -> Result<CoseKey, CryptoError> {
         return Err(CryptoError::Malformed);
     }
     let ops = match get(m, K_OPS) {
-        None => all_ops(),
-        Some(Cbor::Array(a)) => a.iter().map(KeyOp::from_value).collect::<Result<_, _>>()?,
+        None => Vec::new(), // no key_ops, no operations (the plugin's `?? []`)
+        Some(Cbor::Array(a)) => a.iter().map(KeyOp::from_value).collect::<Result<Vec<_>, _>>()?,
         Some(_) => return Err(CryptoError::Malformed),
     };
+    // Distinct ops only: at most four, so the encoded key always fits `encode_cose_key`'s buffer.
+    if !ops.iter().all(|o| ops.iter().filter(|p| *p == o).count() == 1) {
+        return Err(CryptoError::Malformed);
+    }
     let (mut id, mut key) = ([0; 16], Zeroizing::new([0; 32]));
     bytes_into(m, K_KID, &mut id)?;
     bytes_into(m, K_SYMMETRIC_KEY, key.as_mut())?;

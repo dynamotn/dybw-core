@@ -215,7 +215,17 @@ fn cose_pad_and_key_errors() {
         enc(m)
     };
     assert!(parse_cose_key(&enc(good.clone())).is_ok());
-    assert!(parse_cose_key(&with(3, None)).is_ok()); // ops default to all four
+    // No key_ops means no operations allowed (the plugin's `?? []`), not all of them.
+    let none = parse_cose_key(&with(3, None)).unwrap();
+    let rng = SeededRandom::new(2);
+    assert_eq!(cose_encrypt(&none, b"x", ContentFormat::Utf8, &rng).unwrap_err(), CryptoError::WrongKey);
+    assert_eq!(cose_decrypt(&none, "AA==").unwrap_err(), CryptoError::WrongKey);
+    // Duplicate or too many ops are refused, so an encoded key stays within its fixed buffer.
+    for ops in [vec![3, 3], vec![3, 4, 5, 6, 3], vec![3; 200]] {
+        let m = key_map(32, Some(ops));
+        assert_eq!(parse_cose_key(&enc(m)).unwrap_err(), CryptoError::Malformed);
+    }
+    assert!(parse_cose_key(&enc(key_map(32, Some(vec![3, 4, 5, 6])))).is_ok());
     for bad in [
         with(0, Some((Cbor::Uint(1), Cbor::Uint(2)))),
         with(2, Some((Cbor::Uint(3), Cbor::Nint(1)))),
