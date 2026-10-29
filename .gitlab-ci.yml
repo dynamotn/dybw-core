@@ -48,6 +48,10 @@ check:
       if cargo tree -p dybw-core -e normal --no-default-features --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) '; then
         echo "forbidden dependency in dybw-core"; exit 1
       fi
+    - |
+      if cargo tree -p dybw-core -e normal --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom) '; then
+        echo "forbidden dependency in dybw-core default build"; exit 1
+      fi
     - uv run vectors/gen/gen.py check
 
 test:

@@ -28,9 +28,13 @@ impl SymmetricKey {
     /// Dispatches on the type prefix: `2.` here, anything else is unsupported.
     pub fn decrypt(&self, s: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
         let (ty, rest) = s.split_once('.').ok_or(CryptoError::Malformed)?;
-        match ty.parse::<u8>().map_err(|_| CryptoError::Malformed)? {
-            2 => self.decrypt2(rest),
-            other => Err(CryptoError::UnsupportedType(other)),
+        // Exact decimal strings only: "02" and "+2" are not type 2 (bwss matches the string "2").
+        if ty == "2" {
+            return self.decrypt2(rest);
+        }
+        match ty.parse::<u8>() {
+            Ok(n) if n.to_string() == ty => Err(CryptoError::UnsupportedType(n)),
+            _ => Err(CryptoError::Malformed),
         }
     }
 

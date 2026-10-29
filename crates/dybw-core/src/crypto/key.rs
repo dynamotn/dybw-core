@@ -10,7 +10,21 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 /// A Bitwarden symmetric key. Task 3 adds the COSE variant.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub enum SymmetricKey {
-    Legacy { enc: [u8; 32], mac: [u8; 32] },
+    Legacy(LegacyKey),
+}
+
+/// The payload of a legacy key. Not re-exported, with private fields: nothing outside this module can build one or
+/// read the bytes. Task 3 adds `Cose(CoseKey)` the same way.
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct LegacyKey {
+    enc: [u8; 32],
+    mac: [u8; 32],
+}
+
+impl fmt::Debug for LegacyKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("LegacyKey(<redacted>)")
+    }
 }
 
 impl fmt::Debug for SymmetricKey {
@@ -46,22 +60,21 @@ pub(super) fn hmac(key: &[u8], parts: &[&[u8]]) -> [u8; 32] {
 
 impl SymmetricKey {
     pub(super) fn legacy(enc: [u8; 32], mac: [u8; 32]) -> Self {
-        SymmetricKey::Legacy { enc, mac }
+        SymmetricKey::Legacy(LegacyKey { enc, mac })
     }
 
     /// Exactly 64 bytes (AES key, then HMAC key) is a legacy key; Task 3 accepts a COSE key for longer input.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, CryptoError> {
         let bytes: &[u8; 64] = bytes.try_into().map_err(|_| CryptoError::Malformed)?;
         let (enc, mac) = bytes.split_at(32);
-        let mut key = Self::legacy([0; 32], [0; 32]);
-        let SymmetricKey::Legacy { enc: e, mac: m } = &mut key;
+        let (mut e, mut m) = ([0; 32], [0; 32]);
         e.copy_from_slice(enc);
         m.copy_from_slice(mac);
-        Ok(key)
+        Ok(Self::legacy(e, m))
     }
 
     pub fn to_bytes(&self) -> Zeroizing<Vec<u8>> {
-        let SymmetricKey::Legacy { enc, mac } = self;
+        let SymmetricKey::Legacy(LegacyKey { enc, mac }) = self;
         let mut v = Zeroizing::new(Vec::with_capacity(64));
         v.extend_from_slice(enc);
         v.extend_from_slice(mac);
@@ -81,7 +94,7 @@ impl SymmetricKey {
     }
 
     pub(super) fn parts(&self) -> (&[u8; 32], &[u8; 32]) {
-        let SymmetricKey::Legacy { enc, mac } = self;
+        let SymmetricKey::Legacy(LegacyKey { enc, mac }) = self;
         (enc, mac)
     }
 }

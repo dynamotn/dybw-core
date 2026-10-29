@@ -106,6 +106,11 @@ fn malformed_and_unsupported_inputs() {
     let ct16 = B64.encode([0u8; 16]);
     assert_eq!(k.decrypt(&format!("2.{iv}|{ct16}|{}", B64.encode([0u8; 31]))).unwrap_err(), CryptoError::Malformed);
     assert_eq!(k.decrypt(&format!("2.{iv}|{ct16}|{mac}|{mac}")).unwrap_err(), CryptoError::Malformed);
+    let good = k.encrypt(b"x", &SeededRandom::new(1)).unwrap();
+    let body = good.strip_prefix("2.").unwrap();
+    for pre in ["02.", "+2.", "2 .", "."] {
+        assert_eq!(k.decrypt(&format!("{pre}{body}")).unwrap_err(), CryptoError::Malformed, "{pre}");
+    }
     assert_eq!(k.decrypt("7.abc").unwrap_err(), CryptoError::UnsupportedType(7));
     assert_eq!(k.decrypt("0.a|b|c").unwrap_err(), CryptoError::UnsupportedType(0));
     assert_eq!(SymmetricKey::from_bytes(&[0; 63]).unwrap_err(), CryptoError::Malformed);
