@@ -184,6 +184,8 @@ fn kdf_bounds() {
 fn debug_and_errors_are_redacted() {
     let k = SymmetricKey::generate(&SeededRandom::new(2)).unwrap();
     assert_eq!(format!("{k:?}"), "SymmetricKey(<redacted>)");
+    let SymmetricKey::Legacy(inner) = &k;
+    assert_eq!(format!("{inner:?}"), "LegacyKey(<redacted>)");
     let key_b64 = B64.encode(k.to_bytes().as_slice());
     let plain_b64 = B64.encode(b"secret-plaintext");
     let enc = k.encrypt(b"secret-plaintext", &SeededRandom::new(2)).unwrap();
