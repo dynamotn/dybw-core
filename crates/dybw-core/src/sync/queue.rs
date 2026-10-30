@@ -167,16 +167,17 @@ enum Lookup {
     Missing,
 }
 
-/// The copy of the item the op is for: the cipher it was read from, else the live item carrying its marker.
+/// The copy of the item the op is for: the live cipher carrying its marker, whatever its cipher id (bwss `locate`).
+/// Only when none does, `cipher_id` is a hint: a live personal cipher with that id that cannot be read now might
+/// be the item, so the op is held; every other case is a target that is gone. With no hint, any such cipher holds it.
 fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
-    if let Some(cid) = cipher_id {
-        return ciphers.iter().find(|c| server_id(c) == cid).cloned().map_or(Lookup::Missing, Lookup::Found);
-    }
     let mut held = false;
     for c in ciphers.iter().filter(|c| !trashed(c)) {
         match scan(c, ns, keys, &Organizations::All) {
             Scan::Marked(m) if m.id == id => return Lookup::Found(c.clone()),
-            Scan::Uninspectable(_) if c.get("organizationId").is_none_or(Value::is_null) => held = true,
+            Scan::Uninspectable(_) if c.get("organizationId").is_none_or(Value::is_null) => {
+                held |= cipher_id.is_none_or(|cid| server_id(c) == cid);
+            }
             _ => {}
         }
     }

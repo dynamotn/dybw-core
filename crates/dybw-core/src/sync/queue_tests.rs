@@ -266,13 +266,13 @@ fn gone_and_unmarked_are_dropped_and_the_flush_goes_on() {
         p.id = "nowhere".into();
         p.cipher_id = None;
     }
-    // c1 is now a plain note on the server: Unmarked.
+    // c1 is now a plain note on the server: x is gone.
     let mut queue = vec![missing, r.change(&c1, None), create_op("y")];
     r.fake.echo();
     let report = r.flush(&mut queue, &[unmarked]);
     assert_eq!(
         report.dropped.iter().map(|(i, e)| (i.as_str(), e)).collect::<Vec<_>>(),
-        [("nowhere", &WriteError::Gone), ("x", &WriteError::Unmarked)]
+        [("nowhere", &WriteError::Gone), ("x", &WriteError::Gone)]
     );
     assert_eq!(strs(&report.done), ["y"]);
     assert!(queue.is_empty());
@@ -610,4 +610,51 @@ fn a_create_whose_item_is_already_there_is_not_sent_twice() {
     let report = r.flush(&mut queue, &[there]);
     assert_eq!(strs(&report.done), ["y"]);
     assert!(r.log().is_empty() && queue.is_empty());
+}
+
+#[test]
+fn a_queued_item_is_found_by_marker_before_its_cipher_id() {
+    // Cipher "a" now carries another marker; the item x lives on "b".
+    let mut r = Rig::new();
+    let a = r.item("a", "q", "s");
+    let b = r.item("b", "x", "old");
+    let was = r.item("a", "x", "old");
+    let mut queue = vec![r.change(&was, Some(b"new"))];
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[a.clone(), b.clone()]);
+    assert_eq!(strs(&report.done), ["x"]);
+    assert_eq!(r.log(), ["Put /ciphers/b"]);
+
+    let mut r = Rig::new();
+    let mut queue = vec![delete_of("a", "x")];
+    r.fake.echo();
+    r.fake.reply(200, json!({}));
+    let report = r.flush(&mut queue, &[a, b]);
+    assert_eq!(strs(&report.done), ["x"]);
+    assert_eq!(r.log(), ["Put /ciphers/b", "Put /ciphers/b/delete"]);
+}
+
+#[test]
+fn the_cipher_id_only_hints_at_a_held_target() {
+    let mut r = Rig::new();
+    let mut unreadable = r.note_under(&r.other, REV, &[("bwss:id", "x", false)]);
+    unreadable["id"] = json!("a");
+    let was = r.item("a", "x", "old");
+    for op in [r.change(&was, None), delete_of("a", "x")] {
+        let mut queue = vec![op];
+        let report = r.flush(&mut queue, std::slice::from_ref(&unreadable));
+        assert_eq!((report.kept.len(), queue.len()), (1, 1));
+    }
+    // Another cipher that cannot be read is not the hinted one: the target is gone.
+    let mut queue = vec![r.change(&was, None), delete_of("a", "x")];
+    let report = r.flush(
+        &mut queue,
+        &[{
+            let mut u = unreadable.clone();
+            u["id"] = json!("c9");
+            u
+        }],
+    );
+    assert!(matches!(report.dropped[..], [(ref i, WriteError::Gone)] if i == "x"));
+    assert_eq!(strs(&report.done), ["x"]);
 }
