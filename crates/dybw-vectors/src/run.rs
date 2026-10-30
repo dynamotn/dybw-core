@@ -163,7 +163,7 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                 sync::create(&mut api, ns, &keys, &rng, &new).await.map(|_| ())
             }
             Operation::Delete { id, .. } => {
-                sync::delete(&mut api, ns, &keys, &rng, &item(id)?.cipher).await.map(|_| ())
+                sync::delete(&mut api, ns, &keys, &rng, &item(id)?.cipher, id).await.map(|_| ())
             }
         })
     })?;

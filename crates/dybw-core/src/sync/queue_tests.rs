@@ -1,5 +1,6 @@
 //! The queue: the merges of bwss `runner.rs` and the flush against the scripted server of `write_tests`.
 
+use super::queue::{Step, classify};
 use super::write_tests::{B, Rig};
 use super::*;
 use crate::api::ApiError;
@@ -522,4 +523,91 @@ fn a_value_conflict_keeps_the_removals_and_skips_trashed_and_other_items_by_mark
     let report = r.flush(&mut queue, &[trashed, other, now]);
     assert_eq!((report.dropped.len(), strs(&report.done)), (1, vec!["x"]));
     assert_eq!(r.log(), ["Put /ciphers/c1"]);
+}
+
+#[test]
+fn an_expired_session_keeps_the_whole_queue() {
+    let mut r = Rig::new();
+    let (c1, c2) = (r.item("c1", "x", "old"), r.item("c2", "z", "s"));
+    let mut queue = vec![r.change(&c1, None), r.change(&c2, None)];
+    r.fake.reply(401, json!({}));
+    let report = r.flush(&mut queue, &[c1, c2]);
+    assert!(report.refused.is_empty() && report.dropped.is_empty() && report.done.is_empty());
+    assert_eq!(report.kept.len(), 1);
+    assert_eq!(queue.len(), 2);
+    assert_eq!(r.log(), ["Put /ciphers/c1"]);
+    assert!(matches!(classify(SyncWriteError::Api(ApiError::NotLoggedIn)), Step::Keep(_)));
+}
+
+#[test]
+fn errors_that_may_pass_keep_the_op() {
+    use crate::crypto::CryptoError;
+    assert!(matches!(classify(SyncWriteError::Write(WriteError::Crypto(CryptoError::BadMac))), Step::Keep(_)));
+    assert!(matches!(classify(SyncWriteError::Write(WriteError::BadClock)), Step::Keep(_)));
+    assert!(matches!(classify(SyncWriteError::Write(WriteError::TooLong)), Step::Drop(_)));
+}
+
+#[test]
+fn a_delete_of_a_re_marked_cipher_sends_nothing() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "b", "s");
+    let mut queue = vec![delete_of("c1", "x")];
+    let report = r.flush(&mut queue, &[c1]);
+    assert_eq!(strs(&report.done), ["x"]);
+    assert!(r.log().is_empty() && queue.is_empty());
+}
+
+#[test]
+fn an_empty_patch_leaves_the_cipher_for_the_next_op() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    let mut empty = r.change(&c1, None);
+    if let Op::Patch(p) = &mut empty {
+        p.set.clear();
+        p.cipher_id = None;
+    }
+    let mut later = r.change(&c1, None);
+    if let Op::Patch(p) = &mut later {
+        p.cipher_id = None;
+    }
+    let mut queue = vec![empty, later, delete_op("x")];
+    r.fake.echo();
+    r.fake.echo();
+    r.fake.reply(200, json!({}));
+    let report = r.flush(&mut queue, &[c1]);
+    assert_eq!(strs(&report.done), ["x", "x", "x"]);
+    assert_eq!(r.log(), ["Put /ciphers/c1", "Put /ciphers/c1", "Put /ciphers/c1/delete"]);
+}
+
+#[test]
+fn an_unreadable_target_is_held_not_gone() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    let mut unreadable = r.note_under(&r.other, REV, &[("bwss:id", "x", false)]);
+    unreadable["id"] = json!("c9");
+    let mut by_marker = r.change(&c1, None);
+    if let Op::Patch(p) = &mut by_marker {
+        p.cipher_id = None;
+    }
+    for op in [by_marker, delete_op("x")] {
+        let mut queue = vec![op, create_op("y")];
+        let report = r.flush(&mut queue, std::slice::from_ref(&unreadable));
+        assert_eq!((report.kept.len(), queue.len()), (1, 2));
+        assert!(report.dropped.is_empty() && report.done.is_empty());
+    }
+    // An organization cipher we cannot read is not ours to hold for: the target is gone.
+    let mut org = unreadable.clone();
+    org["organizationId"] = json!("o1");
+    let mut queue = vec![delete_op("x")];
+    assert_eq!(strs(&r.flush(&mut queue, &[org]).done), ["x"]);
+}
+
+#[test]
+fn a_create_whose_item_is_already_there_is_not_sent_twice() {
+    let mut r = Rig::new();
+    let there = r.item("c5", "y", "s");
+    let mut queue = vec![create_op("y")];
+    let report = r.flush(&mut queue, &[there]);
+    assert_eq!(strs(&report.done), ["y"]);
+    assert!(r.log().is_empty() && queue.is_empty());
 }

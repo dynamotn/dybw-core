@@ -23,14 +23,16 @@ pub enum Op {
     },
 }
 
-/// What a flush did, by `{ns}:id`. An op is in exactly one list (a patch whose value was dropped as changed
-/// elsewhere is in `dropped` and, when its other changes went through, also in `done`).
+/// What a flush did, by `{ns}:id`. An op ends in one list, except a patch whose value was dropped as changed
+/// elsewhere: it is in `dropped` and, when its other changes went through, also in `done`. A delete that stripped
+/// the item but could not trash it (`refused`) or whose reply could not be read (`dropped`) is not counted done,
+/// which is stricter than bwss.
 #[derive(Debug, Default)]
 pub struct FlushReport {
     /// Sent and accepted, or nothing left to send (an empty patch, a delete of what is no longer the tool's).
     pub done: Vec<String>,
     /// Still queued, with why: the flush stopped at the first of these. Not sent because the server or network
-    /// is unavailable, the item keeps changing, or its copy cannot be read now.
+    /// is unavailable or the session expired (401), the item keeps changing, or its copy cannot be read now.
     pub kept: Vec<(String, String)>,
     /// Removed without being sent (or without finishing): `Gone`, `Unmarked`, `SourceChanged`, size and other
     /// write errors, and a delete whose reply could not be read (`Unreadable`: the item stays stripped).
@@ -127,7 +129,7 @@ pub fn enqueue(queue: &mut Vec<Op>, ns: &Namespace, op: Op, server: Option<(Valu
 }
 
 /// How one op ended.
-enum Step {
+pub(super) enum Step {
     Done,
     Drop(WriteError),
     /// Only the value changed elsewhere: the other changes of the patch still go.
@@ -136,12 +138,20 @@ enum Step {
     Keep(String),
 }
 
-fn classify(e: SyncWriteError) -> Step {
+/// Errors that pass with time or a new login (bwss `api_failure` treats 401 as transient): the op waits.
+fn waits(e: &ApiError) -> bool {
+    e.is_transient() || matches!(e, ApiError::NotLoggedIn | ApiError::Http { status: 401, .. })
+}
+
+pub(super) fn classify(e: SyncWriteError) -> Step {
     match e {
-        SyncWriteError::Write(e @ WriteError::Uninspectable(_)) => Step::Keep(e.to_string()),
+        // May pass (a copy that cannot be read now, bwss `Wait`): the change must not be lost.
+        SyncWriteError::Write(e @ (WriteError::Uninspectable(_) | WriteError::Crypto(_) | WriteError::BadClock)) => {
+            Step::Keep(e.to_string())
+        }
         SyncWriteError::Write(WriteError::SourceChanged) => Step::DropValue,
         SyncWriteError::Write(e) => Step::Drop(e),
-        SyncWriteError::Api(e) if e.is_transient() => Step::Keep(e.to_string()),
+        SyncWriteError::Api(e) if waits(&e) => Step::Keep(e.to_string()),
         SyncWriteError::Api(e) => Step::Refuse(e),
         SyncWriteError::StillChanging => Step::Keep(e.to_string()),
         // A cipher without an id cannot be addressed, so for the queue it is gone.
@@ -149,22 +159,35 @@ fn classify(e: SyncWriteError) -> Step {
     }
 }
 
+/// Where an op's target is.
+enum Lookup {
+    Found(Value),
+    /// Not found, but a live personal cipher that cannot be read now might be it (bwss `Held`).
+    Held,
+    Missing,
+}
+
 /// The copy of the item the op is for: the cipher it was read from, else the live item carrying its marker.
-fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Option<Value> {
-    let marked =
-        |c: &Value| !trashed(c) && matches!(scan(c, ns, keys, &Organizations::All), Scan::Marked(m) if m.id == id);
-    ciphers
-        .iter()
-        .find(|c| match cipher_id {
-            Some(cid) => c.get("id").and_then(Value::as_str) == Some(cid),
-            None => marked(c),
-        })
-        .cloned()
+fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
+    if let Some(cid) = cipher_id {
+        return ciphers.iter().find(|c| server_id(c) == cid).cloned().map_or(Lookup::Missing, Lookup::Found);
+    }
+    let mut held = false;
+    for c in ciphers.iter().filter(|c| !trashed(c)) {
+        match scan(c, ns, keys, &Organizations::All) {
+            Scan::Marked(m) if m.id == id => return Lookup::Found(c.clone()),
+            Scan::Uninspectable(_) if c.get("organizationId").is_none_or(Value::is_null) => held = true,
+            _ => {}
+        }
+    }
+    if held { Lookup::Held } else { Lookup::Missing }
 }
 
 fn server_id(cipher: &Value) -> &str {
     cipher.get("id").and_then(Value::as_str).unwrap_or_default()
 }
+
+const HELD: &str = "the item cannot be read now";
 
 async fn run<H: Http, C: Clock>(
     op: &Op,
@@ -176,30 +199,44 @@ async fn run<H: Http, C: Clock>(
     ciphers: &mut Vec<Value>,
 ) -> Step {
     match op {
-        Op::Create(item) => match create(client, ns, keys, rng, item).await {
-            Ok(reply) => {
-                ciphers.push(reply);
-                Step::Done
+        Op::Create(item) => {
+            // Never twice: a create whose reply was lost has left its item in the list (bwss `run_create`).
+            if matches!(find(ciphers, ns, keys, &item.id, None), Lookup::Found(_)) {
+                return Step::Done;
             }
-            Err(e) => classify(e),
-        },
+            match create(client, ns, keys, rng, item).await {
+                Ok(reply) => {
+                    ciphers.push(reply);
+                    Step::Done
+                }
+                Err(e) => classify(e),
+            }
+        }
         Op::Patch(p) => {
-            let Some(cipher) = find(ciphers, ns, keys, &p.id, p.cipher_id.as_deref()) else {
-                return Step::Drop(WriteError::Gone);
+            let cipher = match find(ciphers, ns, keys, &p.id, p.cipher_id.as_deref()) {
+                Lookup::Found(c) => c,
+                Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Missing => return Step::Drop(WriteError::Gone),
             };
             match update(client, ns, keys, rng, now_ms, &cipher, p).await {
                 Ok(reply) => {
                     // The next op for this item reads the server's answer, not the snapshot.
-                    ciphers.retain(|c| server_id(c) != server_id(&cipher));
-                    ciphers.extend(reply);
+                    if let Some(reply) = reply {
+                        ciphers.retain(|c| server_id(c) != server_id(&cipher));
+                        ciphers.push(reply);
+                    }
                     Step::Done
                 }
                 Err(e) => classify(e),
             }
         }
         Op::Delete { id, cipher_id, .. } => {
-            let Some(cipher) = find(ciphers, ns, keys, id, cipher_id.as_deref()) else { return Step::Done };
-            match delete(client, ns, keys, rng, &cipher).await {
+            let cipher = match find(ciphers, ns, keys, id, cipher_id.as_deref()) {
+                Lookup::Found(c) => c,
+                Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Missing => return Step::Done,
+            };
+            match delete(client, ns, keys, rng, &cipher, id).await {
                 Ok(outcome) => {
                     ciphers.retain(|c| server_id(c) != server_id(&cipher));
                     match outcome {
@@ -246,7 +283,7 @@ pub async fn flush<H: Http, C: Clock>(
                 }
             }
             Step::Refuse(e) => {
-                let stop = e.is_transient();
+                let stop = waits(&e);
                 report.refused.push((id, e));
                 if stop {
                     queue.remove(0);

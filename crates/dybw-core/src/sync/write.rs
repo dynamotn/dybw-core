@@ -110,7 +110,7 @@ fn marked_id(cipher: &Value, ns: &Namespace, keys: &Keys, want: Option<&str>) ->
     }
 }
 
-/// Deletes the tool's item (§8.2): strips the tool's fields and saves, then trashes the item only when the
+/// Deletes the tool's item `expected_id` (§8.2): strips the tool's fields and saves, then trashes the item only when the
 /// server's reply holds nothing of the user's. An out-of-date answer starts over from the strip on the refetched
 /// copy; an item that left the tool meanwhile (gone, trashed, unmarked, re-marked) is `Nothing`. A reply that cannot
 /// be read (`Unreadable`) or a trash that fails (`Stripped`) leaves the stripped item in the vault, and says why.
@@ -120,8 +120,12 @@ pub async fn delete<H: Http, C: Clock>(
     keys: &Keys,
     rng: &impl Random,
     cipher: &Value,
+    expected_id: &str,
 ) -> Result<DeleteOutcome, SyncWriteError> {
-    let Some(marker_id) = marked_id(cipher, ns, keys, None)? else { return Ok(DeleteOutcome::Nothing) };
+    // A cipher that now carries another `{ns}:id` is another item: nothing is sent (bwss `run_delete`).
+    if marked_id(cipher, ns, keys, Some(expected_id))?.is_none() {
+        return Ok(DeleteOutcome::Nothing);
+    }
     let id = cipher_id(cipher)?;
     let mut current = cipher.clone();
     for attempt in 1..=ATTEMPTS {
@@ -140,7 +144,7 @@ pub async fn delete<H: Http, C: Clock>(
             Err(e) if e.is_out_of_date() => {
                 if attempt < ATTEMPTS {
                     current = match refetch(client, &id).await? {
-                        Some(c) if marked_id(&c, ns, keys, Some(&marker_id))?.is_some() => c,
+                        Some(c) if marked_id(&c, ns, keys, Some(expected_id))?.is_some() => c,
                         _ => return Ok(DeleteOutcome::Nothing),
                     };
                 }

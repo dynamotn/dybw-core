@@ -139,7 +139,7 @@ impl Rig {
     }
 
     fn delete(&mut self, cipher: &Value) -> Result<DeleteOutcome, SyncWriteError> {
-        block_on(delete(&mut self.client, B, &self.keys, &self.rng, cipher))
+        block_on(delete(&mut self.client, B, &self.keys, &self.rng, cipher, "x"))
     }
 
     pub(super) fn log(&self) -> Vec<String> {
@@ -500,4 +500,12 @@ fn a_refetched_trashed_or_blob_copy_writes_nothing() {
 
 fn r_bare(rev: &str) -> Value {
     Rig::new().bare(rev, "old")
+}
+
+#[test]
+fn delete_of_a_cipher_marked_for_another_item_sends_nothing() {
+    let mut r = Rig::new();
+    let c = r.note("2026-01-01T00:00:00Z", &[("bwss:id", "b", false), ("bwss:password", "s", true)]);
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Nothing));
+    assert!(r.log().is_empty());
 }
