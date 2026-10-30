@@ -21,7 +21,7 @@ fn b64(v: &Value) -> Vec<u8> {
 #[test]
 fn marks_match_kat() {
     let rows = read("crypto/marks.json");
-    assert_eq!(rows.as_array().unwrap().len(), 12);
+    assert_eq!(rows.as_array().unwrap().len(), 18);
     for r in rows.as_array().unwrap() {
         let user = SymmetricKey::from_bytes(&b64(
             &read(&format!("accounts/{}.json", r["account"].as_str().unwrap()))["userKey"]

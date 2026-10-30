@@ -147,7 +147,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -171,7 +171,7 @@
       "properties": {
         "password": {
           "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+          "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
         },
         "lastUsedDate": {
           "type": [
@@ -193,7 +193,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -204,7 +204,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -215,7 +215,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -248,7 +248,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -259,7 +259,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -326,13 +326,13 @@
         },
         "name": {
           "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+          "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
         },
         "notes": {
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -389,7 +389,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -447,7 +447,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -471,7 +471,7 @@
       "properties": {
         "Password": {
           "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+          "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
         },
         "LastUsedDate": {
           "type": [
@@ -493,7 +493,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -504,7 +504,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -515,7 +515,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -548,7 +548,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -559,7 +559,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -626,13 +626,13 @@
         },
         "Name": {
           "type": "string",
-          "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+          "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
         },
         "Notes": {
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"
@@ -689,7 +689,7 @@
           "oneOf": [
             {
               "type": "string",
-              "pattern": "^2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+$"
+              "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
             },
             {
               "type": "null"

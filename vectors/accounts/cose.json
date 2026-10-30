@@ -1,0 +1,12 @@
+{
+  "name": "cose",
+  "email": "cose@vectors.invalid",
+  "password": "vectors-cose-password",
+  "kdf": {
+    "type": "pbkdf2",
+    "iterations": 600000
+  },
+  "seed": "2Q16Azy59ptLFsEZ3+ZRxiMLvnnBK69dltfTjPSDTNc=",
+  "userKey": "pQEEAlDiWRu7vDvs3nMGChgCsil7AzoAARF5BIQDBAUGIFggBujuGAdx4gEdJzU7L8zBbzNUIX3b+7QOPuBauV7/ro4B",
+  "profileKey": "2.R/BGU04CTerS8w67JxJFKQ==|aTnkXQHZxzvtrmTJlKf5Q5GqqGOAgGG96XSB30OGe/gCLcWwHZ4hUR9bfvObSWtbwQx6dcsNK6ztfukWDPms443vp03vAmTEJJQm0SIl14Y=|UzsOSwUqNgAoPeAuKAk9l7MswcZtuyJ78dgcz4P7FtI="
+}

@@ -53,6 +53,15 @@ ACCOUNTS = [
         "kdf": {"type": "pbkdf2", "iterations": 600000},
         "orgs": [("org-a", "Org A"), ("org-b", "Org B")],
     },
+    {
+        # the V2 shape: an XAES-256-GCM COSE_Key as the user key, so its ciphers are EncString type 7
+        "name": "cose",
+        "email": "cose@vectors.invalid",
+        "password": "vectors-cose-password",
+        "kdf": {"type": "pbkdf2", "iterations": 600000},
+        "orgs": [],
+        "cose": True,
+    },
 ]
 
 
@@ -62,7 +71,7 @@ def seed_for(name: str) -> bytes:
 
 def build_account(spec: dict) -> dict:
     seed = seed_for(spec["name"])
-    user_key = bwcrypto.derive(seed, 64, "userKey")
+    user_key = bwcrypto.cose_key(seed) if spec.get("cose") else bwcrypto.derive(seed, 64, "userKey")
     stretched = bwcrypto.stretch(bwcrypto.master_key(spec["password"], spec["email"], spec["kdf"]))
     acc = {
         "name": spec["name"],
@@ -205,6 +214,9 @@ class _Encryptor:
     def enc(self, plain: str | None, path: str) -> str | None:
         if plain is None:
             return None
+        if bwcrypto.is_cose(self.key):
+            nonce = bwcrypto.derive(self.seed, 24, *self.base, path)
+            return bwcrypto.cose_encrypt(plain.encode("utf-8"), self.key, nonce, "utf8")
         iv = bwcrypto.iv_for(self.seed, *self.base, path)
         return self.finish(bwcrypto.enc_string(plain.encode("utf-8"), self.key, iv), path)
 
@@ -216,6 +228,8 @@ def encrypt_cipher(
     seed = base64.b64decode(account["seed"])
     owner = _owner_key(account, src.get("organizationId"))
     e = _Encryptor(seed, sid, ns, src["id"], fresh, src.get("tamper", []))
+    if bwcrypto.is_cose(owner) and (src.get("itemKey") or src.get("tamper")):
+        raise GenError(f"cipher {src['id']!r}: an item key or tamper is not supported on a COSE account")
     out: dict = {"id": src["id"], "type": src["type"]}
     for k in ("folderId", "organizationId"):
         if k in src:
@@ -492,10 +506,10 @@ def decrypt(cipher: dict, account: dict) -> dict:
     owner = _owner_key(account, c.get("organizationId"))
     key = owner
     if c.get("key") is not None:
-        key = bwcrypto.dec_string(c["key"], owner)
+        key = bwcrypto.dec_any(c["key"], owner)
 
     def dec(s):
-        return None if s is None else bwcrypto.dec_string(s, key).decode("utf-8")
+        return None if s is None else bwcrypto.dec_any(s, key).decode("utf-8")
 
     out = {k: c[k] for k in ("id", "type", "folderId", "organizationId") if k in c}
     out["name"] = dec(c["name"])

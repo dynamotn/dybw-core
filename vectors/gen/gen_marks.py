@@ -27,6 +27,15 @@ def expand32(prk: bytes, info: str) -> bytes:
 
 
 def mark_key(user: bytes, scheme: str) -> bytes:
+    if len(user) != 64:
+        # A padded COSE_Key ends with its 32-byte secret and one 0x01. The plugin's deriveSubKey takes that secret
+        # as it is; bwss has no COSE keys, so its scheme uses the same formula on it (owner-approved formula A):
+        # PRK = the secret, info "bwss value-mark enc/mac", the MAC half.
+        assert user[-1] == 1, "a COSE user key ends with one padding byte"
+        secret = user[-33:-1]
+        if scheme == "bwss":
+            return expand32(secret, "bwss value-mark mac")
+        return expand32(secret, "obsidian-keychain-bitwarden:value-fingerprint")
     if scheme == "bwss":
         # bwss SymmetricKey::derive("value-mark"), then the MAC half.
         return expand32(user, "bwss value-mark mac")
@@ -36,9 +45,8 @@ def mark_key(user: bytes, scheme: str) -> bytes:
 
 def main() -> None:
     rows = []
-    for account in ["pbkdf2", "org"]:
+    for account in ["pbkdf2", "org", "cose"]:
         user = base64.b64decode(json.loads((VECTORS / "accounts" / f"{account}.json").read_text())["userKey"])
-        assert len(user) == 64, "legacy user keys only"
         for scheme in ["bwss", "obsidian"]:
             key = mark_key(user, scheme)
             for text in TEXTS:

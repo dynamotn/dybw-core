@@ -268,7 +268,7 @@ def test_iv_for_is_deterministic_and_path_sensitive():
 
 
 def test_accounts_exist():
-    assert {p.stem for p in _account_files()} == {"pbkdf2", "argon2id", "org"}
+    assert {p.stem for p in _account_files()} == {"pbkdf2", "argon2id", "org", "cose"}
 
 
 def test_accounts_unlock():
@@ -279,7 +279,8 @@ def test_accounts_unlock():
         mk = bwcrypto.master_key(acc["password"], acc["email"], acc["kdf"])
         user_key = bwcrypto.dec_string(acc["profileKey"], bwcrypto.stretch(mk))
         assert user_key == base64.b64decode(acc["userKey"])
-        assert len(user_key) == 64
+        if acc["name"] != "cose":
+            assert len(user_key) == 64
 
 
 def test_rsa_oaep_wrap_decrypts_with_cryptography():
@@ -756,3 +757,69 @@ def test_build_rejects_utf8_base64_operation(tmp_path, capsys):
     (src / "write" / "bad-binary.json").write_text(json.dumps(doc), encoding="utf-8")
     assert run("build", src, tmp_path / "out") == 1
     assert "decodes to valid UTF-8" in capsys.readouterr().err
+
+
+# --- COSE (EncString type 7) --------------------------------------------------
+
+COSE_KAT = VECTORS / "crypto" / "cose-vectors.json"
+
+
+def test_cose_decrypts_sdk_vectors():
+    import bwcrypto
+
+    kat = load(COSE_KAT)
+    algs = set()
+    for acc in kat["accounts"]:
+        key = base64.b64decode(acc["userKey"])
+        algs.add(acc["name"])
+        for t in acc["texts"]:
+            assert bwcrypto.cose_decrypt(t["enc"], key) == t["plain"].encode()
+            # the same nonce gives the same message, byte for byte
+            nonce = bwcrypto.cbor_decode(base64.b64decode(t["enc"][2:]))[1][5]
+            assert bwcrypto.cose_encrypt(t["plain"].encode(), key, nonce, "utf8") == t["enc"]
+    assert algs == {"xaes-256-gcm", "xchacha20-poly1305"}
+
+
+def test_xchacha_rejects_wrong_aad():
+    import bwcrypto
+
+    key, nonce = bytes(range(32)), bytes(range(24))
+    ct = bwcrypto.xchacha20poly1305(key, nonce, b"hi", b"aad")
+    assert bwcrypto.xchacha20poly1305_open(key, nonce, ct, b"aad") == b"hi"
+    with pytest.raises(ValueError):
+        bwcrypto.xchacha20poly1305_open(key, nonce, ct, b"other")
+
+
+def test_cose_account_unlocks():
+    import bwcrypto
+
+    acc = load(ACCOUNTS / "cose.json")
+    mk = bwcrypto.master_key(acc["password"], acc["email"], acc["kdf"])
+    user_key = bwcrypto.dec_string(acc["profileKey"], bwcrypto.stretch(mk))
+    assert user_key == base64.b64decode(acc["userKey"])
+    assert user_key[-1] == 1  # the padded COSE_Key of Bitwarden's storage format
+    assert bwcrypto.cose_alg(user_key) == -70010  # XAES-256-GCM, the V2 user key
+    assert bwcrypto.cose_key(base64.b64decode(acc["seed"])) == user_key
+
+
+def test_cose_cipher_is_type7():
+    doc = {**FIXTURE, "account": "cose", "options": {}}
+    doc["ciphers"] = [dict(FIXTURE["ciphers"][0], itemKey=False), FIXTURE["ciphers"][1]]
+    account = gen.load_account("cose")
+    scenario = gen.render_scenario(doc, "bwss", account)
+    strings = []
+
+    def walk(v):
+        if isinstance(v, str) and v.startswith(("2.", "7.")):
+            strings.append(v)
+        elif isinstance(v, dict):
+            [walk(x) for x in v.values()]
+        elif isinstance(v, list):
+            [walk(x) for x in v]
+
+    walk(scenario["ciphers"])
+    assert strings and all(s.startswith("7.") for s in strings)
+    plain = gen.decrypt(scenario["ciphers"][0], account)
+    assert plain["name"] == "Login bwss" and plain["login"]["password"] == "pw-ünï-😀"
+    with pytest.raises(gen.GenError, match="item key"):
+        gen.render_scenario({**doc, "ciphers": [FIXTURE["ciphers"][0]]}, "bwss", account)

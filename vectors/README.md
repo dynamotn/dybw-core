@@ -156,7 +156,11 @@ The source object with these differences:
 - every `ciphers[i]` (and `operation.fresh`) is a server-shaped cipher:
   - every string the server stores encrypted (`name`, `notes`, login
     `username`, `password`, `totp`, URIs, field names and values, history
-    passwords) is an EncString of type 2, `2.<iv>|<data>|<mac>`;
+    passwords) is an EncString of type 2, `2.<iv>|<data>|<mac>`, or of type 7
+    (`7.<COSE_Encrypt0>`, UTF-8 padded to 32 bytes) for the `cose` account;
+    that account's user key is an XAES-256-GCM COSE key (the SDK's V2 user
+    key) and its `profileKey` is a type 2 wrapping of the padded COSE key. It
+    has no organizations, and its sources may not set `itemKey` or `tamper`;
   - `key` is the per-item key when the source set `itemKey`: 64 bytes wrapped
     as an EncString of type 2 under the owner key (the user key, or the
     organization key when `organizationId` is set), and all the cipher's

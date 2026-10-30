@@ -1,0 +1,64 @@
+{
+  "id": "read/cose-item",
+  "spec": "1.5",
+  "sections": [
+    "§3.1",
+    "§5"
+  ],
+  "account": "cose",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGGAu2kp69D+MeK739C4X0xKAMyHL3231uFgwF+zHsrP4ASJiN9r+qKLaYQ2fGJywLHkkMghyLbxQZ57oE9myyDk/uGGn2MMJi9EI",
+      "notes": null,
+      "login": {
+        "username": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGEIEs9YCqQBraS4rcWOsqpQmpheQ2KheZlgw0MdhtRG/ypnXoy/xOtvedig9lXsn/TfkGbUozsMJd1h3MyfLbN8jx32VspMyzX7J",
+        "password": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGOLqv6NBltYclxCOjGJOI9GQP/kHrXPj4lgw5Xjxkd7ryXIXm9EDWl9BVNQnGmIhrA46ja170UQIo1skOvTi8Y7GhLUNYdounFAO",
+        "uris": [
+          {
+            "uri": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGPStE+PMd813xi3rMwZmuDbd4S3dbmB5JFgwOEYd9sbK2HnJwSbPFWLLJkQstJGP0QUoMaCzvrTm/OgKn/X0yXkoc8YfGfTr7PET",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGCShG+yd6EO7br+9Zg4V1gzseohPq3hrf1gwFos2Sh+VI9jSoSOQIWZSYtjT1qXVhLM4k7wqH0ljBLdEJOKcQ4MCkmglhHyf+f+U",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGNxveyIxG5xtnU7CPUCfe+sNlelbNevPsFgwJNUYOh6wncuOmUgXNELB9YRMQ3p8gM7RGKS+/8vDZn3S82UbCR5cntbOGKWHwkkE",
+          "type": 0
+        },
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGPoQy2HSB8MqIE/xjQL9ivzR/ZICr77PKFgwW+koTKGV+ihMBIRUcmSS1hZW/9a7ZTV5ghwgNkDRPIaDbCcJuf1OOfUZVGt6+XZ5",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGLz2x//mXgEixYVG1EX8HPCGQ5MYJOYK/VgwNNz1pZMx9fww7RzGA4OYOz9MJ26TkCAdUkQbKHn/56nn5XH5UTSfSxxqBHEZn8aW",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "cose-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}
