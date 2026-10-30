@@ -4,7 +4,9 @@
 
 use super::fields::{Mark, decrypt_opt, field_names, item_key};
 use super::namespace::{Encodings, Namespace};
-use super::scan::{Scan, Uninspectable, ValueSource, is_blob, scan, trashed};
+use super::scan::{
+    Scan, TYPE_SECURE_NOTE, Uninspectable, ValueSource, is_blob, organization, read_only, scan, supported_type, trashed,
+};
 use super::{Keys, Organizations};
 use crate::crypto::{CryptoError, SymmetricKey};
 use crate::ports::Random;
@@ -17,8 +19,6 @@ use zeroize::Zeroizing;
 const MAX_FIELD_ENC: usize = 5_000;
 const MAX_PASSWORD_ENC: usize = 5_000;
 const MAX_NOTES_ENC: usize = 10_000;
-const TYPE_LOGIN: u64 = 1;
-const TYPE_SECURE_NOTE: u64 = 2;
 const FIELD_TEXT: u64 = 0;
 const FIELD_HIDDEN: u64 = 1;
 /// `passwordHistory` keeps at most this many entries, newest first (§6.1).
@@ -153,18 +153,13 @@ fn iso_ms(ms: i64) -> Result<String, WriteError> {
 
 /// The key an item's strings (or its own key) are under: its organization's, else the user's.
 fn owner<'k>(cipher: &Value, keys: &'k Keys) -> Result<&'k SymmetricKey, WriteError> {
-    match cipher.get("organizationId").filter(|o| !o.is_null()) {
+    match organization(cipher) {
         None => Ok(&keys.user),
         Some(org) => keys
             .orgs
             .get(org.as_str().unwrap_or_default())
             .ok_or(WriteError::Uninspectable(Uninspectable::OrganizationKeyMissing)),
     }
-}
-
-/// An organization item the account may only read (§9), as the scan decides it.
-fn read_only(cipher: &Value) -> bool {
-    cipher.get("organizationId").is_some_and(|o| !o.is_null()) && cipher.get("edit") == Some(&Value::Bool(false))
 }
 
 /// One write in progress: the request body and the custom fields, each raw (encrypted) entry beside its decrypted
@@ -458,7 +453,7 @@ pub fn has_foreign_content(cipher: &Value, ns: &Namespace, keys: &Keys) -> Resul
         return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }
     // Card, identity and SSH key data is never inspected: not bare.
-    if !matches!(cipher.get("type").and_then(Value::as_u64), Some(TYPE_LOGIN | TYPE_SECURE_NOTE)) {
+    if !supported_type(cipher) {
         return Ok(true);
     }
     let non_empty_array = |v: Option<&Value>| v.and_then(Value::as_array).is_some_and(|a| !a.is_empty());

@@ -11,8 +11,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use zeroize::Zeroizing;
 
-const TYPE_LOGIN: u64 = 1;
-const TYPE_SECURE_NOTE: u64 = 2;
+pub(crate) const TYPE_LOGIN: u64 = 1;
+pub(crate) const TYPE_SECURE_NOTE: u64 = 2;
 
 /// Where a marked item's secret was read from (§5). Serialized as its code, for the write queue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -142,6 +142,22 @@ pub struct ScanReport {
     pub present: BTreeSet<String>,
 }
 
+/// The cipher's `organizationId` when it is an organization item: any non-null value (bwss), even `""` (which the
+/// plugin read as personal).
+pub(crate) fn organization(cipher: &Value) -> Option<&Value> {
+    cipher.get("organizationId").filter(|o| !o.is_null())
+}
+
+/// An organization item this account may only read (§9).
+pub(crate) fn read_only(cipher: &Value) -> bool {
+    organization(cipher).is_some() && cipher.get("edit") == Some(&Value::Bool(false))
+}
+
+/// A login or a secure note: the only item types a tool reads or writes.
+pub(crate) fn supported_type(cipher: &Value) -> bool {
+    matches!(cipher.get("type").and_then(Value::as_u64), Some(TYPE_LOGIN | TYPE_SECURE_NOTE))
+}
+
 pub(crate) fn trashed(cipher: &Value) -> bool {
     cipher.get("deletedDate").is_some_and(|d| !d.is_null())
 }
@@ -170,8 +186,7 @@ pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations
     if is_blob(cipher) {
         return Scan::Uninspectable(Uninspectable::NewerFormat);
     }
-    // Any non-null organizationId is an organization item (bwss), even "" (which the plugin read as personal).
-    let org = cipher.get("organizationId").filter(|o| !o.is_null());
+    let org = organization(cipher);
     let owner = match org {
         None => &keys.user,
         Some(org) => {
@@ -207,7 +222,7 @@ fn read_marked(
     org: Option<String>,
 ) -> Result<Scan, CryptoError> {
     let ty = cipher.get("type").and_then(Value::as_u64);
-    if ty != Some(TYPE_LOGIN) && ty != Some(TYPE_SECURE_NOTE) {
+    if !supported_type(cipher) {
         return Ok(Scan::Skipped(SkipReason::WrongType));
     }
     if org.is_some() && cipher.get("viewPassword") == Some(&Value::Bool(false)) {
@@ -289,7 +304,7 @@ fn read_marked(
         cipher_id: text_at("id").unwrap_or_default().to_owned(),
         revision_date: text_at("revisionDate").unwrap_or_default().to_owned(),
         creation_date: text_at("creationDate").and_then(parse_date),
-        read_only: org.is_some() && cipher.get("edit") == Some(&Value::Bool(false)),
+        read_only: read_only(cipher),
         organization_id: org,
         id,
         source,

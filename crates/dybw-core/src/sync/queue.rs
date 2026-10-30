@@ -4,7 +4,7 @@
 use super::write::{DeleteOutcome, SyncWriteError, create, delete, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
-use crate::vault::scan::{MarkedItem, Scan, ValueSource, duplicate_order, scan, trashed};
+use crate::vault::scan::{MarkedItem, Scan, ValueSource, duplicate_order, organization, scan, trashed};
 use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
 use crate::vault::{Keys, Namespace, Organizations};
 use serde::{Deserialize, Serialize};
@@ -182,7 +182,7 @@ fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Opt
                     winner = Some(m);
                 }
             }
-            Scan::Uninspectable(_) if c.get("organizationId").is_none_or(Value::is_null) => {
+            Scan::Uninspectable(_) if organization(c).is_none() => {
                 held |= cipher_id.is_none_or(|cid| server_id(c) == cid);
             }
             _ => {}

@@ -2,7 +2,7 @@
 
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
-use crate::vault::scan::{Scan, scan, trashed};
+use crate::vault::scan::{Scan, organization, read_only, scan, trashed};
 use crate::vault::write::{NewItem, Patch, ValueChange, WriteError, apply, has_foreign_content, new_item, strip};
 use crate::vault::{Keys, Namespace, Organizations};
 use serde_json::Value;
@@ -51,11 +51,9 @@ fn cipher_id(cipher: &Value) -> Result<String, SyncWriteError> {
     }
 }
 
-/// Who owns the cipher and whether this account may edit it: its organization (any non-null `organizationId`, as
-/// the scan), and `edit: false` on an organization item.
+/// Who owns the cipher and whether this account may edit it, as the scan decides both.
 fn owner(cipher: &Value) -> (Option<&Value>, bool) {
-    let org = cipher.get("organizationId").filter(|o| !o.is_null());
-    (org, org.is_some() && cipher.get("edit") == Some(&Value::Bool(false)))
+    (organization(cipher), read_only(cipher))
 }
 
 /// The server's current copy; `None` when it is gone (404).
