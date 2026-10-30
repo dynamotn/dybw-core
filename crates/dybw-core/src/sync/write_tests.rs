@@ -225,6 +225,31 @@ fn refetch_failure_other_than_404_is_an_api_error() {
 }
 
 #[test]
+fn fresh_copy_with_another_owner_or_edit_right_ends_the_retry() {
+    // Moved into an organization, or its edit right taken away, between the read and the write (§9).
+    for change in [json!({ "organizationId": "org-a" }), json!({ "edit": false })] {
+        let mut r = Rig::new();
+        let c = r.bare("2026-01-01T00:00:00Z", "old");
+        let patch = r.patch_for(&c, b"new");
+        let mut fresh = r.bare("2026-02-02T00:00:00Z", "old");
+        for (k, v) in change.as_object().unwrap() {
+            fresh[k] = v.clone();
+        }
+        r.fake.out_of_date();
+        r.fake.reply(200, fresh);
+        r.fake.echo();
+        let got = r.update(&c, &patch);
+        // An `edit: false` on a personal item changes nothing: personal items are always editable.
+        if change.get("edit").is_some() {
+            assert!(matches!(got, Ok(Some(_))), "{got:?}");
+        } else {
+            assert!(matches!(got, Err(SyncWriteError::OwnerChanged)), "{got:?}");
+            assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
+        }
+    }
+}
+
+#[test]
 fn fresh_copy_with_another_value_ends_the_retry() {
     let mut r = Rig::new();
     let c = r.bare("2026-01-01T00:00:00Z", "old");

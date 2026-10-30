@@ -22,6 +22,10 @@ pub enum SyncWriteError {
     /// The cipher has no server id, so no request can name it; nothing was sent.
     #[error("the cipher has no id")]
     MissingId,
+    /// The refetched copy moved to another organization (or out of one), or its edit right changed: the checks the
+    /// change was made under no longer hold, so nothing more was sent (§9).
+    #[error("the item changed owner or edit rights elsewhere")]
+    OwnerChanged,
 }
 
 /// What a delete did to the item (§8.2).
@@ -45,6 +49,13 @@ fn cipher_id(cipher: &Value) -> Result<String, SyncWriteError> {
         Some(id) if !id.is_empty() => Ok(id.to_owned()),
         _ => Err(SyncWriteError::MissingId),
     }
+}
+
+/// Who owns the cipher and whether this account may edit it: its organization (any non-null `organizationId`, as
+/// the scan), and `edit: false` on an organization item.
+fn owner(cipher: &Value) -> (Option<&Value>, bool) {
+    let org = cipher.get("organizationId").filter(|o| !o.is_null());
+    (org, org.is_some() && cipher.get("edit") == Some(&Value::Bool(false)))
 }
 
 /// The server's current copy; `None` when it is gone (404).
@@ -78,7 +89,14 @@ pub async fn update<H: Http, C: Clock>(
         match client.update_cipher(&id, body).await {
             Err(e) if e.is_out_of_date() => {
                 if attempt < ATTEMPTS {
-                    current = refetch(client, &id).await?.ok_or(WriteError::Gone)?;
+                    let fresh = refetch(client, &id).await?.ok_or(WriteError::Gone)?;
+                    // The caller checked the owner and edit right of the copy it read (§9); a copy that changed
+                    // either is another decision, never re-applied to. With the same owner, `apply` reading it with
+                    // every organization is no wider than the caller's own read was.
+                    if owner(&fresh) != owner(cipher) {
+                        return Err(SyncWriteError::OwnerChanged);
+                    }
+                    current = fresh;
                 }
             }
             sent => return Ok(Some(sent?)),

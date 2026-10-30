@@ -153,7 +153,8 @@ pub(super) fn classify(e: SyncWriteError) -> Step {
         SyncWriteError::Write(e) => Step::Drop(e),
         SyncWriteError::Api(e) if waits(&e) => Step::Keep(e.to_string()),
         SyncWriteError::Api(e) => Step::Refuse(e),
-        SyncWriteError::StillChanging => Step::Keep(e.to_string()),
+        // Changed under the write (bwss `Wait`): the next flush re-reads the item and decides again.
+        SyncWriteError::StillChanging | SyncWriteError::OwnerChanged => Step::Keep(e.to_string()),
         // A cipher without an id cannot be addressed, so for the queue it is gone.
         SyncWriteError::MissingId => Step::Drop(WriteError::Gone),
     }

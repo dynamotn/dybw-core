@@ -1,7 +1,7 @@
 //! The sync passes against a stateful fake server: the plugin's `engine.test.ts`, and the pass and action cases of
 //! `sync.test.ts` and `organizations.test.ts`.
 
-use super::engine::{apply_pass, scope_of};
+use super::engine::{apply_pass, normalize_scope, scope_of};
 use super::*;
 use crate::api::{ApiKey, Client, DeviceInfo, resolve_server_urls};
 use crate::crypto::{MarkScheme, Marker, SymmetricKey};
@@ -30,6 +30,10 @@ struct World {
     log: Vec<String>,
     fail_sync: bool,
     fail_folders: bool,
+    /// Answers a create without the new cipher's id.
+    create_without_id: bool,
+    /// The profile's organizations.
+    orgs: Vec<Value>,
     /// Runs before every update is looked at, as the plugin's `beforeUpdate`.
     before_update: Option<Hook>,
 }
@@ -88,7 +92,7 @@ impl Http for Server {
             (Method::Get, ["api", "sync"]) if w.fail_sync => reply(500, &json!({ "message": "down" })),
             (Method::Get, ["api", "sync"]) => reply(
                 200,
-                &json!({ "profile": { "id": "u1", "key": "2.uk" }, "folders": w.folders, "ciphers": w.ciphers }),
+                &json!({ "profile": { "id": "u1", "key": "2.uk", "organizations": w.orgs }, "folders": w.folders, "ciphers": w.ciphers }),
             ),
             (Method::Get, ["api", "ciphers", id]) => match w.ciphers.iter().find(|c| c["id"] == *id) {
                 Some(c) => reply(200, c),
@@ -116,6 +120,9 @@ impl Http for Server {
             (Method::Post, ["api", "ciphers"]) => {
                 let mut c = body;
                 c["id"] = json!(format!("new{}", w.ciphers.len()));
+                if w.create_without_id {
+                    return reply(200, &json!({ "revisionDate": "2026-04-01T00:00:00.000Z" }));
+                }
                 c["revisionDate"] = json!(w.next_revision());
                 c["creationDate"] = json!("2026-04-01T00:00:00.000Z");
                 c["deletedDate"] = Value::Null;
@@ -167,11 +174,13 @@ struct Spec<'s> {
     ty: u64,
     extra: &'s [(&'s str, &'s str)],
     created: &'s str,
+    /// The item name, else the id.
+    name: Option<&'s str>,
 }
 
 impl<'s> Spec<'s> {
     fn new(id: &'s str, value: &'s str) -> Self {
-        Spec { id, value, org: false, edit: true, ty: 2, extra: &[], created: "2025-01-01T00:00:00.000Z" }
+        Spec { id, value, org: false, edit: true, ty: 2, extra: &[], created: "2025-01-01T00:00:00.000Z", name: None }
     }
 }
 
@@ -272,7 +281,7 @@ impl Rig {
         let rev = w.next_revision();
         w.ciphers.push(json!({
             "id": id, "type": spec.ty, "organizationId": if spec.org { json!(ORG) } else { Value::Null },
-            "folderId": null, "name": self.enc(key, spec.id), "notes": null, "secureNote": { "type": 0 },
+            "folderId": null, "name": self.enc(key, spec.name.unwrap_or(spec.id)), "notes": null, "secureNote": { "type": 0 },
             "fields": fields, "passwordHistory": [], "revisionDate": rev, "creationDate": spec.created,
             "deletedDate": null, "edit": spec.edit, "viewPassword": true,
         }));
@@ -381,7 +390,8 @@ fn nothing_moved(r: &SyncReport) -> bool {
 }
 
 fn conflict(id: &str, kind: ConflictKind, organization: Option<&str>) -> Conflict {
-    Conflict { id: id.into(), kind, organization: organization.map(String::from) }
+    let organization = organization.map(String::from);
+    Conflict { id: id.into(), kind, organization, organization_name: None, label: id.into() }
 }
 
 fn errors(r: &SyncReport) -> Vec<(String, String)> {
@@ -1088,4 +1098,249 @@ fn conflict_codes_and_error_texts_carry_no_value() {
     );
     assert_eq!(ApplyError::NotText.to_string(), "the value is not text");
     assert_eq!(SyncError::Cancelled.to_string(), "Bitwarden was locked during the sync");
+}
+
+// --- fix round 1 ---
+
+/// Flips one ciphertext character of a type 2 EncString, so its MAC fails.
+fn tamper(enc: &Value) -> Value {
+    let s = enc.as_str().unwrap();
+    let (head, rest) = s.split_once('|').unwrap();
+    let mut ct: Vec<char> = rest.chars().collect();
+    ct[0] = if ct[0] == 'A' { 'B' } else { 'A' };
+    json!(format!("{head}|{}", ct.into_iter().collect::<String>()))
+}
+
+#[test]
+fn a_personal_item_moved_into_an_organization_during_the_push_gets_nothing() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v1");
+    r.ok();
+    r.store.put("k", "mine");
+    // The same cipher, now an organization item holding the same value under the organization's key.
+    let moved = r.add_org("k", "v1");
+    let mut copy = {
+        let mut w = r.world();
+        let i = w.ciphers.iter().position(|x| x["id"] == json!(moved)).unwrap();
+        w.ciphers.remove(i)
+    };
+    copy["id"] = json!(c);
+    let done = Rc::new(Cell::new(false));
+    let flag = done.clone();
+    r.on_update(move |to, w| {
+        if !flag.replace(true) {
+            *w.cipher(to) = copy.clone();
+            w.bump(to);
+        }
+    });
+    let report = r.ok();
+    assert!(report.pushed.is_empty() && report.errors.is_empty(), "{report:?}");
+    assert_eq!(report.conflicts, [conflict("k", ConflictKind::OrganizationPush, Some(ORG))]);
+    assert_eq!(r.remote(&c), "v1");
+    assert!(!r.state.base["k"].push_confirmed);
+    assert_eq!(r.world().count(&format!("Put /api/ciphers/{c}")), 1);
+}
+
+#[test]
+fn an_item_whose_edit_right_is_taken_away_during_the_push_gets_nothing() {
+    let mut r = Rig::obsidian();
+    let c = r.add_org("team-token", "old");
+    r.ok();
+    r.state.base.get_mut("team-token").unwrap().push_confirmed = true;
+    r.store.put("team-token", "mine");
+    let done = Rc::new(Cell::new(false));
+    let flag = done.clone();
+    r.on_update(move |to, w| {
+        if !flag.replace(true) {
+            w.cipher(to)["edit"] = json!(false);
+            w.bump(to);
+        }
+    });
+    let report = r.ok();
+    assert!(report.pushed.is_empty() && report.errors.is_empty(), "{report:?}");
+    assert_eq!(report.passes, 2);
+    assert_eq!(report.skipped.read_only, [("team-token".to_owned(), c.clone())]);
+    assert_eq!(r.remote(&c), "old");
+}
+
+#[test]
+fn a_conflict_names_the_item_and_its_organization() {
+    let mut r = Rig::obsidian();
+    r.world().orgs = vec![json!({ "id": ORG, "name": "Team 1" }), json!({ "id": "org-b" })];
+    r.add_spec(&Spec { org: true, name: Some("Team token"), ..Spec::new("team-token", "theirs") });
+    r.ok();
+    r.store.put("team-token", "mine");
+    let report = r.ok();
+    let want = Conflict {
+        id: "team-token".into(),
+        kind: ConflictKind::OrganizationPush,
+        organization: Some(ORG.into()),
+        organization_name: Some("Team 1".into()),
+        label: "Team token".into(),
+    };
+    assert_eq!(report.conflicts, [want]);
+    // No item: the id is the label; an organization without a name has none.
+    let mut r = Rig::obsidian();
+    r.world().orgs = vec![json!({ "id": ORG })];
+    let c = r.add_org("nameless", "theirs");
+    r.ok();
+    r.store.put("nameless", "mine");
+    assert_eq!(r.ok().conflicts[0].organization_name, None);
+    r.world().trash(&c);
+    let report = r.ok();
+    assert_eq!(report.conflicts, [conflict("nameless", ConflictKind::DeletedRemotely, None)]);
+}
+
+#[test]
+fn a_conflict_label_falls_back_to_the_id_when_the_name_cannot_be_read() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v1");
+    r.ok();
+    r.store.put("k", "local");
+    r.edit_remote(&c, "remote");
+    let name = r.world().cipher(&c)["name"].clone();
+    r.world().cipher(&c)["name"] = tamper(&name);
+    assert_eq!(r.ok().conflicts, [conflict("k", ConflictKind::BothChanged, None)]);
+}
+
+#[test]
+fn skips_undecryptable_or_invalid_items_without_failing_the_sync() {
+    let mut r = Rig::obsidian();
+    let bad = r.add("tampered", "v");
+    let value = r.world().cipher(&bad)["fields"][1]["value"].clone();
+    r.world().cipher(&bad)["fields"][1]["value"] = tamper(&value);
+    let invalid = r.add("Not A Valid Id", "v");
+    r.add("good", "g");
+    let report = r.ok();
+    assert_eq!(report.pulled, ["good"]);
+    assert_eq!(report.skipped.skipped, [(invalid, SkipReason::InvalidId)]);
+    assert_eq!(report.skipped.unreadable, [bad]);
+}
+
+#[test]
+fn keeps_a_secret_whose_item_key_or_value_can_no_longer_be_read() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.add("other", "o");
+    r.ok();
+    // An item key that cannot be unwrapped: held, not reported as unreadable (the plugin's inner read).
+    r.world().cipher(&c)["key"] = json!("2.AAAA|AAAA|AAAA");
+    r.world().bump(&c);
+    let report = r.ok();
+    assert!(report.cleared.is_empty() && report.skipped.unreadable.is_empty());
+    assert_eq!(report.skipped.held, [("k".to_owned(), c.clone())]);
+    assert_eq!(r.state.base["k"].cipher_id, c);
+    // A value that cannot be decrypted: held and reported.
+    r.world().cipher(&c).as_object_mut().unwrap().remove("key");
+    let value = r.world().cipher(&c)["fields"][1]["value"].clone();
+    r.world().cipher(&c)["fields"][1]["value"] = tamper(&value);
+    let report = r.ok();
+    assert!(report.cleared.is_empty());
+    assert_eq!(report.skipped.held, [("k".to_owned(), c.clone())]);
+    assert_eq!(report.skipped.unreadable, std::slice::from_ref(&c));
+    // Moved to an organization this device has no key for: also kept.
+    r.world().cipher(&c)["fields"][1]["value"] = value;
+    r.world().cipher(&c)["organizationId"] = json!("org-unknown");
+    assert!(r.ok().cleared.is_empty());
+    assert_eq!(r.store.value("k").as_deref(), Some("v"));
+}
+
+#[test]
+fn asks_before_the_first_push_even_when_a_confirmed_claim_bound_the_id() {
+    let mut r = Rig::obsidian();
+    let personal = r.add("api-key", "mine");
+    r.add("pad", "p");
+    r.ok();
+    r.world().trash(&personal);
+    let theirs = r.add_org("api-key", "theirs");
+    let took = r.sync_with("api-key", Policy::PreferRemote, ConflictKind::OrganizationClaim);
+    assert_eq!(took.pulled, ["api-key"]);
+    r.store.put("api-key", "edited");
+    assert_eq!(r.ok().conflicts, [conflict("api-key", ConflictKind::OrganizationPush, Some(ORG))]);
+    assert_eq!(r.remote(&theirs), "theirs");
+}
+
+#[test]
+fn uploads_nothing_when_a_claim_is_declined_for_a_secret_this_device_no_longer_holds() {
+    let mut r = Rig::obsidian();
+    let personal = r.add("api-key", "mine");
+    let pad = r.add("pad", "p");
+    r.ok();
+    r.world().trash(&personal);
+    let planted = r.add_org("api-key", "planted");
+    r.store.remove("api-key");
+    let report = r.sync_with("api-key", Policy::PreferLocal, ConflictKind::OrganizationClaim);
+    assert!(report.created.is_empty() && report.pushed.is_empty() && report.pulled.is_empty());
+    assert!(report.errors.is_empty());
+    let live: Vec<Value> =
+        r.world().ciphers.iter().filter(|c| c["deletedDate"].is_null()).map(|c| c["id"].clone()).collect();
+    assert_eq!(live, [json!(pad), json!(planted)]);
+    assert_eq!(r.remote(&planted), "planted");
+    assert_eq!(r.store.value("api-key"), None);
+}
+
+#[test]
+fn never_lets_an_organization_item_silently_take_over_a_secret_whose_personal_item_was_deleted() {
+    let mut r = Rig::obsidian();
+    r.policy = Policy::PreferLocal;
+    let personal = r.add("api-key", "mine");
+    r.add("pad", "p");
+    r.ok();
+    r.world().trash(&personal);
+    let planted = r.add_org("api-key", "planted");
+    for local in ["mine", "edited", "planted"] {
+        r.store.put("api-key", local);
+        assert_eq!(r.ok().conflicts, [conflict("api-key", ConflictKind::OrganizationClaim, Some(ORG))], "{local}");
+        assert_eq!(r.store.value("api-key").as_deref(), Some(local));
+        assert_eq!(r.remote(&planted), "planted");
+    }
+}
+
+#[test]
+fn stops_taking_pushes_once_the_organization_takes_the_right_to_edit_away_even_after_a_confirmation() {
+    let mut r = Rig::obsidian();
+    let c = r.add_org("team-token", "one");
+    r.ok();
+    r.state.base.get_mut("team-token").unwrap().push_confirmed = true;
+    r.world().cipher(&c)["edit"] = json!(false);
+    r.store.put("team-token", "two");
+    let report = r.ok();
+    assert!(report.pushed.is_empty() && report.errors.is_empty());
+    assert_eq!(report.skipped.read_only, [("team-token".to_owned(), c.clone())]);
+    assert_eq!(r.remote(&c), "one");
+    assert_eq!(r.store.value("team-token").as_deref(), Some("two"));
+}
+
+#[test]
+fn a_create_reply_without_an_id_is_an_error() {
+    let mut r = Rig::obsidian();
+    r.world().create_without_id = true;
+    r.store.put("k", "v");
+    r.state.pending_creates = vec!["k".into()];
+    let report = r.ok();
+    assert!(report.created.is_empty());
+    assert!(matches!(report.errors[0].error, ApplyError::Write(SyncWriteError::MissingId)));
+    assert!(!r.state.base.contains_key("k"));
+    assert_eq!(r.state.pending_creates, ["k"]);
+}
+
+#[test]
+fn scopes_are_read_as_the_plugin_parses_them() {
+    for (raw, want) in [
+        (None, "global"),
+        (Some(""), "global"),
+        (Some("  "), "global"),
+        (Some("global"), "global"),
+        (Some(" global "), "global"),
+        (Some("vault:"), "global"),
+        (Some("device:"), "global"),
+        (Some("vault:Notes"), "vault:Notes"),
+        (Some(" device:d1 "), "device:d1"),
+        (Some("vault: x"), "vault: x"),
+        (Some("Global"), "global"),
+        (Some("planet:mars"), "global"),
+        (Some("VAULT:x"), "global"),
+    ] {
+        assert_eq!(normalize_scope(raw), want, "{raw:?}");
+    }
 }

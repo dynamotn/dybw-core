@@ -8,7 +8,8 @@ use super::state::DeviceState;
 use super::write::{SyncWriteError, create, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
-use crate::vault::scan::{Duplicate, MarkedItem, ScanReport, SkipReason, scan_vault_with};
+use crate::vault::fields::{decrypt_opt, item_key};
+use crate::vault::scan::{Duplicate, MarkedItem, ScanReport, SkipReason, Uninspectable, scan_vault_with};
 use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
 use crate::vault::{Keys, Namespace, Organizations};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
@@ -81,6 +82,11 @@ pub struct Conflict {
     pub kind: ConflictKind,
     /// The organization of the item, for the question to the user.
     pub organization: Option<String>,
+    /// The organization's name as its owners set it in the `/sync` profile, raw: the tool must sanitize it before
+    /// showing it (§9: the first write is confirmed naming the organization).
+    pub organization_name: Option<String>,
+    /// The item's name, or the id when there is no item or its name cannot be read.
+    pub label: String,
 }
 
 /// What a pass left out, and why.
@@ -92,6 +98,8 @@ pub struct PassReport {
     pub held: Vec<(String, String)>,
     /// `(id, cipher id)` changed here, in an item its organization does not let this account edit: not uploaded.
     pub read_only: Vec<(String, String)>,
+    /// Cipher ids of marked items whose value could not be decrypted (the plugin's skipped "undecryptable" items).
+    pub unreadable: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -134,9 +142,12 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
 ) -> Result<PassPlan, SyncError> {
     let sync = ctx.client.sync().await?;
     // Reserved ids are refused by the namespace's id rule, so the scan already skips them.
-    let ScanReport { items, skipped, duplicates, present, .. } =
+    let ScanReport { items, skipped, uninspectable, duplicates, present } =
         scan_vault_with(&sync, ctx.ns, ctx.keys, ctx.allowed, ctx.applies);
-    let mut report = PassReport { skipped, duplicates, ..PassReport::default() };
+    // Only a value that fails after the id was read is reported, as the plugin's `readVault`; every other
+    // uninspectable cipher (blob, item key, organization key) is silently held.
+    let unreadable = uninspectable.into_iter().filter(|(_, u)| *u == Uninspectable::Value).map(|(c, _)| c).collect();
+    let mut report = PassReport { skipped, duplicates, unreadable, ..PassReport::default() };
     let items: BTreeMap<String, MarkedItem> = items.into_iter().map(|i| (i.id.clone(), i)).collect();
 
     // A synced secret whose item is still there but cannot be used here any more (newer format, renamed to an
@@ -263,7 +274,7 @@ fn id_of(action: &Action) -> &str {
 }
 
 /// The plugin's `parseScope` then `formatScope`: a scope it does not know is global.
-fn normalize_scope(raw: Option<&str>) -> String {
+pub(super) fn normalize_scope(raw: Option<&str>) -> String {
     let v = raw.unwrap_or_default().trim();
     let known = ["vault:", "device:"].iter().any(|p| v.len() > p.len() && v.starts_with(p));
     if known { v.to_owned() } else { "global".to_owned() }
@@ -388,16 +399,14 @@ async fn apply<H: Http, C: Clock, R: Random>(
                 // The item changed under the write: the next pass plans again from what it holds then.
                 Err(
                     SyncWriteError::StillChanging
-                    | SyncWriteError::Write(WriteError::Gone | WriteError::Unmarked | WriteError::Uninspectable(_)),
+                    | SyncWriteError::OwnerChanged
+                    | SyncWriteError::Write(
+                        WriteError::Gone | WriteError::Unmarked | WriteError::Uninspectable(_) | WriteError::ReadOnly,
+                    ),
                 ) => return Ok(true),
                 // The value itself changed meanwhile: never overwritten silently (§6.5).
                 Err(SyncWriteError::Write(WriteError::SourceChanged)) => {
-                    let organization = rec.organization_id.clone();
-                    report.conflicts.push(Conflict {
-                        id: id.to_owned(),
-                        kind: ConflictKind::BothChanged,
-                        organization,
-                    });
+                    report.conflicts.push(conflict(ctx.keys, &pass.sync, id, ConflictKind::BothChanged, Some(rec)));
                     return Ok(false);
                 }
                 Err(e) => return Err(e.into()),
@@ -436,7 +445,7 @@ async fn apply<H: Http, C: Clock, R: Random>(
             };
             let reply = create(ctx.client, ctx.ns, ctx.keys, ctx.rng, &item).await?;
             let entry = BaseEntry {
-                cipher_id: text_at(Some(&reply), "id").unwrap_or_default().to_owned(),
+                cipher_id: text_at(Some(&reply), "id").ok_or(SyncWriteError::MissingId)?.to_owned(),
                 revision_date: text_at(Some(&reply), "revisionDate").unwrap_or_default().to_owned(),
                 fingerprint: fingerprint.clone(),
                 scope: Some(scope),
@@ -463,11 +472,30 @@ async fn apply<H: Http, C: Clock, R: Random>(
             Some(rec) if *kind == ConflictKind::OrganizationPush && rec.read_only => {
                 report.skipped.read_only.push((id.to_owned(), rec.cipher_id.clone()));
             }
-            _ => {
-                let organization = rec.and_then(|r| r.organization_id.clone());
-                report.conflicts.push(Conflict { id: id.to_owned(), kind: *kind, organization });
-            }
+            _ => report.conflicts.push(conflict(ctx.keys, &pass.sync, id, *kind, rec)),
         },
     }
     Ok(false)
+}
+
+/// A conflict as the plugin reports it, with what the question to the user names.
+fn conflict(keys: &Keys, sync: &Value, id: &str, kind: ConflictKind, rec: Option<&MarkedItem>) -> Conflict {
+    let organization = rec.and_then(|r| r.organization_id.clone());
+    let organizations = sync.pointer("/profile/organizations").and_then(Value::as_array);
+    let organization_name = organization.as_deref().and_then(|org| {
+        let found = organizations.into_iter().flatten().find(|o| o.get("id").and_then(Value::as_str) == Some(org));
+        found.and_then(|o| o.get("name")).and_then(Value::as_str).map(String::from)
+    });
+    let label = rec.and_then(|r| item_name(keys, r)).unwrap_or_else(|| id.to_owned());
+    Conflict { id: id.to_owned(), kind, organization, organization_name, label }
+}
+
+/// The item's decrypted name; the scan read the item with the same keys, so only the name itself can fail.
+fn item_name(keys: &Keys, item: &MarkedItem) -> Option<String> {
+    let owner = match &item.organization_id {
+        Some(org) => keys.orgs.get(org)?,
+        None => &keys.user,
+    };
+    let key = item_key(&item.cipher, owner).ok()?;
+    decrypt_opt(item.cipher.get("name"), &key).ok().map(|n| n.as_str().to_owned())
 }

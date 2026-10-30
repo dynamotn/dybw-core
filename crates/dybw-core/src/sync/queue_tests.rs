@@ -545,6 +545,8 @@ fn errors_that_may_pass_keep_the_op() {
     assert!(matches!(classify(SyncWriteError::Write(WriteError::Crypto(CryptoError::BadMac))), Step::Keep(_)));
     assert!(matches!(classify(SyncWriteError::Write(WriteError::BadClock)), Step::Keep(_)));
     assert!(matches!(classify(SyncWriteError::Write(WriteError::TooLong)), Step::Drop(_)));
+    // The item changed owner under the write: kept, and re-read on the next flush.
+    assert!(matches!(classify(SyncWriteError::OwnerChanged), Step::Keep(_)));
 }
 
 #[test]
