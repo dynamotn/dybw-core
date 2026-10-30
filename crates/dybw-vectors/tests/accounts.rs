@@ -170,6 +170,8 @@ fn server_percent_decodes_cipher_ids() {
 struct Recording {
     inner: VectorServer,
     seen: std::rc::Rc<std::cell::RefCell<Vec<String>>>,
+    /// Top-level members added to the `/sync` answer (`userDecryption` of newer servers).
+    extra: Value,
 }
 
 impl Http for Recording {
@@ -179,7 +181,14 @@ impl Http for Recording {
     async fn send(&self, req: HttpRequest) -> Result<HttpResponse, PortError> {
         let body = String::from_utf8_lossy(req.body.as_deref().map_or(&[][..], Vec::as_slice)).into_owned();
         self.seen.borrow_mut().push(format!("{:?} {} {body}", req.method, req.url));
-        self.inner.send(req).await
+        let is_sync = req.url.contains("/api/sync");
+        let mut res = self.inner.send(req).await?;
+        if is_sync && let Some(extra) = self.extra.as_object() {
+            let mut sync: Value = serde_json::from_slice(&res.body).unwrap();
+            sync.as_object_mut().unwrap().extend(extra.clone());
+            res.body = Zeroizing::new(sync.to_string().into_bytes());
+        }
+        Ok(res)
     }
 }
 
@@ -203,8 +212,20 @@ struct Outcome {
 }
 
 fn run_unlock(profile: Value, prelogin: Value, email: &str, password: &str, allowed: &Organizations) -> Outcome {
+    run_unlock_with(profile, prelogin, email, password, allowed, Value::Null)
+}
+
+fn run_unlock_with(
+    profile: Value,
+    prelogin: Value,
+    email: &str,
+    password: &str,
+    allowed: &Organizations,
+    extra: Value,
+) -> Outcome {
     let seen = std::rc::Rc::default();
-    let server = Recording { inner: VectorServer::new(profile, vec![], prelogin), seen: std::rc::Rc::clone(&seen) };
+    let inner = VectorServer::new(profile, vec![], prelogin);
+    let server = Recording { inner, seen: std::rc::Rc::clone(&seen), extra };
     let mut api = Client::new(server, FixedClock { now_ms: 0 }, urls(), device()).unwrap();
     let password = Zeroizing::new(password.to_owned());
     let result =
@@ -381,4 +402,40 @@ fn user_key_id_is_stable_and_changes_on_rotation() {
     }
     let distinct: std::collections::BTreeSet<_> = ids.iter().collect();
     assert_eq!(distinct.len(), 3, "{ids:?}");
+}
+
+/// Newer servers carry the wrapped user key in `userDecryption.masterPasswordUnlock` (sdk-internal 3d16437
+/// bitwarden-api-api/src/models/master_password_unlock_response_model.rs); a sync without `profile.key` unlocks.
+#[test]
+fn unlock_from_user_decryption_only() {
+    let keys = account_keys(&vectors_dir().unwrap(), "pbkdf2", false);
+    let acc = account("pbkdf2");
+    let mut profile = keys.profile;
+    let wrapped = profile["key"].take();
+    let extra = json!({ "userDecryption": { "masterPasswordUnlock": { "masterKeyEncryptedUserKey": wrapped } } });
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let out = run_unlock_with(profile, keys.prelogin, email, password, &Organizations::None, extra);
+    assert_eq!(out.result.unwrap().keys.user.to_bytes().to_vec(), b64(&acc["userKey"]));
+}
+
+/// The master key's salt is `masterPasswordUnlock.salt` when the server sends one (an account that kept its salt
+/// when its email changed), trimmed and lowercased like the email; the email alone then fails.
+#[test]
+fn unlock_uses_the_server_salt() {
+    let keys = account_keys(&vectors_dir().unwrap(), "pbkdf2", false);
+    let acc = account("pbkdf2");
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let user = SymmetricKey::from_bytes(&b64(&acc["userKey"])).unwrap();
+    let prelogin = json!({ "kdf": 0, "kdfIterations": 5000 });
+    let params = KdfParams::Pbkdf2 { iterations: 5000 };
+    let master = block_on(derive_master_key(password, "old-address@vectors.invalid", params, &NativeArgon2)).unwrap();
+    let mut profile = keys.profile;
+    profile["key"] = json!(SymmetricKey::stretch(&master).encrypt(&user.to_bytes(), &SeededRandom::new(3)).unwrap());
+    let extra = json!({ "userDecryption": { "masterPasswordUnlock": {
+        "masterKeyEncryptedUserKey": profile["key"], "salt": " Old-Address@Vectors.invalid ",
+    } } });
+    let out = run_unlock_with(profile.clone(), prelogin.clone(), email, password, &Organizations::None, extra);
+    assert_eq!(out.result.unwrap().keys.user.to_bytes(), user.to_bytes());
+    let out = run_unlock(profile, prelogin, email, password, &Organizations::None);
+    assert!(matches!(out.result, Err(ProfileError::WrongPassword)));
 }

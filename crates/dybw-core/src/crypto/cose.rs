@@ -65,11 +65,15 @@ pub enum CoseAlgorithm {
 
 impl CoseAlgorithm {
     /// Private-use COSE algorithm values from the SDK.
-    fn value(self) -> Cbor {
-        int(match self {
+    pub(super) fn number(self) -> i64 {
+        match self {
             CoseAlgorithm::XChaCha20Poly1305 => -70000,
             CoseAlgorithm::Xaes256Gcm => -70010,
-        })
+        }
+    }
+
+    fn value(self) -> Cbor {
+        int(self.number())
     }
 
     fn from_value(v: Option<&Cbor>) -> Result<Self, CryptoError> {
@@ -155,6 +159,10 @@ impl CoseKey {
 
     pub fn id(&self) -> &[u8; 16] {
         &self.id
+    }
+
+    pub(super) fn alg(&self) -> CoseAlgorithm {
+        self.alg
     }
 
     /// The raw 32-byte key, for the subkeys of `key.rs`.

@@ -3,7 +3,7 @@ use super::cose::{CoseAlgorithm, CoseKey, padded_key_bytes, parse_cose_key, unpa
 use crate::crypto::kdf::MasterKey;
 use crate::ports::Random;
 use hmac::{Hmac, KeyInit, Mac};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use std::fmt;
 use std::ops::Deref;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
@@ -139,6 +139,26 @@ impl SymmetricKey {
             SymmetricKey::Cose(c) => c.secret(),
         };
         Zeroizing::new(hmac(prk, &[b"obsidian-keychain-bitwarden:", purpose.as_bytes(), &[1]]))
+    }
+
+    /// SHA-256 over length-prefixed (u32 big-endian) fields: `label`, the variant, then `enc` and `mac` for a legacy
+    /// key, or the COSE algorithm (i64 big-endian), key id and key for a COSE key. No key_ops and no padding, so
+    /// only what makes the key counts, whatever encoding the server used.
+    pub(crate) fn fingerprint(&self, label: &[u8]) -> [u8; 32] {
+        let alg;
+        let fields: Vec<&[u8]> = match self {
+            SymmetricKey::Legacy(k) => vec![label, b"legacy", &k.enc, &k.mac],
+            SymmetricKey::Cose(c) => {
+                alg = c.alg().number().to_be_bytes();
+                vec![label, b"cose", &alg, c.id(), c.secret()]
+            }
+        };
+        let mut h = Sha256::new();
+        for f in fields {
+            h.update(u32::try_from(f.len()).unwrap_or(u32::MAX).to_be_bytes());
+            h.update(f);
+        }
+        h.finalize().into()
     }
 
     pub fn generate_cose(alg: CoseAlgorithm, rng: &impl Random) -> Result<Self, CryptoError> {
