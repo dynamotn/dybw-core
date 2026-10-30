@@ -15,11 +15,13 @@ use serde_json::Value;
 pub enum Op {
     Create(NewItem),
     Patch(Patch),
-    /// `cipher_id` is the cipher the delete was read from, when known.
+    /// `cipher_id` is the cipher the delete was read from, when known; `organization_id` that copy's organization.
     Delete {
         id: String,
         base_revision: String,
         cipher_id: Option<String>,
+        #[serde(default)]
+        organization_id: Option<String>,
     },
 }
 
@@ -32,7 +34,8 @@ pub struct FlushReport {
     /// Sent and accepted, or nothing left to send (an empty patch, a delete of what is no longer the tool's).
     pub done: Vec<String>,
     /// Still queued, with why: the flush stopped at the first of these. Not sent because the server or network
-    /// is unavailable or the session expired (401), the item keeps changing, or its copy cannot be read now.
+    /// is unavailable or the session expired (401), the item keeps changing, its copy cannot be read now, or it
+    /// changed owner since the op was read from it (`OwnerChanged`).
     pub kept: Vec<(String, String)>,
     /// Removed without being sent (or without finishing): `Gone`, `Unmarked`, `SourceChanged`, size and other
     /// write errors, and a delete whose reply could not be read (`Unreadable`: the item stays stripped).
@@ -71,6 +74,8 @@ fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option
     Patch {
         id: first.id.clone(),
         cipher_id: first.cipher_id.clone().or(later.cipher_id),
+        // The owner the first change was read under: a later change cannot widen what it was checked against.
+        organization_id: first.organization_id.clone(),
         base_revision: first.base_revision.clone(),
         set,
         remove,
@@ -163,14 +168,15 @@ pub(super) fn classify(e: SyncWriteError) -> Step {
 /// Where an op's target is.
 enum Lookup {
     Found(Value),
-    /// Not found, but a live personal cipher that cannot be read now might be it (bwss `Held`).
+    /// Not found, but a live cipher that cannot be read now might be it (bwss `Held`).
     Held,
     Missing,
 }
 
 /// The copy of the item the op is for: the live cipher carrying its marker, whatever its cipher id (bwss `locate`).
-/// Only when none does, `cipher_id` is a hint: a live personal cipher with that id that cannot be read now might
-/// be the item, so the op is held; every other case is a target that is gone. With no hint, any such cipher holds it.
+/// Only when none does, `cipher_id` is a hint: the live cipher with that id, when it cannot be read now, might be the
+/// item, so the op is held whatever its owner (an organization whose key failed this unlock, as the engine holds
+/// it); every other case is a target that is gone. With no hint, any personal cipher that cannot be read holds it.
 fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
     let mut held = false;
     let mut winner: Option<Box<MarkedItem>> = None;
@@ -182,8 +188,11 @@ fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Opt
                     winner = Some(m);
                 }
             }
-            Scan::Uninspectable(_) if organization(c).is_none() => {
-                held |= cipher_id.is_none_or(|cid| server_id(c) == cid);
+            Scan::Uninspectable(_) => {
+                held |= match cipher_id {
+                    Some(cid) => server_id(c) == cid,
+                    None => organization(c).is_none(),
+                };
             }
             _ => {}
         }
@@ -200,6 +209,12 @@ fn server_id(cipher: &Value) -> &str {
 }
 
 const HELD: &str = "the item cannot be read now";
+
+/// The item is no longer owned as when the op was read from it (moved into or out of an organization, or between
+/// two). shortcut: the op is kept unsent until the owner decides the §9 confirmation policy for queued ops (M4).
+fn moved(cipher: &Value, recorded: Option<&str>) -> bool {
+    organization(cipher).map(|o| o.as_str().unwrap_or_default()) != recorded
+}
 
 async fn run<H: Http, C: Clock>(
     op: &Op,
@@ -230,6 +245,9 @@ async fn run<H: Http, C: Clock>(
                 Lookup::Held => return Step::Keep(HELD.into()),
                 Lookup::Missing => return Step::Drop(WriteError::Gone),
             };
+            if moved(&cipher, p.organization_id.as_deref()) {
+                return classify(SyncWriteError::OwnerChanged);
+            }
             match update(client, ns, keys, rng, now_ms, &cipher, p).await {
                 Ok(reply) => {
                     // The next op for this item reads the server's answer, not the snapshot.
@@ -242,12 +260,15 @@ async fn run<H: Http, C: Clock>(
                 Err(e) => classify(e),
             }
         }
-        Op::Delete { id, cipher_id, .. } => {
+        Op::Delete { id, cipher_id, organization_id, .. } => {
             let cipher = match find(ciphers, ns, keys, id, cipher_id.as_deref()) {
                 Lookup::Found(c) => c,
                 Lookup::Held => return Step::Keep(HELD.into()),
                 Lookup::Missing => return Step::Done,
             };
+            if moved(&cipher, organization_id.as_deref()) {
+                return classify(SyncWriteError::OwnerChanged);
+            }
             match delete(client, ns, keys, rng, &cipher, id).await {
                 Ok(outcome) => {
                     ciphers.retain(|c| server_id(c) != server_id(&cipher));

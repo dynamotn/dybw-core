@@ -4,6 +4,7 @@ use super::queue::{Step, classify};
 use super::write_tests::{B, Rig};
 use super::*;
 use crate::api::ApiError;
+use crate::crypto::SymmetricKey;
 use crate::testing::block_on;
 use crate::vault::scan::ValueSource;
 use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
@@ -20,7 +21,15 @@ fn value(v: &ValueChange) -> (ValueSource, Vec<u8>, [u8; 32], bool) {
 }
 
 fn patch(id: &str, v: ValueChange) -> Patch {
-    Patch { id: id.into(), cipher_id: None, base_revision: "r".into(), set: vec![], remove: vec![], value: v }
+    Patch {
+        id: id.into(),
+        cipher_id: None,
+        organization_id: None,
+        base_revision: "r".into(),
+        set: vec![],
+        remove: vec![],
+        value: v,
+    }
 }
 
 fn field(name: &str, value: &str) -> FieldSet {
@@ -28,7 +37,7 @@ fn field(name: &str, value: &str) -> FieldSet {
 }
 
 fn delete_op(id: &str) -> Op {
-    Op::Delete { id: id.into(), base_revision: "r".into(), cipher_id: None }
+    Op::Delete { id: id.into(), base_revision: "r".into(), cipher_id: None, organization_id: None }
 }
 
 fn create_op(id: &str) -> Op {
@@ -188,9 +197,17 @@ fn queue_round_trips_serde() {
     let m = as_patch(&back[1]);
     assert_eq!(value(&m.value), (ValueSource::Field, b"s3cret".to_vec(), [4; 32], false));
     assert_eq!((m.set[0].value.as_str(), m.set[0].hidden, m.cipher_id.as_deref()), ("hid", true, Some("c1")));
-    let Op::Delete { id, base_revision, cipher_id } = &back[2] else { panic!() };
-    assert_eq!((id.as_str(), base_revision.as_str(), cipher_id), ("d", "r", &None));
+    let Op::Delete { id, base_revision, cipher_id, organization_id } = &back[2] else { panic!() };
+    assert_eq!((id.as_str(), base_revision.as_str(), cipher_id, organization_id), ("d", "r", &None, &None));
     assert_eq!(serde_json::to_string(&back).unwrap(), json);
+    // An op queued before the owner was recorded reads as personal.
+    let old: Vec<Op> = serde_json::from_value(json!([
+        { "Patch": { "id": "a", "cipher_id": "c1", "base_revision": "r", "set": [], "remove": [], "value": "Keep" } },
+        { "Delete": { "id": "d", "base_revision": "r", "cipher_id": null } },
+    ]))
+    .unwrap();
+    assert!(as_patch(&old[0]).organization_id.is_none());
+    assert!(matches!(&old[1], Op::Delete { organization_id: None, .. }));
 }
 
 // ---- flush ----
@@ -230,7 +247,8 @@ fn flush_sends_every_op_in_order() {
     let mut r = Rig::new();
     let (c1, c2) = (r.item("c1", "x", "old"), r.item("c2", "z", "s"));
     let mut queue = vec![r.change(&c1, Some(b"new")), create_op("y"), delete_op("z")];
-    queue[2] = Op::Delete { id: "z".into(), base_revision: REV.into(), cipher_id: Some("c2".into()) };
+    queue[2] =
+        Op::Delete { id: "z".into(), base_revision: REV.into(), cipher_id: Some("c2".into()), organization_id: None };
     r.fake.echo();
     r.fake.echo();
     r.fake.echo();
@@ -402,7 +420,7 @@ fn a_cipher_without_an_id_is_gone() {
 }
 
 fn delete_of(cid: &str, id: &str) -> Op {
-    Op::Delete { id: id.into(), base_revision: REV.into(), cipher_id: Some(cid.into()) }
+    Op::Delete { id: id.into(), base_revision: REV.into(), cipher_id: Some(cid.into()), organization_id: None }
 }
 
 #[test]
@@ -597,11 +615,50 @@ fn an_unreadable_target_is_held_not_gone() {
         assert_eq!((report.kept.len(), queue.len()), (1, 2));
         assert!(report.dropped.is_empty() && report.done.is_empty());
     }
-    // An organization cipher we cannot read is not ours to hold for: the target is gone.
+    // Without a cipher id naming it, an organization cipher we cannot read is not ours to hold for: the target is
+    // gone (`an_organization_target_named_by_its_cipher_id_is_held` covers the hinted case).
     let mut org = unreadable.clone();
     org["organizationId"] = json!("o1");
     let mut queue = vec![delete_op("x")];
     assert_eq!(strs(&r.flush(&mut queue, &[org]).done), ["x"]);
+}
+
+#[test]
+fn an_organization_target_named_by_its_cipher_id_is_held() {
+    // The op was read from organization cipher c9, whose key failed this unlock: held, as the engine holds it.
+    let mut r = Rig::new();
+    let mut unreadable = r.note_under(&r.other, REV, &[("bwss:id", "x", false)]);
+    unreadable["id"] = json!("c9");
+    unreadable["organizationId"] = json!("o1");
+    let was = r.item("c9", "x", "old");
+    for op in [r.change(&was, Some(b"new")), delete_of("c9", "x")] {
+        let mut queue = vec![op];
+        let report = r.flush(&mut queue, std::slice::from_ref(&unreadable));
+        assert_eq!((report.kept.len(), queue.len()), (1, 1));
+        assert!(report.done.is_empty() && report.dropped.is_empty() && report.refused.is_empty());
+    }
+    assert!(r.log().is_empty());
+}
+
+#[test]
+fn an_item_that_moved_into_an_organization_since_queued_is_kept_unsent() {
+    // Queued against personal c1; c1 is now in org-a, which this account can read and write.
+    let mut r = Rig::new();
+    let was = r.item("c1", "x", "old");
+    let org = SymmetricKey::generate(&r.rng).unwrap();
+    let mut now = r.note_under(&org, REV, &[("bwss:id", "x", false), ("bwss:password", "old", true)]);
+    now["organizationId"] = json!("org-a");
+    r.keys.orgs.insert("org-a".into(), org);
+    for op in [r.change(&was, Some(b"new")), delete_of("c1", "x")] {
+        let mut queue = vec![op];
+        r.fake.echo();
+        r.fake.reply(200, json!({}));
+        let report = r.flush(&mut queue, std::slice::from_ref(&now));
+        assert_eq!((report.kept.len(), queue.len()), (1, 1), "{:?}", report.kept);
+        assert!(report.done.is_empty() && report.dropped.is_empty() && report.refused.is_empty());
+        assert!(r.log().is_empty(), "{:?}", r.log());
+        r.fake.replies.borrow_mut().clear();
+    }
 }
 
 #[test]

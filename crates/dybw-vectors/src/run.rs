@@ -142,6 +142,7 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                 let patch = Patch {
                     id: found.id.clone(),
                     cipher_id: Some(found.cipher_id.clone()),
+                    organization_id: found.organization_id.clone(),
                     base_revision: found.revision_date.clone(),
                     set: Vec::new(),
                     remove: Vec::new(),

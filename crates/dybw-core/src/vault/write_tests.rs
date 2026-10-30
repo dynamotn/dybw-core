@@ -118,6 +118,7 @@ impl Fx {
         Patch {
             id: m.id.clone(),
             cipher_id: Some(m.cipher_id.clone()),
+            organization_id: m.organization_id.clone(),
             base_revision: m.revision_date.clone(),
             set: Vec::new(),
             remove: Vec::new(),

@@ -128,7 +128,8 @@ fn marked_id(cipher: &Value, ns: &Namespace, keys: &Keys, want: Option<&str>) ->
 
 /// Deletes the tool's item `expected_id` (§8.2): strips the tool's fields and saves, then trashes the item only when the
 /// server's reply holds nothing of the user's. An out-of-date answer starts over from the strip on the refetched
-/// copy; an item that left the tool meanwhile (gone, trashed, unmarked, re-marked) is `Nothing`. A reply that cannot
+/// copy; an item that left the tool meanwhile (gone, trashed, unmarked, re-marked) is `Nothing`, and one that changed
+/// owner or edit right is `OwnerChanged`, as in `update`. A reply that cannot
 /// be read (`Unreadable`) or a trash that fails (`Stripped`) leaves the stripped item in the vault, and says why.
 pub async fn delete<H: Http, C: Clock>(
     client: &mut Client<H, C>,
@@ -163,6 +164,10 @@ pub async fn delete<H: Http, C: Clock>(
                         Some(c) if marked_id(&c, ns, keys, Some(expected_id))?.is_some() => c,
                         _ => return Ok(DeleteOutcome::Nothing),
                     };
+                    // Read with every organization: still marked is not still the caller's to strip (§9).
+                    if owner(&current) != owner(cipher) {
+                        return Err(SyncWriteError::OwnerChanged);
+                    }
                 }
             }
             Err(e) => return Err(e.into()),

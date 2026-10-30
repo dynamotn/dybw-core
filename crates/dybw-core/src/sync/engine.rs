@@ -383,6 +383,7 @@ async fn apply<H: Http, C: Clock, R: Random>(
             let patch = Patch {
                 id: id.to_owned(),
                 cipher_id: Some(rec.cipher_id.clone()),
+                organization_id: rec.organization_id.clone(),
                 base_revision: rec.revision_date.clone(),
                 set: Vec::new(),
                 remove: Vec::new(),

@@ -122,6 +122,7 @@ impl Rig {
         Patch {
             id: m.id.clone(),
             cipher_id: Some(m.cipher_id.clone()),
+            organization_id: m.organization_id.clone(),
             base_revision: m.revision_date.clone(),
             set: vec![FieldSet { name: "bwss:label".into(), value: Zeroizing::new("l".into()), hidden: false }],
             remove: Vec::new(),
@@ -247,6 +248,26 @@ fn fresh_copy_with_another_owner_or_edit_right_ends_the_retry() {
             assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
         }
     }
+}
+
+#[test]
+fn delete_ends_when_the_fresh_copy_moved_into_an_organization() {
+    // Moved into an organization this account holds a key for, between the read and the strip (§9): still marked,
+    // but never stripped or trashed there.
+    let mut r = Rig::new();
+    let org = SymmetricKey::generate(&r.rng).unwrap();
+    let mut fresh =
+        r.note_under(&org, "2026-02-02T00:00:00Z", &[("bwss:id", "x", false), ("bwss:password", "old", true)]);
+    fresh["organizationId"] = json!("org-a");
+    r.keys.orgs.insert("org-a".into(), org);
+    let c = r.bare("2026-01-01T00:00:00Z", "old");
+    r.fake.out_of_date();
+    r.fake.reply(200, fresh);
+    r.fake.echo();
+    r.fake.reply(200, json!({}));
+    let got = r.delete(&c);
+    assert!(matches!(got, Err(SyncWriteError::OwnerChanged)), "{got:?}");
+    assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
 }
 
 #[test]

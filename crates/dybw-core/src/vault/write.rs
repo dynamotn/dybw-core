@@ -56,6 +56,10 @@ pub struct Patch {
     pub id: String,
     /// The cipher the patch was read from; `None` for an item not on the server yet.
     pub cipher_id: Option<String>,
+    /// The organization of the copy the patch was read from (`MarkedItem::organization_id`); `None` for a personal
+    /// item, and for a patch queued before this was recorded.
+    #[serde(default)]
+    pub organization_id: Option<String>,
     pub base_revision: String,
     pub set: Vec<FieldSet>,
     /// Field names; every copy goes (ADR 0014). `{ns}:attr:` removes every attribute field.
