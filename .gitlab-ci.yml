@@ -45,11 +45,13 @@ check:
     - cargo fmt --all --check
     - cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
     - |
-      if cargo tree -p dybw-core -e normal --no-default-features --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) '; then
+      tree=$(cargo tree -p dybw-core -e normal --no-default-features --prefix none) || exit 1
+      if printf '%s\n' "$tree" | rg -q '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) '; then
         echo "forbidden dependency in dybw-core"; exit 1
       fi
     - |
-      if cargo tree -p dybw-core -e normal --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom) '; then
+      tree=$(cargo tree -p dybw-core -e normal --prefix none) || exit 1
+      if printf '%s\n' "$tree" | rg -q '^(tokio|reqwest|rsa|getrandom) '; then
         echo "forbidden dependency in dybw-core default build"; exit 1
       fi
     - uv run vectors/gen/gen.py check
@@ -59,6 +61,14 @@ test:
   extends: .cargo-cache
   script:
     - cargo test --workspace --all-features --locked
+
+# The core must keep building for the browser (M5): no native-only dependency without the `native` feature.
+wasm:
+  stage: test
+  extends: .cargo-cache
+  script:
+    - rustup target add wasm32-unknown-unknown
+    - cargo build -p dybw-core --no-default-features --locked --target wasm32-unknown-unknown
 
 coverage-lines:
   stage: test

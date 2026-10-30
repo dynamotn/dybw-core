@@ -43,12 +43,14 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: No forbidden dependency in dybw-core (no default features)
         run: |
-          if cargo tree -p dybw-core -e normal --no-default-features --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) '; then
+          tree=$(cargo tree -p dybw-core -e normal --no-default-features --prefix none) || exit 1
+          if printf '%s\n' "$tree" | rg -q '^(tokio|reqwest|rsa|getrandom|aws-lc-rs|argon2) '; then
             echo "forbidden dependency in dybw-core"; exit 1
           fi
       - name: No forbidden dependency in dybw-core (default build)
         run: |
-          if cargo tree -p dybw-core -e normal --prefix none | rg -q '^(tokio|reqwest|rsa|getrandom) '; then
+          tree=$(cargo tree -p dybw-core -e normal --prefix none) || exit 1
+          if printf '%s\n' "$tree" | rg -q '^(tokio|reqwest|rsa|getrandom) '; then
             echo "forbidden dependency in dybw-core default build"; exit 1
           fi
       - run: uv run vectors/gen/gen.py check
@@ -64,6 +66,20 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
       - run: cargo test --workspace --all-features --locked
+
+  # The core must keep building for the browser (M5): no native-only dependency without the `native` feature.
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable ref; the input picks the toolchain
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+      - run: cargo build -p dybw-core --no-default-features --locked --target wasm32-unknown-unknown
 
   coverage-lines:
     runs-on: ubuntu-latest
