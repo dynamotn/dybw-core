@@ -790,6 +790,21 @@ def test_xchacha_rejects_wrong_aad():
         bwcrypto.xchacha20poly1305_open(key, nonce, ct, b"other")
 
 
+def test_cose_decrypt_rejects_bad_padding():
+    import bwcrypto
+
+    acc = load(COSE_KAT)["accounts"][0]
+    key = base64.b64decode(acc["userKey"])
+    k = bwcrypto._cose_parts(key)
+    protected = bwcrypto._protected(k, "utf8")
+    nonce = bytes(range(24))
+    for body in (b"abc\x00", b"abc\x05", b""):
+        ct = bwcrypto._seal(k[3], k[-1], nonce, body, bwcrypto._enc_structure(protected), open_=False)
+        s = "7." + base64.b64encode(bwcrypto.cbor_encode([protected, {5: nonce}, ct])).decode()
+        with pytest.raises(ValueError, match="bad padding"):
+            bwcrypto.cose_decrypt(s, key)
+
+
 def test_cose_account_unlocks():
     import bwcrypto
 

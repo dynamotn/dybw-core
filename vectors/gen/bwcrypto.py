@@ -439,7 +439,10 @@ def cose_decrypt(s: str, key: bytes) -> bytes:
     if header[1] != k[3] or header[4] != k[2]:
         raise ValueError("message names another key")
     plain = _seal(k[3], k[-1], unprotected[5], ct, _enc_structure(protected), open_=True)
-    return plain[: -plain[-1]]
+    n = plain[-1] if plain else 0
+    if n == 0 or n > len(plain):  # as the core's unpad: the last byte counts the padding
+        raise ValueError("bad padding")
+    return plain[:-n]
 
 
 def dec_any(s: str, key: bytes) -> bytes:
