@@ -301,13 +301,17 @@ fn read_marked(
     })))
 }
 
+/// The §7 order of two copies of one item: the smaller wins. Shared by the scan and by queued ops, so both pick
+/// the same cipher.
+pub(crate) fn duplicate_order(a: &MarkedItem, b: &MarkedItem) -> std::cmp::Ordering {
+    let rank = |m: &MarkedItem| (m.organization_id.is_some(), m.creation_date.is_none(), m.creation_date);
+    rank(a).cmp(&rank(b)).then_with(|| a.cipher_id.cmp(&b.cipher_id))
+}
+
 /// Picks one item per id (§7): a personal item over an organization one, then a dated one over an undated one,
 /// then the oldest, then the lowest cipher id, so every device chooses alike. Winners and duplicates by id.
 pub(crate) fn resolve_duplicates(mut items: Vec<MarkedItem>) -> (Vec<MarkedItem>, Vec<Duplicate>) {
-    let rank = |m: &MarkedItem| (m.organization_id.is_some(), m.creation_date.is_none(), m.creation_date);
-    items.sort_by(|a, b| {
-        a.id.cmp(&b.id).then_with(|| rank(a).cmp(&rank(b))).then_with(|| a.cipher_id.cmp(&b.cipher_id))
-    });
+    items.sort_by(|a, b| a.id.cmp(&b.id).then_with(|| duplicate_order(a, b)));
     let mut winners: Vec<MarkedItem> = Vec::new();
     let mut duplicates: Vec<Duplicate> = Vec::new();
     for item in items {

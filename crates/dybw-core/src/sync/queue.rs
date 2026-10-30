@@ -4,7 +4,7 @@
 use super::write::{DeleteOutcome, SyncWriteError, create, delete, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
-use crate::vault::scan::{Scan, ValueSource, scan, trashed};
+use crate::vault::scan::{MarkedItem, Scan, ValueSource, duplicate_order, scan, trashed};
 use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
 use crate::vault::{Keys, Namespace, Organizations};
 use serde::{Deserialize, Serialize};
@@ -172,16 +172,26 @@ enum Lookup {
 /// be the item, so the op is held; every other case is a target that is gone. With no hint, any such cipher holds it.
 fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
     let mut held = false;
+    let mut winner: Option<Box<MarkedItem>> = None;
     for c in ciphers.iter().filter(|c| !trashed(c)) {
         match scan(c, ns, keys, &Organizations::All) {
-            Scan::Marked(m) if m.id == id => return Lookup::Found(c.clone()),
+            // With duplicates the §7 winner is the item, as in the scan.
+            Scan::Marked(m) if m.id == id => {
+                if winner.as_ref().is_none_or(|w| duplicate_order(&m, w).is_lt()) {
+                    winner = Some(m);
+                }
+            }
             Scan::Uninspectable(_) if c.get("organizationId").is_none_or(Value::is_null) => {
                 held |= cipher_id.is_none_or(|cid| server_id(c) == cid);
             }
             _ => {}
         }
     }
-    if held { Lookup::Held } else { Lookup::Missing }
+    match winner {
+        Some(w) => Lookup::Found(w.cipher),
+        None if held => Lookup::Held,
+        None => Lookup::Missing,
+    }
 }
 
 fn server_id(cipher: &Value) -> &str {

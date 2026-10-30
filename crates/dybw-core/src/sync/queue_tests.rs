@@ -658,3 +658,38 @@ fn the_cipher_id_only_hints_at_a_held_target() {
     assert!(matches!(report.dropped[..], [(ref i, WriteError::Gone)] if i == "x"));
     assert_eq!(strs(&report.done), ["x"]);
 }
+
+#[test]
+fn queued_items_follow_the_duplicate_winner() {
+    let r = Rig::new();
+    let dated = |cid: &str, date: &str| {
+        let mut c = r.item(cid, "x", "old");
+        c["creationDate"] = json!(date);
+        c
+    };
+    // The oldest dated copy wins whatever the list order; undated ones tie on the lowest cipher id.
+    let sets = [
+        (vec![dated("c1", "2026-02-01T00:00:00Z"), dated("c2", "2026-01-01T00:00:00Z")], "c2"),
+        (vec![dated("c2", "2026-01-01T00:00:00Z"), dated("c1", "2026-02-01T00:00:00Z")], "c2"),
+        (vec![r.item("c5", "x", "old"), r.item("c3", "x", "old")], "c3"),
+        (vec![r.item("c3", "x", "old"), r.item("c5", "x", "old")], "c3"),
+    ];
+    for (ciphers, winner) in sets {
+        let mut r = Rig::new();
+        let mut op = r.change(&ciphers[0], None);
+        if let Op::Patch(p) = &mut op {
+            p.cipher_id = None;
+        }
+        let mut queue = vec![op];
+        r.fake.echo();
+        assert_eq!(strs(&r.flush(&mut queue, &ciphers).done), ["x"]);
+        assert_eq!(r.log(), [format!("Put /ciphers/{winner}")]);
+
+        let mut r = Rig::new();
+        let mut queue = vec![delete_op("x")];
+        r.fake.echo();
+        r.fake.reply(200, json!({}));
+        assert_eq!(strs(&r.flush(&mut queue, &ciphers).done), ["x"]);
+        assert_eq!(r.log(), [format!("Put /ciphers/{winner}"), format!("Put /ciphers/{winner}/delete")]);
+    }
+}
