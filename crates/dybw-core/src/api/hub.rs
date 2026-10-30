@@ -18,7 +18,8 @@ const HANDSHAKE: &str = "{\"protocol\":\"messagepack\",\"version\":1}\u{1e}";
 const PING: [u8; 3] = [0x02, 0x91, 0x06];
 const MAX_MESSAGE: usize = 1 << 20;
 
-/// Hub URL of a Bitwarden server, from its notifications base URL.
+/// Hub URL of a Bitwarden server, from its notifications base URL. The URL carries the bearer token in its query:
+/// never log it, and never put it in an error.
 pub fn hub_url(notifications_base: &str, access_token: &str) -> String {
     let base = if let Some(rest) = notifications_base.strip_prefix("https:") {
         format!("wss:{rest}")

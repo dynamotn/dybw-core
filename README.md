@@ -56,6 +56,12 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
 uv run vectors/gen/gen.py check
+```
+
+`cargo deny check bans sources` and `cargo audit` need the advisory database and
+are run locally, not in CI:
+
+```bash
 cargo deny check bans sources
 cargo audit
 ```

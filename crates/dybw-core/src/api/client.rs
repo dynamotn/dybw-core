@@ -357,11 +357,14 @@ impl<H: Http, C: Clock> Client<H, C> {
     }
 
     pub async fn create_cipher(&mut self, body: Map<String, Value>) -> Result<Value, ApiError> {
+        // Before `with_owner`, which runs before `authed`: a missing login or a redirect-following client is
+        // reported ahead of `NotSynced`.
         self.ensure_login().await?;
         self.authed(Method::Post, "/ciphers", Some(self.with_owner(body)?)).await
     }
 
     pub async fn update_cipher(&mut self, id: &str, body: Map<String, Value>) -> Result<Value, ApiError> {
+        // As in `create_cipher`.
         self.ensure_login().await?;
         self.authed(Method::Put, &format!("/ciphers/{}", enc(id)), Some(self.with_owner(body)?)).await
     }
