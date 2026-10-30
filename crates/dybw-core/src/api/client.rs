@@ -177,6 +177,11 @@ impl<H: Http, C: Clock> Client<H, C> {
         Ok(Client { http, clock, urls, device, session: None, user_id: None, body_limit: MAX_BODY })
     }
 
+    /// The client's clock, in Unix milliseconds.
+    pub fn now_ms(&self) -> i64 {
+        self.clock.now_ms()
+    }
+
     /// The bearer token while it is valid, for the hub URL.
     pub fn access_token(&self) -> Option<&str> {
         let s = self.session.as_ref().filter(|s| self.clock.now_ms() < s.renew_at_ms)?;

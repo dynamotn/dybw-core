@@ -40,7 +40,8 @@ pub fn parse_plugin_state(raw: &Value, ns: &Namespace, fresh_id: impl FnOnce() -
         _ => fresh_id(),
     };
     let mut state = DeviceState::new(device_id);
-    if r.get("version") != Some(&json!(1)) {
+    // `=== 1` in JavaScript, where `1.0` is `1`.
+    if r.get("version").and_then(Value::as_f64) != Some(1.0) {
         return state;
     }
     for (id, e) in r.get("base").and_then(Value::as_object).into_iter().flatten() {
@@ -82,7 +83,8 @@ pub fn to_plugin_json(state: &DeviceState) -> Value {
         })
         .collect();
     json!({
-        "version": state.version,
+        // The only version this writes.
+        "version": 1,
         "deviceId": state.device_id,
         "base": base,
         "pendingCreates": state.pending_creates,

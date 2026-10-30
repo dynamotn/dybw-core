@@ -9,7 +9,9 @@ pub mod write;
 
 pub use namespace::{Encodings, IdProblem, Namespace};
 pub use orgs::{OrgProblem, unlock_organizations};
-pub use scan::{Duplicate, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, ValueSource, scan, scan_vault};
+pub use scan::{
+    Duplicate, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, ValueSource, scan, scan_vault, scan_vault_with,
+};
 
 use crate::crypto::{Marker, SymmetricKey};
 use std::collections::{BTreeMap, BTreeSet};

@@ -34,6 +34,19 @@ pub enum ConflictKind {
     OrganizationPush,
 }
 
+impl ConflictKind {
+    /// The plugin's and the vectors' name for it.
+    pub fn code(self) -> &'static str {
+        match self {
+            ConflictKind::BothChanged => "both-changed",
+            ConflictKind::LocalUnsynced => "local-unsynced",
+            ConflictKind::DeletedRemotely => "deleted-remotely",
+            ConflictKind::OrganizationClaim => "organization-claim",
+            ConflictKind::OrganizationPush => "organization-push",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Pull(String),
@@ -62,6 +75,7 @@ pub enum Policy {
 /// A decision about one conflict; ignored if the conflict has since changed kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConflictOverride {
+    /// `Ask` leaves it as a conflict.
     pub policy: Policy,
     pub kind: ConflictKind,
 }

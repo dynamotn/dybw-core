@@ -2,15 +2,17 @@
 
 use crate::canonical::{NOW_MS, canonicalize, drop_tool_defined};
 use crate::keys::account_keys;
-use crate::scenario::{Operation, Scenario, WriteExpect};
+use crate::scenario::{Operation, Policy, Scenario, WriteExpect};
 use crate::server::{SERVER, VectorServer, urls};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
-use dybw_core::sync::{self, SyncWriteError};
+use dybw_core::crypto::Marker;
+use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom, block_on};
 use dybw_core::vault::write::{NewItem, Patch, ValueChange, WriteError};
 use dybw_core::vault::{Namespace, Organizations, scan_vault};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::path::Path;
 use zeroize::Zeroizing;
 
@@ -184,6 +186,86 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
         (_, Ok(())) => Err("expected an error, the write succeeded".into()),
         (_, Err(e)) => Err(format!("unexpected error: {e}")),
     }
+}
+
+/// The tool's local copies, from the scenario's `local` (a `null` is no value).
+struct MapValues(BTreeMap<String, String>);
+
+impl LocalValues for MapValues {
+    fn get(&self, id: &str) -> Option<Zeroizing<String>> {
+        self.0.get(id).map(|v| Zeroizing::new(v.clone()))
+    }
+    fn set(&mut self, id: &str, value: &str) {
+        self.0.insert(id.to_owned(), value.to_owned());
+    }
+}
+
+/// The vectors' name of an action, and its conflict kind.
+fn plan_entry(a: &Action) -> (&'static str, &str, Option<&'static str>) {
+    match a {
+        Action::Pull(id) => ("pull", id, None),
+        Action::Push { id, .. } => ("push", id, None),
+        Action::Create(id) => ("create", id, None),
+        Action::Adopt(id) => ("adopt", id, None),
+        Action::ClearLocal(id) => ("clear-local", id, None),
+        Action::Forget(id) => ("forget", id, None),
+        Action::Conflict { id, kind } => ("conflict", id, Some(kind.code())),
+    }
+}
+
+/// Checks `expect.plan`: the device state from `device` (fingerprints of the plaintext with the namespace's marker)
+/// and the local values from `local`, planned by the core's pass against the fake server. `confirmed` is not
+/// compared.
+pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
+    let want = s.expect.plan.as_ref().ok_or("no expect.plan")?;
+    let ns = namespace(&s.namespace)?;
+    let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
+    let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
+    let keys = scenario_keys.into_keys(ns);
+    let marker = Marker::new(&keys.user, ns.marks);
+    let mut state = DeviceState::new("vectors-device".into());
+    if let Some(device) = &s.device {
+        for (id, e) in &device.base {
+            let entry = BaseEntry {
+                cipher_id: e.cipher.clone(),
+                revision_date: e.revision_date.clone().unwrap_or_default(),
+                fingerprint: marker.mark_b64(id, &e.value),
+                scope: None,
+                push_confirmed: e.push_confirmed == Some(true),
+            };
+            state.base.insert(id.clone(), entry);
+        }
+        state.pending_creates.clone_from(&device.pending_creates);
+    }
+    let values = s.local.iter().flatten().filter_map(|(id, v)| Some((id.clone(), v.clone()?))).collect();
+    let local = MapValues(values);
+    let policy = match s.options.policy {
+        Policy::Ask => sync::Policy::Ask,
+        Policy::PreferRemote => sync::Policy::PreferRemote,
+        Policy::PreferLocal => sync::Policy::PreferLocal,
+    };
+    let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
+    let rng = SeededRandom::new(0x0000_706c_616e);
+    let overrides = BTreeMap::new();
+    let mut api = client(server)?;
+    let planned = block_on(async {
+        api.login(&api_key()?).await.map_err(|e| e.to_string())?;
+        let mut ctx = SyncContext {
+            client: &mut api,
+            ns,
+            keys: &keys,
+            rng: &rng,
+            allowed: &allowed,
+            policy,
+            overrides: &overrides,
+            applies: &|_| true,
+            upload_folder: None,
+        };
+        sync::plan_pass(&mut ctx, &state, &local).await.map_err(|e| e.to_string())
+    })?;
+    let got: Vec<_> = planned.actions.iter().map(plan_entry).collect();
+    let want: Vec<_> = want.iter().map(|p| (p.kind.as_str(), p.id.as_str(), p.conflict.as_deref())).collect();
+    compare("plan", got, want)
 }
 
 fn compare_requests(ns: &str, sent: Vec<Value>, want: &[Value]) -> Result<(), String> {

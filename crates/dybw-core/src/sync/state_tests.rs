@@ -121,3 +121,21 @@ fn plugin_state_round_trips() {
     assert_eq!(to_plugin_json(&state), written);
     assert_eq!(parse(&to_plugin_json(&state)), state);
 }
+
+#[test]
+fn a_version_stored_as_one_point_zero_is_version_one() {
+    // JavaScript reads `1.0` as `1`; anything else is another version.
+    let raw: Value = serde_json::from_str(r#"{ "version": 1.0, "deviceId": "d1", "pendingCreates": ["a"] }"#).unwrap();
+    assert_eq!(parse(&raw).pending_creates, ["a"]);
+    for other in [json!(1.5), json!("1"), json!(true)] {
+        let raw = json!({ "version": other, "deviceId": "d1", "pendingCreates": ["a"] });
+        assert!(parse(&raw).pending_creates.is_empty());
+    }
+}
+
+#[test]
+fn the_plugin_json_is_always_version_one() {
+    let mut s = DeviceState::new("d1".into());
+    s.version = 7;
+    assert_eq!(to_plugin_json(&s)["version"], json!(1));
+}

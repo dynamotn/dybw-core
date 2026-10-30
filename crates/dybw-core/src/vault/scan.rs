@@ -333,6 +333,18 @@ pub(crate) fn resolve_duplicates(mut items: Vec<MarkedItem>) -> (Vec<MarkedItem>
 
 /// Scans every cipher of a `/sync` response.
 pub fn scan_vault(sync: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> ScanReport {
+    scan_vault_with(sync, ns, keys, allowed, &|_| true)
+}
+
+/// `scan_vault` keeping only the marked items `applies` takes, before §7 picks one per id (the plugin filters by
+/// scope first). Items left out still count as `present`.
+pub fn scan_vault_with(
+    sync: &Value,
+    ns: &Namespace,
+    keys: &Keys,
+    allowed: &Organizations,
+    applies: &dyn Fn(&MarkedItem) -> bool,
+) -> ScanReport {
     let mut marked = Vec::new();
     let mut skipped = Vec::new();
     let mut uninspectable = Vec::new();
@@ -345,7 +357,8 @@ pub fn scan_vault(sync: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizat
         }
         match result {
             Scan::Unmarked => {}
-            Scan::Marked(m) => marked.push(*m),
+            Scan::Marked(m) if applies(&m) => marked.push(*m),
+            Scan::Marked(_) => {}
             Scan::Skipped(r) => skipped.push((cipher_id, r)),
             Scan::Uninspectable(u) => uninspectable.push((cipher_id, u)),
         }

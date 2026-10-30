@@ -1,10 +1,16 @@
-//! Sync rules: the writer with its out-of-date retry (data model §6.5).
+//! Sync rules: the writer with its out-of-date retry (data model §6.5), the offline write queue, the three-way
+//! planner, device state (§10) and the sync passes with their guards (§9, §10).
 
+mod engine;
 mod plan;
 mod queue;
 mod state;
 mod write;
 
+pub use engine::{
+    ActionError, ApplyError, Conflict, LocalValues, MAX_PASSES, PassPlan, PassReport, SyncContext, SyncError,
+    SyncReport, plan_pass, run_sync,
+};
 pub use plan::{Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, plan_sync};
 pub use queue::{FlushReport, Op, enqueue, flush};
 pub use state::{DeviceState, parse_plugin_state, to_plugin_json};
@@ -22,5 +28,9 @@ mod queue_tests;
 mod plan_tests;
 
 #[cfg(test)]
-#[expect(clippy::indexing_slicing, reason = "tests")]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod state_tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod engine_tests;
