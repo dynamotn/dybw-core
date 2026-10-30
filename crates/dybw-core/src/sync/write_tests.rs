@@ -15,20 +15,21 @@ use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 use zeroize::Zeroizing;
 
-const B: &Namespace = &Namespace::BWSS;
-const OUT_OF_DATE: &str = "The client copy of this cipher is out of date. Resubmit with the current revision date.";
+pub(super) const B: &Namespace = &Namespace::BWSS;
+pub(super) const OUT_OF_DATE: &str =
+    "The client copy of this cipher is out of date. Resubmit with the current revision date.";
 
 /// What the scripted server answers to the next request.
-enum Reply {
+pub(super) enum Reply {
     Json(u16, Value),
     /// The request body back, plus the server's `id` and `revisionDate` (what a real update answers).
     Echo,
 }
 
 #[derive(Clone, Default)]
-struct Fake {
-    log: Rc<RefCell<Vec<String>>>,
-    replies: Rc<RefCell<VecDeque<Reply>>>,
+pub(super) struct Fake {
+    pub(super) log: Rc<RefCell<Vec<String>>>,
+    pub(super) replies: Rc<RefCell<VecDeque<Reply>>>,
 }
 
 impl Http for Fake {
@@ -53,16 +54,16 @@ impl Http for Fake {
     }
 }
 
-struct Rig {
-    client: Client<Fake, FixedClock>,
-    fake: Fake,
-    keys: Keys,
-    other: SymmetricKey,
-    rng: SeededRandom,
+pub(super) struct Rig {
+    pub(super) client: Client<Fake, FixedClock>,
+    pub(super) fake: Fake,
+    pub(super) keys: Keys,
+    pub(super) other: SymmetricKey,
+    pub(super) rng: SeededRandom,
 }
 
 impl Rig {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let rng = SeededRandom::new(11);
         let user = SymmetricKey::generate(&rng).unwrap();
         let other = SymmetricKey::generate(&rng).unwrap();
@@ -90,12 +91,12 @@ impl Rig {
         Rig { client, fake, keys, other, rng }
     }
 
-    fn enc(&self, key: &SymmetricKey, s: &str) -> Value {
+    pub(super) fn enc(&self, key: &SymmetricKey, s: &str) -> Value {
         json!(key.encrypt_str(s, &self.rng).unwrap())
     }
 
     /// A secure note c1 with these `(name, value, hidden)` fields and revision `rev`.
-    fn note_under(&self, key: &SymmetricKey, rev: &str, fields: &[(&str, &str, bool)]) -> Value {
+    pub(super) fn note_under(&self, key: &SymmetricKey, rev: &str, fields: &[(&str, &str, bool)]) -> Value {
         let fields: Vec<Value> = fields
             .iter()
             .map(|(n, v, h)| json!({ "type": u64::from(*h), "name": self.enc(key, n), "value": self.enc(key, v) }))
@@ -107,16 +108,16 @@ impl Rig {
         })
     }
 
-    fn note(&self, rev: &str, fields: &[(&str, &str, bool)]) -> Value {
+    pub(super) fn note(&self, rev: &str, fields: &[(&str, &str, bool)]) -> Value {
         self.note_under(&self.keys.user, rev, fields)
     }
 
     /// The tool's own item: `bwss:id` x, value `secret` in `bwss:password`.
-    fn bare(&self, rev: &str, secret: &str) -> Value {
+    pub(super) fn bare(&self, rev: &str, secret: &str) -> Value {
         self.note(rev, &[("bwss:id", "x", false), ("bwss:password", secret, true)])
     }
 
-    fn patch_for(&self, cipher: &Value, secret: &[u8]) -> Patch {
+    pub(super) fn patch_for(&self, cipher: &Value, secret: &[u8]) -> Patch {
         let Scan::Marked(m) = scan(cipher, B, &self.keys, &Organizations::All) else { panic!("not marked") };
         Patch {
             id: m.id.clone(),
@@ -141,19 +142,19 @@ impl Rig {
         block_on(delete(&mut self.client, B, &self.keys, &self.rng, cipher))
     }
 
-    fn log(&self) -> Vec<String> {
+    pub(super) fn log(&self) -> Vec<String> {
         self.fake.log.borrow().clone()
     }
 }
 
 impl Fake {
-    fn reply(&self, status: u16, body: Value) {
+    pub(super) fn reply(&self, status: u16, body: Value) {
         self.replies.borrow_mut().push_back(Reply::Json(status, body));
     }
-    fn out_of_date(&self) {
+    pub(super) fn out_of_date(&self) {
         self.reply(400, json!({ "message": OUT_OF_DATE }));
     }
-    fn echo(&self) {
+    pub(super) fn echo(&self) {
         self.replies.borrow_mut().push_back(Reply::Echo);
     }
 }

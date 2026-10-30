@@ -78,6 +78,7 @@ pub enum ValueChange {
 }
 
 /// A new item (§6.2). `tool_fields` follow the marker and the value, in order.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NewItem {
     pub id: String,
     pub value: Zeroizing<Vec<u8>>,
