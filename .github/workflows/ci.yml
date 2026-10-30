@@ -79,6 +79,8 @@ jobs:
       - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177  # v2.87.30
         with:
           tool: cargo-llvm-cov@${{ env.LLVM_COV_VERSION }}
+      # rust-cache keeps target/, and stale target/llvm-cov-target data gives false misses.
+      - run: cargo llvm-cov clean --workspace
       - run: cargo llvm-cov --workspace --all-features --locked --ignore-filename-regex 'crates/dybw-vectors/' --fail-under-lines 100
 
   # cargo-llvm-cov has no branch threshold flag: read the percentage from the JSON summary.
@@ -96,6 +98,7 @@ jobs:
       - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177  # v2.87.30
         with:
           tool: cargo-llvm-cov@${{ env.LLVM_COV_VERSION }}
+      - run: cargo llvm-cov clean --workspace
       - name: Measure branch coverage
         run: >-
           cargo llvm-cov --branch --workspace --all-features --locked
