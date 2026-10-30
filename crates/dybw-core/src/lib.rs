@@ -4,6 +4,7 @@
 pub mod api;
 pub mod crypto;
 pub mod ports;
+pub mod sync;
 #[cfg(feature = "testing")]
 pub mod testing;
 pub mod vault;

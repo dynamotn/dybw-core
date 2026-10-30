@@ -1018,8 +1018,11 @@ fn blob_cipher_is_never_written() {
     assert_eq!(k.apply(&blob, &k.keep(&c, B), B), held);
     assert_eq!(strip(&blob, B, &k.keys, &k.rng), held);
     assert_eq!(has_foreign_content(&blob, B, &k.keys), held.map(|_: Map<String, Value>| false));
-    // a `data` without format_version is ordinary response-only metadata
-    assert!(k.apply(&c, &p, B).is_ok());
+    // a `data` without format_version is ordinary response-only metadata: written over, never sent back
+    let plain = with_key(&c, "data", json!("{\"x\":1}"));
+    let body = k.apply(&plain, &p, B).unwrap();
+    assert!(!body.contains_key("data"));
+    assert_eq!(field(&body, &k.keys.user, "bwss:password"), Some(("new".into(), 1)));
 }
 
 #[test]
@@ -1161,4 +1164,19 @@ fn patch_round_trips_for_the_queue() {
     assert_eq!(k.apply(&c, &back, B).unwrap()["fields"].as_array().unwrap().len(), 4);
     let keep: Patch = serde_json::from_str(&serde_json::to_string(&k.keep(&c, B)).unwrap()).unwrap();
     assert!(matches!(keep.value, ValueChange::Keep));
+}
+
+#[test]
+fn a_clock_outside_the_year_range_is_an_error() {
+    let k = fx();
+    let c = k.login(&[("bwss:id", "x", false)], Some("old"), None);
+    let p = k.set_secret(&c, B, b"new");
+    // year 10000 and year -1: no four-digit date
+    for ms in [253_402_300_800_000, -62_167_219_200_001, i64::MAX, i64::MIN] {
+        assert_eq!(apply(&c, &p, B, &k.keys, &k.rng, ms), Err(WriteError::BadClock), "{ms}");
+    }
+    assert!(apply(&c, &p, B, &k.keys, &k.rng, 253_402_300_799_999).is_ok());
+    assert!(apply(&c, &p, B, &k.keys, &k.rng, -62_167_219_200_000).is_ok());
+    // no date is needed when the value is kept
+    assert!(apply(&c, &k.keep(&c, B), B, &k.keys, &k.rng, i64::MAX).is_ok());
 }

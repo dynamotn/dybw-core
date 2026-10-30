@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 
 /// The time the tests freeze the clock at (`FixedClock`); a date equal to it was written by the tool.
 pub const NOW: &str = "2099-09-09T09:09:09.999Z";
+/// [`NOW`] in Unix milliseconds.
+pub const NOW_MS: i64 = 4_092_628_149_999;
 
 /// Replaces every string equal to [`NOW`] by the literal `<now>` of the vectors.
 fn mark_now(value: Value) -> Value {

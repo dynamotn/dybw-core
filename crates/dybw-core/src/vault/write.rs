@@ -108,6 +108,9 @@ pub enum WriteError {
     ReadOnly,
     #[error("the value is not text, and this namespace stores text only")]
     BinaryNotSupported,
+    /// The clock is outside the years 0000-9999, so no date can be written from it.
+    #[error("the clock is out of range")]
+    BadClock,
 }
 
 impl WriteError {
@@ -128,11 +131,14 @@ pub fn encrypted_len(plain_len: usize, key: &SymmetricKey) -> usize {
     key.encrypted_str_len(plain_len)
 }
 
-/// `now` as JavaScript's `toISOString` writes it, the form the vectors freeze.
-fn iso_ms(ms: i64) -> String {
+/// `now` as JavaScript's `toISOString` writes it, the form the vectors freeze. A clock outside the years 0000-9999
+/// is an error, never a made-up date.
+fn iso_ms(ms: i64) -> Result<String, WriteError> {
     let t = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
-        .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
-    format!(
+        .ok()
+        .filter(|t| t.year() >= 0)
+        .ok_or(WriteError::BadClock)?;
+    Ok(format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
         t.year(),
         u8::from(t.month()),
@@ -141,7 +147,7 @@ fn iso_ms(ms: i64) -> String {
         t.minute(),
         t.second(),
         t.millisecond()
-    )
+    ))
 }
 
 /// The key an item's strings (or its own key) are under: its organization's, else the user's.
@@ -397,7 +403,7 @@ pub fn apply(
 
     // 3. The value goes back to its source.
     if let ValueChange::Set { secret, owned, .. } = &patch.value {
-        edit.write_value(fresh.source, secret, *owned, &iso_ms(now_ms))?;
+        edit.write_value(fresh.source, secret, *owned, &iso_ms(now_ms)?)?;
     }
 
     // 4. The tool's own fields.

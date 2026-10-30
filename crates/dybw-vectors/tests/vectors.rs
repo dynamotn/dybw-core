@@ -80,3 +80,19 @@ fn read_vectors() {
     assert!(results.len() > 50, "only {} read vectors", results.len());
     check(results, &expected_failures()).unwrap();
 }
+
+#[test]
+fn write_vectors() {
+    let dir = vectors_dir().unwrap();
+    let mut counts = BTreeMap::new();
+    let mut results = Vec::new();
+    for ns in ["bwss", "obsidian"] {
+        for (_, s) in load_all(&dir, ns).into_iter().filter(|(_, s)| s.expect.write.is_some()) {
+            *counts.entry(ns).or_insert(0) += 1;
+            let result = dybw_vectors::run::write(&dir, &s).map_err(|e| format!("[{ns}] {e}"));
+            results.push((s.id, result));
+        }
+    }
+    assert!(counts.values().all(|&n| n >= 15), "too few write vectors: {counts:?}");
+    check(results, &expected_failures()).unwrap();
+}
