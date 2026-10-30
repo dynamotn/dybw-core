@@ -96,3 +96,14 @@ fn write_vectors() {
     assert!(counts.values().all(|&n| n >= 15), "too few write vectors: {counts:?}");
     check(results, &expected_failures()).unwrap();
 }
+
+#[test]
+fn gone_or_unmarked_after_a_refetch_is_giving_up() {
+    use dybw_core::vault::write::WriteError;
+    use dybw_vectors::run::gave_up;
+    for e in [WriteError::Unmarked, WriteError::Gone] {
+        assert!(gave_up(true, &e));
+        assert!(!gave_up(false, &e));
+    }
+    assert!(!gave_up(true, &WriteError::SourceChanged));
+}

@@ -133,7 +133,7 @@ impl Rig {
         }
     }
 
-    fn update(&mut self, cipher: &Value, patch: &Patch) -> Result<Value, SyncWriteError> {
+    fn update(&mut self, cipher: &Value, patch: &Patch) -> Result<Option<Value>, SyncWriteError> {
         block_on(update(&mut self.client, B, &self.keys, &self.rng, 1_000, cipher, patch))
     }
 
@@ -164,7 +164,7 @@ fn update_sends_once_and_returns_the_reply() {
     let c = r.bare("2026-01-01T00:00:00Z", "old");
     let patch = r.patch_for(&c, b"new");
     r.fake.echo();
-    let reply = r.update(&c, &patch).unwrap();
+    let reply = r.update(&c, &patch).unwrap().unwrap();
     assert_eq!(reply["revisionDate"], "2026-03-03T00:00:00Z");
     assert_eq!(reply["lastKnownRevisionDate"], "2026-01-01T00:00:00Z");
     assert_eq!(r.log(), ["Put /ciphers/c1"]);
@@ -178,7 +178,7 @@ fn out_of_date_reapplies_the_patch_to_the_fresh_copy() {
     r.fake.out_of_date();
     r.fake.reply(200, r.bare("2026-02-02T00:00:00Z", "old"));
     r.fake.echo();
-    let reply = r.update(&c, &patch).unwrap();
+    let reply = r.update(&c, &patch).unwrap().unwrap();
     assert_eq!(reply["lastKnownRevisionDate"], "2026-02-02T00:00:00Z");
     assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1", "Put /ciphers/c1"]);
 }
@@ -310,7 +310,7 @@ fn delete_strips_then_trashes_a_bare_item() {
     let c = r.bare("2026-01-01T00:00:00Z", "s");
     r.fake.echo();
     r.fake.reply(200, json!({}));
-    assert_eq!(r.delete(&c).unwrap(), DeleteOutcome::Trashed);
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Trashed));
     assert_eq!(r.log(), ["Put /ciphers/c1", "Put /ciphers/c1/delete"]);
 }
 
@@ -320,7 +320,7 @@ fn delete_keeps_an_item_with_foreign_content() {
     let c =
         r.note("2026-01-01T00:00:00Z", &[("bwss:id", "x", false), ("bwss:password", "s", true), ("pin", "1", false)]);
     r.fake.echo();
-    assert_eq!(r.delete(&c).unwrap(), DeleteOutcome::KeptForeign);
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::KeptForeign));
     assert_eq!(r.log(), ["Put /ciphers/c1"]);
 }
 
@@ -330,7 +330,7 @@ fn delete_keeps_an_item_whose_reply_cannot_be_read() {
     let c = r.bare("2026-01-01T00:00:00Z", "s");
     let unreadable = r.note_under(&r.other, "2026-03-03T00:00:00Z", &[("bwss:id", "x", false)]);
     r.fake.reply(200, unreadable);
-    assert_eq!(r.delete(&c).unwrap(), DeleteOutcome::KeptForeign);
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Unreadable(WriteError::Crypto(_))));
     assert_eq!(r.log(), ["Put /ciphers/c1"]);
 }
 
@@ -340,17 +340,22 @@ fn delete_leaves_a_stripped_item_when_the_trash_fails() {
     let c = r.bare("2026-01-01T00:00:00Z", "s");
     r.fake.echo();
     r.fake.reply(500, json!({}));
-    assert_eq!(r.delete(&c).unwrap(), DeleteOutcome::KeptForeign);
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Stripped { trash: ApiError::Http { status: 500, .. } }));
+    // the cause is kept for any failure, not only a server error
+    let mut r = Rig::new();
+    r.fake.echo();
+    r.fake.reply(401, json!({}));
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Stripped { trash: ApiError::Http { status: 401, .. } }));
 }
 
 #[test]
 fn delete_of_what_is_not_the_tools_does_nothing() {
     let mut r = Rig::new();
     let unmarked = r.note("2026-01-01T00:00:00Z", &[("pin", "1", false)]);
-    assert_eq!(r.delete(&unmarked).unwrap(), DeleteOutcome::Nothing);
+    assert!(matches!(r.delete(&unmarked).unwrap(), DeleteOutcome::Nothing));
     let mut trashed = r.bare("2026-01-01T00:00:00Z", "s");
     trashed["deletedDate"] = json!("2026-02-02T00:00:00Z");
-    assert_eq!(r.delete(&trashed).unwrap(), DeleteOutcome::Nothing);
+    assert!(matches!(r.delete(&trashed).unwrap(), DeleteOutcome::Nothing));
     assert!(r.log().is_empty());
 }
 
@@ -370,7 +375,7 @@ fn delete_starts_over_on_the_fresh_copy() {
     r.fake.reply(200, r.bare("2026-02-02T00:00:00Z", "s"));
     r.fake.echo();
     r.fake.reply(200, json!({}));
-    assert_eq!(r.delete(&c).unwrap(), DeleteOutcome::Trashed);
+    assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Trashed));
     assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1", "Put /ciphers/c1", "Put /ciphers/c1/delete"]);
 }
 
@@ -380,14 +385,14 @@ fn delete_is_done_when_the_item_left_meanwhile() {
     let c = gone.bare("2026-01-01T00:00:00Z", "s");
     gone.fake.out_of_date();
     gone.fake.reply(404, json!({}));
-    assert_eq!(gone.delete(&c).unwrap(), DeleteOutcome::Nothing);
+    assert!(matches!(gone.delete(&c).unwrap(), DeleteOutcome::Nothing));
 
     // Re-marked elsewhere (another `bwss:id`) or no longer the tool's: it has left the keyring.
     for fields in [vec![("pin", "1", false)], vec![("bwss:id", "y", false)]] {
         let mut r = Rig::new();
         r.fake.out_of_date();
         r.fake.reply(200, r.note("2026-02-02T00:00:00Z", &fields));
-        assert_eq!(r.delete(&c).unwrap(), DeleteOutcome::Nothing);
+        assert!(matches!(r.delete(&c).unwrap(), DeleteOutcome::Nothing));
         assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
     }
 }
@@ -416,4 +421,82 @@ fn delete_without_a_revision_is_held_and_sends_nothing() {
     c.as_object_mut().unwrap().remove("revisionDate");
     assert!(matches!(r.delete(&c), Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::Value)))));
     assert!(r.log().is_empty());
+}
+
+fn keep_patch(r: &Rig, c: &Value) -> Patch {
+    Patch { value: ValueChange::Keep, set: vec![], remove: vec![], ..r.patch_for(c, b"x") }
+}
+
+#[test]
+fn an_empty_patch_sends_nothing() {
+    let mut r = Rig::new();
+    let c = r.bare("2026-01-01T00:00:00Z", "old");
+    assert!(r.update(&c, &keep_patch(&r, &c)).unwrap().is_none());
+    assert!(r.log().is_empty());
+    // a patch that only removes, or only sets a tool field, is a change
+    r.fake.echo();
+    let remove = Patch { remove: vec!["bwss:label".into()], ..keep_patch(&r, &c) };
+    assert!(r.update(&c, &remove).unwrap().is_some());
+    r.fake.echo();
+    let set = Patch { set: r.patch_for(&c, b"x").set, ..keep_patch(&r, &c) };
+    assert!(r.update(&c, &set).unwrap().is_some());
+}
+
+#[test]
+fn a_cipher_without_an_id_is_refused_before_sending() {
+    let mut r = Rig::new();
+    let c = r.bare("2026-01-01T00:00:00Z", "old");
+    let patch = r.patch_for(&c, b"new");
+    for bad in [json!(null), json!("")] {
+        let mut anon = c.clone();
+        anon["id"] = bad;
+        assert!(matches!(r.update(&anon, &patch), Err(SyncWriteError::MissingId)));
+        assert!(matches!(r.delete(&anon), Err(SyncWriteError::MissingId)));
+    }
+    anon_without_key(&mut r, &c, &patch);
+    assert!(r.log().is_empty());
+}
+
+fn anon_without_key(r: &mut Rig, c: &Value, patch: &Patch) {
+    let mut anon = c.clone();
+    anon.as_object_mut().unwrap().remove("id");
+    assert!(matches!(r.update(&anon, patch), Err(SyncWriteError::MissingId)));
+}
+
+#[test]
+fn a_refetched_trashed_or_blob_copy_writes_nothing() {
+    let mut trashed = r_bare("2026-02-02T00:00:00Z");
+    trashed["deletedDate"] = json!("2026-02-03T00:00:00Z");
+    let mut blob = r_bare("2026-02-02T00:00:00Z");
+    blob["data"] = json!("{\"format_version\":1}");
+    for fresh in [trashed, blob] {
+        let blob_copy = fresh.get("data").is_some();
+        // update: Gone for a trashed copy, held for a blob; the second PUT is never sent
+        let mut r = Rig::new();
+        let c = r.bare("2026-01-01T00:00:00Z", "old");
+        let patch = r.patch_for(&c, b"new");
+        r.fake.out_of_date();
+        r.fake.reply(200, fresh.clone());
+        match r.update(&c, &patch) {
+            Err(SyncWriteError::Write(WriteError::Gone)) if !blob_copy => {}
+            Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::NewerFormat))) if blob_copy => {}
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
+
+        // delete: a trashed copy has left the keyring; a blob copy is held
+        let mut r = Rig::new();
+        r.fake.out_of_date();
+        r.fake.reply(200, fresh);
+        match r.delete(&c) {
+            Ok(DeleteOutcome::Nothing) if !blob_copy => {}
+            Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::NewerFormat))) if blob_copy => {}
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
+    }
+}
+
+fn r_bare(rev: &str) -> Value {
+    Rig::new().bare(rev, "old")
 }

@@ -174,8 +174,7 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
         server.sent.borrow().iter().map(|r| canonicalize(r, &keys.user, &keys.orgs)).collect::<Result<Vec<_>, _>>()?;
     match (want, outcome) {
         (WriteExpect::Requests(want), Ok(())) => compare_requests(&s.namespace, sent, &want.requests),
-        // After a refetch, a copy that lost its marker means the tool gave up (README, "Requests after a refetch").
-        (WriteExpect::Requests(want), Err(SyncWriteError::Write(WriteError::Unmarked))) if op.fresh().is_some() => {
+        (WriteExpect::Requests(want), Err(SyncWriteError::Write(e))) if gave_up(op.fresh().is_some(), &e) => {
             compare_requests(&s.namespace, sent, &want.requests)
         }
         (WriteExpect::Error(want), Err(SyncWriteError::Write(e))) => {
@@ -194,4 +193,10 @@ fn compare_requests(ns: &str, sent: Vec<Value>, want: &[Value]) -> Result<(), St
         sent.into_iter().map(strip).collect::<Vec<_>>(),
         want.iter().cloned().map(strip).collect::<Vec<_>>(),
     )
+}
+
+/// After a refetch (`fresh`), a copy that lost its marker or was deleted or trashed means the tool gave up
+/// (README "Requests after a refetch", data model §6.5); without one, the same errors are real failures.
+pub fn gave_up(refetched: bool, e: &WriteError) -> bool {
+    refetched && matches!(e, WriteError::Unmarked | WriteError::Gone)
 }
