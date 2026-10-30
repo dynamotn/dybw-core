@@ -27,6 +27,7 @@ sha2 = "0.11.1"
 thiserror = "2.0.21"
 time = { version = "0.3.55", default-features = false, features = ["parsing"] }
 url = "2.5.8"
+uuid = { version = "1.28.0", default-features = false }
 zeroize = { version = "1.9.1", features = ["derive", "serde"] }
 
 [dev-dependencies]
