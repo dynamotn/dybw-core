@@ -1,7 +1,9 @@
 # dybw-core
 
 The shared core of bwss (a Rust Secret Service daemon) and the Obsidian
-plugin, both backed by Bitwarden. The repository holds the Rust core and the
+plugin, both backed by Bitwarden. It implements data model 1.6 (M3: history,
+rollback and duplicates, `requires`, blob ciphers, signed security state, the
+KDF pin). The repository holds the Rust core and the
 language-neutral conformance vectors: plaintext scenarios, a deterministic
 generator that encrypts them, and the schemas that pin the formats. See
 [`vectors/README.md`](vectors/README.md) for the formats.
@@ -45,7 +47,7 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
   - `profile`: unlock, device identity, lock.
   - `testing` (feature): fakes and `block_on`.
 - `crates/dybw-vectors`: runs the conformance vectors against the core.
-  `expected-failures.txt` lists no vector at the end of M2.
+  `expected-failures.txt` lists no vector at the end of M3.
 
 Its futures are `!Send`: run them on a `current_thread` runtime or a `LocalSet`.
 
