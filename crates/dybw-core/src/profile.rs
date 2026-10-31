@@ -17,8 +17,20 @@ const USER_KEY_ID_LABEL: &[u8] = b"dybw user-key-id v1";
 /// The storage key of the KDF pin (ADR 0017).
 const KDF_PIN: &str = "kdf-pin";
 /// The names of the KDF's two sources in messages (ADR 0022).
-const FROM_UNLOCK_DATA: &str = "KDF from sync unlock data";
-const FROM_PRELOGIN: &str = "KDF from prelogin";
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KdfSource {
+    SyncUnlockData,
+    Prelogin,
+}
+
+impl std::fmt::Display for KdfSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            KdfSource::SyncUnlockData => "KDF from sync unlock data",
+            KdfSource::Prelogin => "KDF from prelogin",
+        })
+    }
+}
 
 /// The KDF a device accepted for a profile, and the identity origin it came from (ADR 0017). Device state, no
 /// secret; a pin for another origin is ignored and replaced.
@@ -74,10 +86,15 @@ pub enum ProfileError {
     Port(#[from] PortError),
     /// The KDF is weaker than the pinned one; raised before the KDF runs (ADR 0017).
     #[error(
-        "the KDF is weaker than the one pinned on this device (pinned {pinned:?}, offered {offered:?}): check it in \
-         the web vault, then confirm it on this device"
+        "{kdf_source} is weaker than the one pinned on this device (pinned {pinned:?}, offered {offered:?}): check it \
+         in the web vault, then confirm it on this device"
     )]
-    KdfWeakened { pinned: KdfParams, offered: KdfParams },
+    KdfWeakened { pinned: KdfParams, offered: KdfParams, kdf_source: KdfSource },
+    /// The saved pin cannot be read or parsed; confirming the KDF again replaces it.
+    #[error(
+        "the KDF pin saved on this device is unreadable: check the KDF in the web vault, then confirm it on this device again"
+    )]
+    KdfPinUnreadable,
     /// No well-formed `masterPasswordUnlock` and no `profile.key` (ADR 0022).
     #[error("incomplete unlock data: no well-formed KDF, salt and key in the sync unlock data, and no profile key")]
     IncompleteUnlockData,
@@ -87,7 +104,7 @@ pub enum ProfileError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnlockWarning {
     /// The KDF the unlock ran is below ADR 0017's floors.
-    KdfBelowFloor(KdfParams),
+    KdfBelowFloor { params: KdfParams, kdf_source: KdfSource },
 }
 
 /// An unlocked profile. No `Clone` and no `Debug`: the keys are wiped when it is dropped or locked.
@@ -144,7 +161,7 @@ fn unlock_data(sync: &Value) -> Option<(KdfParams, &str, &str)> {
     let kdf = data.get("kdf")?;
     let num = |k: &str| kdf.get(k).and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok());
     let nonzero = |k: &str| num(k).filter(|v| *v != 0);
-    let iterations = num("iterations")?;
+    let iterations = nonzero("iterations")?;
     let params = match num("kdfType")? {
         0 => KdfParams::Pbkdf2 { iterations },
         1 => KdfParams::Argon2id { iterations, memory_mib: nonzero("memory")?, parallelism: nonzero("parallelism")? },
@@ -157,7 +174,7 @@ async fn load_pin(storage: &impl Storage) -> Result<Option<KdfPin>, ProfileError
     let Some(raw) = storage.load(KDF_PIN).await? else { return Ok(None) };
     // A damaged pin is no pin to trust, and no reason to drop it silently.
     let pin = serde_json::from_slice::<StoredPin>(&raw).ok().and_then(StoredPin::into_pin);
-    Ok(Some(pin.ok_or_else(|| PortError("the KDF pin is unreadable".into()))?))
+    Ok(Some(pin.ok_or(ProfileError::KdfPinUnreadable)?))
 }
 
 async fn save_pin(storage: &impl Storage, params: KdfParams, origin: &str) -> Result<(), ProfileError> {
@@ -169,6 +186,7 @@ async fn save_pin(storage: &impl Storage, params: KdfParams, origin: &str) -> Re
 
 /// The user's confirmation, on this device, of a weaker KDF (ADR 0017): the pin becomes `params` for `origin`.
 pub async fn accept_kdf(storage: &impl Storage, params: KdfParams, origin: &str) -> Result<(), ProfileError> {
+    params.validate()?;
     save_pin(storage, params, origin).await
 }
 
@@ -196,11 +214,11 @@ pub async fn unlock<H: Http, C: Clock>(
     client.login(key).await?;
     let sync = client.sync().await?;
     let (source, params, protected, salt) = match unlock_data(&sync) {
-        Some((params, protected, salt)) => (FROM_UNLOCK_DATA, params, protected.to_owned(), salt.to_owned()),
+        Some((params, protected, salt)) => (KdfSource::SyncUnlockData, params, protected.to_owned(), salt.to_owned()),
         None => {
             let protected = sync.pointer("/profile/key").and_then(Value::as_str).filter(|s| !s.is_empty());
             let protected = protected.ok_or(ProfileError::IncompleteUnlockData)?.to_owned();
-            (FROM_PRELOGIN, client.prelogin(email).await?, protected, email.to_owned())
+            (KdfSource::Prelogin, client.prelogin(email).await?, protected, email.to_owned())
         }
     };
     if let Err(CryptoError::Kdf(why)) = params.validate() {
@@ -208,7 +226,7 @@ pub async fn unlock<H: Http, C: Clock>(
     }
     let pinned = load_pin(storage).await?.filter(|p| p.origin == key.origin).map(|p| p.params);
     if let Some(pinned) = pinned.filter(|p| params.weaker_than(p)) {
-        return Err(ProfileError::KdfWeakened { pinned, offered: params });
+        return Err(ProfileError::KdfWeakened { pinned, offered: params, kdf_source: source });
     }
     let master = derive_master_key(&password, &salt, params, kdf).await?;
     drop(password);
@@ -222,7 +240,8 @@ pub async fn unlock<H: Http, C: Clock>(
     if pinned != Some(params) {
         save_pin(storage, params, &key.origin).await?;
     }
-    let warnings = if params.meets_floors() { vec![] } else { vec![UnlockWarning::KdfBelowFloor(params)] };
+    let warnings =
+        if params.meets_floors() { vec![] } else { vec![UnlockWarning::KdfBelowFloor { params, kdf_source: source }] };
     let profile = sync.get("profile").unwrap_or(&Value::Null);
     let (orgs, org_problems) = unlock_organizations(profile, &user, rsa, allowed).await;
     let marker = Marker::new(&user, ns.marks);
@@ -289,6 +308,7 @@ mod tests {
             ("/kdf/kdfType", json!(2)),
             ("/kdf/kdfType", json!(null)),
             ("/kdf/iterations", json!(null)),
+            ("/kdf/iterations", json!(0)),
             ("/kdf/memory", json!(0)),
             ("/kdf/memory", json!(null)),
             ("/kdf/parallelism", json!(0)),
@@ -354,6 +374,20 @@ mod tests {
         assert_eq!(block_on(device_id(&Broken(Some(b"dev-1".to_vec())), &SeededRandom::new(1))).unwrap(), "dev-1");
     }
 
+    struct FailsLoad;
+
+    impl Storage for FailsLoad {
+        async fn load(&self, _key: &str) -> Result<Option<Vec<u8>>, PortError> {
+            Err(PortError("disk gone".into()))
+        }
+        async fn save(&self, _key: &str, _data: &[u8]) -> Result<(), PortError> {
+            Ok(())
+        }
+        async fn remove(&self, _key: &str) -> Result<(), PortError> {
+            Ok(())
+        }
+    }
+
     #[test]
     fn pin_storage_round_trips_and_reports_damage() {
         let storage = MemStorage::default();
@@ -370,8 +404,17 @@ mod tests {
         assert!(block_on(load_pin(&storage)).is_err());
         block_on(storage.save("kdf-pin", b"{")).unwrap();
         let err = block_on(load_pin(&storage)).unwrap_err();
-        assert_eq!(err.to_string(), "host port failed: the KDF pin is unreadable");
+        assert!(matches!(err, ProfileError::KdfPinUnreadable), "{err:?}");
         let err = block_on(accept_kdf(&Broken(None), params, "o")).unwrap_err();
         assert_eq!(err.to_string(), "host port failed: disk gone");
+        // Out of bounds: refused, nothing saved.
+        let storage = MemStorage::default();
+        let low = KdfParams::Pbkdf2 { iterations: 1 };
+        assert!(matches!(block_on(accept_kdf(&storage, low, "o")), Err(ProfileError::Crypto(_))));
+        assert_eq!(block_on(storage.load("kdf-pin")).unwrap(), None);
+        // A storage failure on load stays a port error.
+        assert!(matches!(block_on(load_pin(&FailsLoad)), Err(ProfileError::Port(_))));
+        block_on(FailsLoad.save("k", b"v")).unwrap();
+        block_on(FailsLoad.remove("k")).unwrap();
     }
 }

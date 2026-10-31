@@ -7,7 +7,7 @@ use dybw_core::crypto::{
     hash_master_password, unwrap_signing_key, verify_security_state,
 };
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
-use dybw_core::profile::{KdfPin, ProfileError, UnlockWarning, Unlocked, accept_kdf, unlock};
+use dybw_core::profile::{KdfPin, KdfSource, ProfileError, UnlockWarning, Unlocked, accept_kdf, unlock};
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
 use dybw_vectors::canonical::{NOW, canonicalize, drop_tool_defined};
@@ -729,7 +729,7 @@ fn weaker_kdf_stops_before_derivation() {
         run_full(keys.profile, keys.prelogin, email, password, &Organizations::None, Value::Null, &storage, &Panics);
     let err = out.result.err().unwrap();
     assert!(
-        matches!(err, ProfileError::KdfWeakened { pinned: p, offered } if p == pinned && offered == ARGON_FLOOR),
+        matches!(err, ProfileError::KdfWeakened { pinned: p, offered, kdf_source: KdfSource::Prelogin } if p == pinned && offered == ARGON_FLOOR),
         "{err:?}"
     );
     assert!(!err.to_string().contains(password));
@@ -773,7 +773,10 @@ fn below_floor_warns_and_pins() {
     let storage = MemStorage::default();
     let unlocked = acc.unlock(extra, &storage).result.unwrap();
     let low = KdfParams::Pbkdf2 { iterations: 5000 };
-    assert_eq!(unlocked.warnings, [UnlockWarning::KdfBelowFloor(low)]);
+    assert_eq!(
+        unlocked.warnings,
+        [UnlockWarning::KdfBelowFloor { params: low, kdf_source: KdfSource::SyncUnlockData }]
+    );
     assert_eq!(pin_of(&storage), Some(KdfPin { params: low, origin: origin() }));
 }
 
@@ -792,7 +795,7 @@ fn kdf_type_change_needs_the_floors() {
     let err = acc.unlock(extra, &storage).result.err().unwrap();
     let low = KdfParams::Pbkdf2 { iterations: 5000 };
     assert!(
-        matches!(err, ProfileError::KdfWeakened { pinned, offered } if pinned == ARGON_FLOOR && offered == low),
+        matches!(err, ProfileError::KdfWeakened { pinned, offered, kdf_source: KdfSource::SyncUnlockData } if pinned == ARGON_FLOOR && offered == low),
         "{err:?}"
     );
     assert_eq!(pin_of(&storage).unwrap().params, ARGON_FLOOR);
@@ -815,7 +818,63 @@ fn out_of_range_kdf_names_its_source() {
     let low = unlock_data(&acc.profile["key"], 1, &acc.email);
     let err = acc.unlock(low, &MemStorage::default()).result.err().unwrap();
     assert!(err.to_string().contains("KDF from sync unlock data"), "{err}");
+    let weak = format!(
+        "{}",
+        ProfileError::KdfWeakened { pinned: PBKDF2_600K, offered: PBKDF2_600K, kdf_source: KdfSource::Prelogin }
+    );
+    assert!(weak.contains("KDF from prelogin"), "{weak}");
     let low = Pbkdf2Account { prelogin: json!({ "kdf": 0, "kdfIterations": 1 }), ..acc.clone_parts() };
     let err = low.unlock(Value::Null, &MemStorage::default()).result.err().unwrap();
     assert!(err.to_string().contains("KDF from prelogin"), "{err}");
+}
+
+/// A partial `masterPasswordUnlock` is not mixed in: its salt is ignored, the email is the salt.
+#[test]
+fn partial_unlock_data_salt_is_ignored() {
+    let acc = pbkdf2_account();
+    let extra = json!({ "userDecryption": { "masterPasswordUnlock": {
+        "masterKeyEncryptedUserKey": acc.profile["key"], "salt": "someone-else@vectors.invalid",
+    } } });
+    let out = acc.unlock(extra, &MemStorage::default());
+    assert!(out.result.is_ok());
+    assert_eq!(prelogin_calls(&out), 1);
+}
+
+/// Zero iterations make source 1 malformed: the unlock falls back to source 2.
+#[test]
+fn zero_iterations_fall_back_to_source_two() {
+    let acc = pbkdf2_account();
+    let out = acc.unlock(unlock_data(&acc.profile["key"], 0, &acc.email), &MemStorage::default());
+    assert!(out.result.is_ok());
+    assert_eq!(prelogin_calls(&out), 1);
+}
+
+/// An unreadable pin asks for a new confirmation, and accepting replaces it.
+#[test]
+fn unreadable_pin_needs_a_new_confirmation() {
+    let acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    block_on(storage.save("kdf-pin", b"not json")).unwrap();
+    let err = acc.unlock(Value::Null, &storage).result.err().unwrap();
+    assert!(matches!(err, ProfileError::KdfPinUnreadable), "{err:?}");
+    pin(&storage, PBKDF2_600K, &origin());
+    assert!(acc.unlock(Value::Null, &storage).result.is_ok());
+}
+
+#[test]
+fn accept_kdf_refuses_out_of_bounds_params() {
+    let storage = MemStorage::default();
+    let err = block_on(accept_kdf(&storage, KdfParams::Pbkdf2 { iterations: 1 }, &origin())).unwrap_err();
+    assert!(matches!(err, ProfileError::Crypto(CryptoError::Kdf(_))), "{err:?}");
+    assert!(pin_of(&storage).is_none());
+}
+
+#[test]
+fn below_floor_warning_names_the_prelogin_source() {
+    let mut acc = pbkdf2_account();
+    acc.rewrapped(5000);
+    acc.prelogin = json!({ "kdf": 0, "kdfIterations": 5000 });
+    let unlocked = acc.unlock(Value::Null, &MemStorage::default()).result.unwrap();
+    let low = KdfParams::Pbkdf2 { iterations: 5000 };
+    assert_eq!(unlocked.warnings, [UnlockWarning::KdfBelowFloor { params: low, kdf_source: KdfSource::Prelogin }]);
 }
