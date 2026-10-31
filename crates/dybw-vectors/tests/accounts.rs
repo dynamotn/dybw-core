@@ -6,9 +6,9 @@ use dybw_core::crypto::{
     AwsLcRsa, CoseAlgorithm, CryptoError, KdfParams, NativeArgon2, SymmetricKey, derive_master_key,
     hash_master_password, unwrap_signing_key, verify_security_state,
 };
-use dybw_core::ports::{Http, HttpRequest, HttpResponse, PortError};
-use dybw_core::profile::{ProfileError, Unlocked, unlock};
-use dybw_core::testing::{FixedClock, SeededRandom, block_on};
+use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
+use dybw_core::profile::{KdfPin, ProfileError, UnlockWarning, Unlocked, accept_kdf, unlock};
+use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
 use dybw_vectors::canonical::{NOW, canonicalize, drop_tool_defined};
 use dybw_vectors::keys::account_keys;
@@ -223,15 +223,37 @@ fn run_unlock_with(
     allowed: &Organizations,
     extra: Value,
 ) -> Outcome {
+    run_full(profile, prelogin, email, password, allowed, extra, &MemStorage::default(), &NativeArgon2)
+}
+
+/// Every port the test may want to see or replace: the pin storage and the Argon2id runner.
+#[expect(clippy::too_many_arguments, reason = "a test helper over unlock's ports")]
+fn run_full(
+    profile: Value,
+    prelogin: Value,
+    email: &str,
+    password: &str,
+    allowed: &Organizations,
+    extra: Value,
+    storage: &MemStorage,
+    runner: &impl KdfRunner,
+) -> Outcome {
     let seen = std::rc::Rc::default();
     let inner = VectorServer::new(profile, vec![], prelogin);
     let server = Recording { inner, seen: std::rc::Rc::clone(&seen), extra };
     let mut api = Client::new(server, FixedClock { now_ms: 0 }, urls(), device()).unwrap();
     let password = Zeroizing::new(password.to_owned());
     let result =
-        block_on(unlock(&mut api, &api_key(), email, password, &NativeArgon2, &AwsLcRsa, &Namespace::BWSS, allowed));
+        block_on(unlock(&mut api, storage, &api_key(), email, password, runner, &AwsLcRsa, &Namespace::BWSS, allowed));
     let seen = seen.borrow().clone();
     Outcome { result, seen }
+}
+
+/// The `/sync` members of a newer server for a PBKDF2 account: all three of `masterPasswordUnlock`.
+fn unlock_data(wrapped: &Value, iterations: u32, salt: &str) -> Value {
+    json!({ "userDecryption": { "masterPasswordUnlock": {
+        "kdf": { "kdfType": 0, "iterations": iterations }, "masterKeyEncryptedUserKey": wrapped, "salt": salt,
+    } } })
 }
 
 /// Unlocks a `vectors/accounts/` account with its own password.
@@ -323,14 +345,14 @@ fn wrong_password() {
     for text in [err.to_string(), format!("{err:?}")] {
         assert!(!text.contains(wrong) && !text.contains(user_key) && !text.contains("vectors"), "{text}");
     }
-    // As in bwss: prelogin, the API-key login and /sync; the password, or a hash of it, never leaves.
+    // The API-key login and /sync, then prelogin (source 2); the password, or a hash of it, never leaves.
     let routes: Vec<&str> = out.seen.iter().map(|s| s.split(' ').nth(1).unwrap()).collect();
     assert_eq!(
         routes,
         [
-            "https://vectors.invalid/identity/accounts/prelogin",
             "https://vectors.invalid/identity/connect/token",
             "https://vectors.invalid/api/sync?excludeDomains=true",
+            "https://vectors.invalid/identity/accounts/prelogin",
         ]
     );
     let master = block_on(derive_master_key(wrong, email, KdfParams::Pbkdf2 { iterations: 600_000 }, &NativeArgon2));
@@ -412,8 +434,8 @@ fn unlock_from_user_decryption_only() {
     let acc = account("pbkdf2");
     let mut profile = keys.profile;
     let wrapped = profile["key"].take();
-    let extra = json!({ "userDecryption": { "masterPasswordUnlock": { "masterKeyEncryptedUserKey": wrapped } } });
     let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let extra = unlock_data(&wrapped, 600_000, email);
     let out = run_unlock_with(profile, keys.prelogin, email, password, &Organizations::None, extra);
     assert_eq!(out.result.unwrap().keys.user.to_bytes().to_vec(), b64(&acc["userKey"]));
 }
@@ -431,9 +453,7 @@ fn unlock_uses_the_server_salt() {
     let master = block_on(derive_master_key(password, "old-address@vectors.invalid", params, &NativeArgon2)).unwrap();
     let mut profile = keys.profile;
     profile["key"] = json!(SymmetricKey::stretch(&master).encrypt(&user.to_bytes(), &SeededRandom::new(3)).unwrap());
-    let extra = json!({ "userDecryption": { "masterPasswordUnlock": {
-        "masterKeyEncryptedUserKey": profile["key"], "salt": " Old-Address@Vectors.invalid ",
-    } } });
+    let extra = unlock_data(&profile["key"], 5000, " Old-Address@Vectors.invalid ");
     let out = run_unlock_with(profile.clone(), prelogin.clone(), email, password, &Organizations::None, extra);
     assert_eq!(out.result.unwrap().keys.user.to_bytes(), user.to_bytes());
     let out = run_unlock(profile, prelogin, email, password, &Organizations::None);
@@ -533,4 +553,269 @@ fn canonicalize_refuses_a_blob_it_cannot_open() {
     // The wrong user key does not open the item key.
     let other = account_keys(&dir, "cose", false);
     assert!(canonicalize(&blob_put(BLOB_KEY, json!(BLOB_LOGIN)), &other.user, &BTreeMap::new()).is_err());
+}
+
+// One KDF source per unlock (ADR 0022) and the KDF pin (ADR 0017).
+
+const PBKDF2_600K: KdfParams = KdfParams::Pbkdf2 { iterations: 600_000 };
+const ARGON_FLOOR: KdfParams = KdfParams::Argon2id { iterations: 3, memory_mib: 64, parallelism: 4 };
+
+/// The `pbkdf2` account's pieces, as an unlock needs them.
+struct Pbkdf2Account {
+    profile: Value,
+    prelogin: Value,
+    email: String,
+    password: String,
+}
+
+fn pbkdf2_account() -> Pbkdf2Account {
+    let keys = account_keys(&vectors_dir().unwrap(), "pbkdf2", false);
+    let acc = account("pbkdf2");
+    Pbkdf2Account {
+        profile: keys.profile,
+        prelogin: keys.prelogin,
+        email: acc["email"].as_str().unwrap().to_owned(),
+        password: acc["password"].as_str().unwrap().to_owned(),
+    }
+}
+
+impl Pbkdf2Account {
+    fn clone_parts(&self) -> Pbkdf2Account {
+        Pbkdf2Account {
+            profile: self.profile.clone(),
+            prelogin: self.prelogin.clone(),
+            email: self.email.clone(),
+            password: self.password.clone(),
+        }
+    }
+
+    fn unlock(&self, extra: Value, storage: &MemStorage) -> Outcome {
+        let allowed = Organizations::None;
+        run_full(
+            self.profile.clone(),
+            self.prelogin.clone(),
+            &self.email,
+            &self.password,
+            &allowed,
+            extra,
+            storage,
+            &NativeArgon2,
+        )
+    }
+
+    /// Source 1 with the account's real KDF.
+    fn data(&self) -> Value {
+        unlock_data(&self.profile["key"], 600_000, &self.email)
+    }
+
+    /// The same user key wrapped under a master key of `iterations`, as source 1.
+    fn rewrapped(&mut self, iterations: u32) -> Value {
+        let user = SymmetricKey::from_bytes(&b64(&account("pbkdf2")["userKey"])).unwrap();
+        let params = KdfParams::Pbkdf2 { iterations };
+        let master = block_on(derive_master_key(&self.password, &self.email, params, &NativeArgon2)).unwrap();
+        let wrapped = SymmetricKey::stretch(&master).encrypt(&user.to_bytes(), &SeededRandom::new(3)).unwrap();
+        self.profile["key"] = json!(wrapped);
+        unlock_data(&self.profile["key"], iterations, &self.email)
+    }
+}
+
+fn pin_of(storage: &MemStorage) -> Option<KdfPin> {
+    let raw = block_on(storage.load("kdf-pin")).unwrap()?;
+    let v: Value = serde_json::from_slice(&raw).unwrap();
+    let n = |k: &str| u32::try_from(v[k].as_u64().unwrap()).unwrap();
+    let params = match n("kdf") {
+        0 => KdfParams::Pbkdf2 { iterations: n("iterations") },
+        _ => {
+            KdfParams::Argon2id { iterations: n("iterations"), memory_mib: n("memory"), parallelism: n("parallelism") }
+        }
+    };
+    Some(KdfPin { params, origin: v["origin"].as_str().unwrap().to_owned() })
+}
+
+fn pin(storage: &MemStorage, params: KdfParams, origin: &str) {
+    block_on(accept_kdf(storage, params, origin)).unwrap();
+}
+
+fn origin() -> String {
+    api_key().origin
+}
+
+fn prelogin_calls(out: &Outcome) -> usize {
+    out.seen.iter().filter(|s| s.contains("/accounts/prelogin")).count()
+}
+
+#[test]
+fn source_one_needs_no_prelogin() {
+    let acc = pbkdf2_account();
+    // A prelogin that would fail if it were asked.
+    let out =
+        Pbkdf2Account { prelogin: json!({ "kdf": 9 }), ..acc.clone_parts() }.unlock(acc.data(), &MemStorage::default());
+    assert!(out.result.is_ok());
+    assert_eq!(prelogin_calls(&out), 0, "{:?}", out.seen);
+}
+
+#[test]
+fn source_two_uses_prelogin_and_email() {
+    let acc = pbkdf2_account();
+    let out = acc.unlock(Value::Null, &MemStorage::default());
+    assert!(out.result.is_ok());
+    assert_eq!(prelogin_calls(&out), 1);
+    assert!(out.seen.last().unwrap().contains("/accounts/prelogin"), "login and sync come first: {:?}", out.seen);
+}
+
+#[test]
+fn partial_unlock_data_falls_back_to_profile_key() {
+    let acc = pbkdf2_account();
+    let extra =
+        json!({ "userDecryption": { "masterPasswordUnlock": { "masterKeyEncryptedUserKey": acc.profile["key"] } } });
+    let out = acc.unlock(extra, &MemStorage::default());
+    assert!(out.result.is_ok());
+    assert_eq!(prelogin_calls(&out), 1);
+}
+
+#[test]
+fn partial_unlock_data_without_profile_key_is_incomplete() {
+    let mut acc = pbkdf2_account();
+    let wrapped = acc.profile["key"].take();
+    let extra = json!({ "userDecryption": { "masterPasswordUnlock": { "masterKeyEncryptedUserKey": wrapped } } });
+    let storage = MemStorage::default();
+    let out = acc.unlock(extra, &storage);
+    assert_eq!(prelogin_calls(&out), 0, "sources are not mixed");
+    let err = out.result.err().unwrap();
+    assert!(matches!(err, ProfileError::IncompleteUnlockData), "{err:?}");
+    assert!(pin_of(&storage).is_none());
+}
+
+/// Source 1's KDF is right and prelogin's is another one: mixing them would fail as a wrong password.
+#[test]
+fn sources_are_never_mixed() {
+    let mut acc = pbkdf2_account();
+    acc.prelogin = json!({ "kdf": 0, "kdfIterations": 5000 });
+    let out = acc.unlock(acc.data(), &MemStorage::default());
+    assert!(out.result.is_ok());
+    assert_eq!(prelogin_calls(&out), 0);
+}
+
+#[test]
+fn first_unlock_pins() {
+    let acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    assert!(pin_of(&storage).is_none());
+    let unlocked = acc.unlock(Value::Null, &storage).result.unwrap();
+    assert!(unlocked.warnings.is_empty());
+    let expected = KdfPin { params: PBKDF2_600K, origin: origin() };
+    assert_eq!(pin_of(&storage), Some(expected.clone()));
+    // The same KDF again keeps the pin.
+    assert!(acc.unlock(Value::Null, &storage).result.is_ok());
+    assert_eq!(pin_of(&storage), Some(expected));
+}
+
+/// A pinned Argon2id stronger than the account's: stopped before the runner is asked.
+#[test]
+fn weaker_kdf_stops_before_derivation() {
+    struct Panics;
+    impl KdfRunner for Panics {
+        async fn argon2id(&self, _: Argon2Input) -> Result<Zeroizing<[u8; 32]>, PortError> {
+            panic!("the KDF ran");
+        }
+    }
+    let keys = account_keys(&vectors_dir().unwrap(), "argon2id", false);
+    let acc = account("argon2id");
+    let storage = MemStorage::default();
+    let pinned = KdfParams::Argon2id { iterations: 3, memory_mib: 128, parallelism: 4 };
+    pin(&storage, pinned, &origin());
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let out =
+        run_full(keys.profile, keys.prelogin, email, password, &Organizations::None, Value::Null, &storage, &Panics);
+    let err = out.result.err().unwrap();
+    assert!(
+        matches!(err, ProfileError::KdfWeakened { pinned: p, offered } if p == pinned && offered == ARGON_FLOOR),
+        "{err:?}"
+    );
+    assert!(!err.to_string().contains(password));
+    assert_eq!(pin_of(&storage).unwrap().params, pinned);
+}
+
+#[test]
+fn accept_kdf_then_unlock_succeeds() {
+    let acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    pin(&storage, KdfParams::Pbkdf2 { iterations: 700_000 }, &origin());
+    let err = acc.unlock(Value::Null, &storage).result.err().unwrap();
+    assert!(matches!(err, ProfileError::KdfWeakened { .. }), "{err:?}");
+    pin(&storage, PBKDF2_600K, &origin());
+    assert!(acc.unlock(Value::Null, &storage).result.is_ok());
+    assert_eq!(pin_of(&storage).unwrap().params, PBKDF2_600K);
+}
+
+#[test]
+fn stronger_kdf_repins() {
+    let acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    pin(&storage, KdfParams::Pbkdf2 { iterations: 500_000 }, &origin());
+    assert!(acc.unlock(Value::Null, &storage).result.is_ok());
+    assert_eq!(pin_of(&storage).unwrap().params, PBKDF2_600K);
+}
+
+#[test]
+fn other_origin_drops_the_pin() {
+    let acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    pin(&storage, KdfParams::Pbkdf2 { iterations: 700_000 }, "https://other.invalid");
+    assert!(acc.unlock(Value::Null, &storage).result.is_ok());
+    assert_eq!(pin_of(&storage), Some(KdfPin { params: PBKDF2_600K, origin: origin() }));
+}
+
+#[test]
+fn below_floor_warns_and_pins() {
+    let mut acc = pbkdf2_account();
+    let extra = acc.rewrapped(5000);
+    let storage = MemStorage::default();
+    let unlocked = acc.unlock(extra, &storage).result.unwrap();
+    let low = KdfParams::Pbkdf2 { iterations: 5000 };
+    assert_eq!(unlocked.warnings, [UnlockWarning::KdfBelowFloor(low)]);
+    assert_eq!(pin_of(&storage), Some(KdfPin { params: low, origin: origin() }));
+}
+
+/// Review Focus 4: another KDF type is weaker than the pin unless it meets the floors.
+#[test]
+fn kdf_type_change_needs_the_floors() {
+    let mut acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    pin(&storage, ARGON_FLOOR, &origin());
+    // PBKDF2 at the floor replaces an Argon2id pin.
+    assert!(acc.unlock(Value::Null, &storage).result.is_ok());
+    assert_eq!(pin_of(&storage).unwrap().params, PBKDF2_600K);
+    // PBKDF2 below the floor does not.
+    pin(&storage, ARGON_FLOOR, &origin());
+    let extra = acc.rewrapped(5000);
+    let err = acc.unlock(extra, &storage).result.err().unwrap();
+    let low = KdfParams::Pbkdf2 { iterations: 5000 };
+    assert!(
+        matches!(err, ProfileError::KdfWeakened { pinned, offered } if pinned == ARGON_FLOOR && offered == low),
+        "{err:?}"
+    );
+    assert_eq!(pin_of(&storage).unwrap().params, ARGON_FLOOR);
+}
+
+#[test]
+fn wrong_password_writes_no_pin() {
+    let acc = pbkdf2_account();
+    let storage = MemStorage::default();
+    let wrong = Pbkdf2Account { password: "not-the-vectors-password".into(), ..acc.clone_parts() };
+    let err = wrong.unlock(Value::Null, &storage).result.err().unwrap();
+    assert!(matches!(err, ProfileError::WrongPassword), "{err:?}");
+    assert!(pin_of(&storage).is_none());
+}
+
+/// A bound violation names its source.
+#[test]
+fn out_of_range_kdf_names_its_source() {
+    let acc = pbkdf2_account();
+    let low = unlock_data(&acc.profile["key"], 1, &acc.email);
+    let err = acc.unlock(low, &MemStorage::default()).result.err().unwrap();
+    assert!(err.to_string().contains("KDF from sync unlock data"), "{err}");
+    let low = Pbkdf2Account { prelogin: json!({ "kdf": 0, "kdfIterations": 1 }), ..acc.clone_parts() };
+    let err = low.unlock(Value::Null, &MemStorage::default()).result.err().unwrap();
+    assert!(err.to_string().contains("KDF from prelogin"), "{err}");
 }

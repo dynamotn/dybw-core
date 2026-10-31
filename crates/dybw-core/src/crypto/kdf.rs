@@ -33,6 +33,29 @@ impl KdfParams {
             _ => Ok(()),
         }
     }
+
+    /// ADR 0017's floors for a new pin: PBKDF2 600,000 iterations; Argon2id 64 MiB, 3 iterations, 1 lane.
+    pub fn meets_floors(&self) -> bool {
+        match *self {
+            KdfParams::Pbkdf2 { iterations } => iterations >= 600_000,
+            KdfParams::Argon2id { iterations, memory_mib, parallelism } => {
+                iterations >= 3 && memory_mib >= 64 && parallelism >= 1
+            }
+        }
+    }
+
+    /// Weaker than the pinned parameters: of the same type, any parameter lower; of another type, unless these
+    /// meet the floors.
+    pub fn weaker_than(&self, pinned: &KdfParams) -> bool {
+        match (*self, *pinned) {
+            (KdfParams::Pbkdf2 { iterations: a }, KdfParams::Pbkdf2 { iterations: b }) => a < b,
+            (
+                KdfParams::Argon2id { iterations: ai, memory_mib: am, parallelism: ap },
+                KdfParams::Argon2id { iterations: bi, memory_mib: bm, parallelism: bp },
+            ) => ai < bi || am < bm || ap < bp,
+            _ => !self.meets_floors(),
+        }
+    }
 }
 
 /// Validates first; the salt is the email trimmed and lowercased (SHA-256 of it for Argon2id).
@@ -84,5 +107,42 @@ impl KdfRunner for NativeArgon2 {
             .hash_password_into(&i.password, &i.salt, out.as_mut())
             .map_err(fail)?;
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::KdfParams::{self, Argon2id, Pbkdf2};
+
+    fn argon(iterations: u32, memory_mib: u32, parallelism: u32) -> KdfParams {
+        Argon2id { iterations, memory_mib, parallelism }
+    }
+
+    #[test]
+    fn floors() {
+        assert!(Pbkdf2 { iterations: 600_000 }.meets_floors());
+        assert!(!Pbkdf2 { iterations: 599_999 }.meets_floors());
+        assert!(argon(3, 64, 1).meets_floors());
+        assert!(!argon(2, 64, 1).meets_floors());
+        assert!(!argon(3, 63, 1).meets_floors());
+        assert!(!argon(3, 64, 0).meets_floors());
+    }
+
+    #[test]
+    fn weaker_than_the_pin() {
+        let (p, a) = (Pbkdf2 { iterations: 700_000 }, argon(3, 64, 4));
+        assert!(!p.weaker_than(&p));
+        assert!(!a.weaker_than(&a));
+        assert!(Pbkdf2 { iterations: 699_999 }.weaker_than(&p));
+        assert!(!Pbkdf2 { iterations: 700_001 }.weaker_than(&p));
+        assert!(argon(2, 64, 4).weaker_than(&a));
+        assert!(argon(3, 63, 4).weaker_than(&a));
+        assert!(argon(3, 64, 3).weaker_than(&a));
+        assert!(!argon(4, 128, 8).weaker_than(&a));
+        // A type change is weaker unless the new parameters meet the floors.
+        assert!(Pbkdf2 { iterations: 5_000 }.weaker_than(&a));
+        assert!(argon(2, 16, 1).weaker_than(&p));
+        assert!(!Pbkdf2 { iterations: 600_000 }.weaker_than(&a));
+        assert!(!a.weaker_than(&p));
     }
 }
