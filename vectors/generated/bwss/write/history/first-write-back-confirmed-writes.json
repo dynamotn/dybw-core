@@ -1,0 +1,119 @@
+{
+  "id": "write/history/first-write-back-confirmed-writes",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "current-pw",
+        "writeBackConfirmed": true
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.xUbFW1hSFUjGJi8mwZUgSw==|EgySkfb6iy6Kk8atOHkNTw==|QuRJtUdzUnnsnAi+0IufKusVSEE7KVfdowuvm5GdGSc=",
+      "notes": null,
+      "login": {
+        "username": "2.Xrfs9UecUaHPoB67p6nxog==|Fop3Iz1uc8/xq0xManoagg==|W+pd7by1DWw3QiwULrHDPbFVihdAWteqwyGCO+H8xF4=",
+        "password": "2.ZzXFKxllku65rPlrpgzejQ==|etMviJ9LhmUA3TGhQlGTAA==|g8ndgwrS+X3pfAuUPNvFThG7iTJ08LykJ/L2xRG3C3s=",
+        "uris": [
+          {
+            "uri": "2.06tRvYuyS92wlObNKb5tZw==|WOIbM7HnxGtfGTee0uAu8lQQN9nSS7DrpPxmGJqD8sU=|bQEzYoF6+AOGNHs02eKJJk2qJeNQijeAw7SVd8/GOs0=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.3/6Fdnqj8Bl3+uHDd80Bnw==|Cnkx09eySMOF5BkLwxUB1Q==|VQiJySc0UpmdhAJoWUDP6azi6VYrC971Tkr1OrEZOVY=",
+          "value": "2.eokiNDtE9sDZg8DOr2KIuw==|oREFWUbXR3P3vK2JnNHZzQ==|vsswQe74LOe+JSksgkCIppWM0vlXdiVFi5xpKhsnRnI=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.69ddHQiXi7UlQ1uR4//GzA==|cliLP5Vl7kSvtIgA8CQahw==|lBZYm5mokfIsUswMPlQIDDKiuXpZbHwPeO7WaIvPlOI=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.fY9CNrc/epcFGD3LWCYrTA==|lY16BoQw1WUIFHGXLanAYw==|p6woygfewgohgZDZUkig/yFFjOS2PgVOTJ8RVNbuBtw=",
+          "lastUsedDate": "2025-11-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.6dBijiywsBWoWhOfGzO9tA==|zkFk3La1twPer5H3kl4dHg==|gU/V1vN/K8ifl/SHsFlJ62g/ROmNtjDgVzrXm8whQPk=",
+          "lastUsedDate": "2025-10-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.4gWxFsk3A7yahONhsErwtw==|YgFjHZ5YMFdn1YGH4wCogA==|MP42tVIfLWqsAqJIz/LerYXnaf9PnOlfGlnszJwWNqI=",
+          "lastUsedDate": "2025-09-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw",
+    "answer": "unanswered"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "next-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "current-pw",
+              "old-1",
+              "old-2",
+              "old-3",
+              "old-4"
+            ]
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

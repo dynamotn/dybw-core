@@ -12,7 +12,9 @@ use crate::vault::fields::{decrypt_opt, item_key};
 use crate::vault::scan::{
     Duplicate, MarkedItem, ScanReport, SkipReason, Uninspectable, UnmarkedCache, scan_vault_with,
 };
-use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
+use crate::vault::write::{
+    FieldSet, HistoryAnswer, HistoryQuestion, NewItem, Patch, ValueChange, WriteError, WriteRecord, record_write,
+};
 use crate::vault::{Keys, Namespace, Organizations};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::Value;
@@ -36,6 +38,8 @@ pub struct SyncContext<'a, H: Http, C: Clock, R: Random> {
     pub allowed: &'a Organizations,
     pub policy: Policy,
     pub overrides: &'a BTreeMap<String, ConflictOverride>,
+    /// The user's answers to history questions by `{ns}:id` (ADR 0016); a push without one may ask instead.
+    pub answers: &'a BTreeMap<String, HistoryAnswer>,
     /// Whether a marked item is the tool's to sync here (the plugin's scope); the others are left out before §7.
     pub applies: &'a dyn Fn(&MarkedItem) -> bool,
     /// Folder new uploads are filed in, created when missing; `None` or blank files them in no folder.
@@ -104,6 +108,8 @@ pub struct PassReport {
     pub read_only: Vec<(String, String)>,
     /// Cipher ids of marked items whose value could not be decrypted (the plugin's skipped "undecryptable" items).
     pub unreadable: Vec<String>,
+    /// Pushes not applied because the user must answer first (ADR 0016); their base is unchanged.
+    pub questions: Vec<(String, HistoryQuestion)>,
 }
 
 #[derive(Debug, Default)]
@@ -290,15 +296,17 @@ pub(super) fn scope_of(ns: &Namespace, item: &MarkedItem) -> String {
     normalize_scope(item.tool_fields.iter().find(|(n, _)| *n == field).map(|(_, v)| v.as_str()))
 }
 
-/// The base entry for what the item holds now. A confirmation to push belongs to the one item it was given for.
+/// The base entry for what the item holds now. A confirmation to push, and the record of what was written, belong
+/// to the one item they were given for.
 fn remote_base(ns: &Namespace, state: &DeviceState, item: &MarkedItem) -> BaseEntry {
-    let confirmed = state.base.get(&item.id).is_some_and(|b| b.push_confirmed && b.cipher_id == item.cipher_id);
+    let same = state.base.get(&item.id).filter(|b| b.cipher_id == item.cipher_id);
     BaseEntry {
         cipher_id: item.cipher_id.clone(),
         revision_date: item.revision_date.clone(),
         fingerprint: B64.encode(item.mark),
         scope: Some(scope_of(ns, item)),
-        push_confirmed: confirmed,
+        push_confirmed: same.is_some_and(|b| b.push_confirmed),
+        record: same.map(|b| b.record.clone()).unwrap_or_default(),
     }
 }
 
@@ -397,10 +405,20 @@ async fn apply<H: Http, C: Clock, R: Random>(
                     base_mark: rec.mark,
                     owned: false,
                 },
+                answer: ctx.answers.get(id).copied(),
             };
             let now_ms = ctx.client.now_ms();
-            let reply = match update(ctx.client, ctx.ns, ctx.keys, ctx.rng, now_ms, &rec.cipher, &patch).await {
-                Ok(reply) => reply,
+            let mut record =
+                bound.filter(|b| b.cipher_id == rec.cipher_id).map(|b| b.record.clone()).unwrap_or_default();
+            let sent = update(ctx.client, ctx.ns, ctx.keys, &record, ctx.rng, now_ms, &rec.cipher, &patch).await;
+            let (reply, wrote_login) = match sent {
+                // A value patch is never empty, so there is always a reply.
+                Ok(sent) => sent.unzip(),
+                // Nothing was sent: the push waits for the user's answer, and the base stays as it was.
+                Err(SyncWriteError::Write(WriteError::Ask(q))) => {
+                    report.skipped.questions.push((id.to_owned(), q));
+                    return Ok(false);
+                }
                 // The item changed under the write: the next pass plans again from what it holds then.
                 Err(
                     SyncWriteError::StillChanging
@@ -416,13 +434,16 @@ async fn apply<H: Http, C: Clock, R: Random>(
                 }
                 Err(e) => return Err(e.into()),
             };
-            // A value patch is never empty, so there is always a reply.
+            if let Some(mark) = wrote_login.flatten() {
+                record_write(&mut record, mark);
+            }
             let entry = BaseEntry {
                 cipher_id: text_at(reply.as_ref(), "id").unwrap_or(&rec.cipher_id).to_owned(),
                 revision_date: text_at(reply.as_ref(), "revisionDate").unwrap_or(&rec.revision_date).to_owned(),
                 fingerprint: fingerprint.clone(),
                 scope: Some(scope_of(ctx.ns, rec)),
                 push_confirmed: confirmed,
+                record,
             };
             state.base.insert(id.to_owned(), entry);
             drop_pending(state, id);
@@ -455,6 +476,7 @@ async fn apply<H: Http, C: Clock, R: Random>(
                 fingerprint: fingerprint.clone(),
                 scope: Some(scope),
                 push_confirmed: false,
+                record: WriteRecord::default(),
             };
             state.base.insert(id.to_owned(), entry);
             drop_pending(state, id);

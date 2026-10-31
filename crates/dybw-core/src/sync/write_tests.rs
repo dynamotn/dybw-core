@@ -7,7 +7,7 @@ use crate::crypto::{MarkScheme, Marker, SymmetricKey};
 use crate::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
 use crate::testing::{FixedClock, SeededRandom, block_on};
 use crate::vault::scan::{Scan, ValueSource, scan};
-use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
+use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use crate::vault::{Keys, Namespace, Organizations, Uninspectable};
 use serde_json::{Value, json};
 use std::cell::RefCell;
@@ -60,6 +60,8 @@ pub(super) struct Rig {
     pub(super) keys: Keys,
     pub(super) other: SymmetricKey,
     pub(super) rng: SeededRandom,
+    /// The write records `flush` keeps up to date.
+    pub(super) records: BTreeMap<String, WriteRecord>,
 }
 
 impl Rig {
@@ -89,7 +91,7 @@ impl Rig {
         fake.reply(200, json!({ "profile": { "id": "user-1", "key": "2.uk" }, "folders": [], "ciphers": [] }));
         block_on(client.sync()).unwrap();
         fake.log.borrow_mut().clear();
-        Rig { client, fake, keys, other, rng }
+        Rig { client, fake, keys, other, rng, records: BTreeMap::new() }
     }
 
     pub(super) fn enc(&self, key: &SymmetricKey, s: &str) -> Value {
@@ -133,11 +135,14 @@ impl Rig {
                 base_mark: m.mark,
                 owned: false,
             },
+            answer: None,
         }
     }
 
     fn update(&mut self, cipher: &Value, patch: &Patch) -> Result<Option<Value>, SyncWriteError> {
-        block_on(update(&mut self.client, B, &self.keys, &self.rng, 1_000, cipher, patch))
+        let record = WriteRecord::default();
+        block_on(update(&mut self.client, B, &self.keys, &record, &self.rng, 1_000, cipher, patch))
+            .map(|sent| sent.map(|(reply, _)| reply))
     }
 
     fn delete(&mut self, cipher: &Value) -> Result<DeleteOutcome, SyncWriteError> {

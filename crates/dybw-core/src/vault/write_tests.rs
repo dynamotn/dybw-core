@@ -32,6 +32,19 @@ const RESPONSE_ONLY: [&str; 12] = [
 const B: &Namespace = &Namespace::BWSS;
 const O: &Namespace = &Namespace::OBSIDIAN;
 
+/// `write::apply` for the tests written before ADR 0016: their patches answer "write to the login" up front, as the
+/// vectors do by default, so no history question is asked.
+fn apply(
+    c: &Value,
+    p: &Patch,
+    ns: &Namespace,
+    keys: &Keys,
+    rng: &SeededRandom,
+    now_ms: i64,
+) -> Result<Map<String, Value>, WriteError> {
+    write::apply(c, p, ns, keys, &WriteRecord::default(), rng, now_ms).map(|o| o.body)
+}
+
 /// `(name, value, hidden)`.
 type F<'a> = (&'a str, &'a str, bool);
 
@@ -125,6 +138,7 @@ impl Fx {
             set: Vec::new(),
             remove: Vec::new(),
             value: ValueChange::Keep,
+            answer: Some(HistoryAnswer::WriteToLogin),
         }
     }
     fn set_secret(&self, c: &Value, ns: &Namespace, secret: &[u8]) -> Patch {
@@ -1218,6 +1232,7 @@ fn bx_patch(k: &Bx, c: &Value, secret: Option<&[u8]>) -> Patch {
         set: Vec::new(),
         remove: Vec::new(),
         value,
+        answer: Some(HistoryAnswer::WriteToLogin),
     }
 }
 
@@ -1619,4 +1634,161 @@ fn organization_blob_is_never_written() {
     let mut gone = k.cipher(blob_login(&[("bwss:id", "a")], Some("pw"), None));
     gone["deletedDate"] = json!("2026-01-03T00:00:00Z");
     assert_eq!(strip(&gone, B, &k.keys, &k.rng), Err(WriteError::Gone));
+}
+
+// Password history protection (ADR 0016).
+
+fn ask(q: HistoryQuestion) -> Option<WriteError> {
+    Some(WriteError::Ask(q))
+}
+
+/// `set_secret` with `answer`, applied under `record`.
+fn guarded(
+    k: &Fx,
+    c: &Value,
+    secret: &[u8],
+    answer: Option<HistoryAnswer>,
+    record: &WriteRecord,
+) -> Result<ApplyOutcome, WriteError> {
+    let p = Patch { answer, ..k.set_secret(c, B, secret) };
+    write::apply(c, &p, B, &k.keys, record, &k.rng, NOW)
+}
+
+fn history_of(k: &Fx, body: &Map<String, Value>) -> Vec<String> {
+    body["passwordHistory"].as_array().unwrap().iter().map(|e| k.dec(&e["password"])).collect()
+}
+
+#[test]
+fn record_caps_at_five() {
+    let mut record = WriteRecord::default();
+    for i in 0..7 {
+        record_write(&mut record, [i; 32]);
+    }
+    assert_eq!(record.written, [[6; 32], [5; 32], [4; 32], [3; 32], [2; 32]]);
+    assert!(record.confirmed);
+    assert_eq!(HistoryQuestion::FirstWriteBack.code(), "first-write-back");
+    assert_eq!(HistoryQuestion::EvictsForeign.code(), "evicts-foreign-history");
+    // The question is named, never a value.
+    assert_eq!(
+        WriteError::Ask(HistoryQuestion::EvictsForeign).to_string(),
+        "the write needs the user's answer: evicts-foreign-history"
+    );
+    assert_eq!(WriteError::Ask(HistoryQuestion::FirstWriteBack).code(), None);
+}
+
+#[test]
+fn first_write_back_asks_until_confirmed() {
+    let k = fx();
+    let c = k.login(&[("bwss:id", "x", false)], Some("old"), None);
+    let mut record = WriteRecord::default();
+    assert_eq!(guarded(&k, &c, b"new", None, &record).err(), ask(HistoryQuestion::FirstWriteBack));
+    let out = guarded(&k, &c, b"new", Some(HistoryAnswer::WriteToLogin), &record).unwrap();
+    assert_eq!(k.dec(&out.body["login"]["password"]), "new");
+    assert_eq!(out.wrote_login, Some(k.keys.marker.mark("x", "new")));
+    record_write(&mut record, out.wrote_login.unwrap());
+    // Confirmed, and the history (2 entries) is not full: nothing to ask.
+    let out = guarded(&k, &c, b"newer", None, &record).unwrap();
+    assert_eq!(history_of(&k, &out.body), ["old", "h0", "h1"]);
+}
+
+#[test]
+fn a_full_history_asks_before_evicting_a_foreign_password() {
+    let k = fx();
+    let mut c = k.login(&[("bwss:id", "x", false)], Some("old"), None);
+    c["passwordHistory"] = k.history(5);
+    let mark = |t: &str| k.keys.marker.mark("x", t);
+    let foreign = WriteRecord { written: vec![mark("h0"), mark("old")], confirmed: true };
+    assert_eq!(guarded(&k, &c, b"new", None, &foreign).err(), ask(HistoryQuestion::EvictsForeign));
+    // The oldest entry is this device's: it may go.
+    let own = WriteRecord { written: vec![mark("h4")], confirmed: true };
+    let out = guarded(&k, &c, b"new", None, &own).unwrap();
+    assert_eq!(history_of(&k, &out.body), ["old", "h0", "h1", "h2", "h3"]);
+    // "Write to the login" evicts a foreign one.
+    let out = guarded(&k, &c, b"new", Some(HistoryAnswer::WriteToLogin), &foreign).unwrap();
+    assert_eq!(history_of(&k, &out.body), ["old", "h0", "h1", "h2", "h3"]);
+    // Over the cap, every entry that goes must be this device's.
+    c["passwordHistory"] = k.history(6);
+    assert_eq!(guarded(&k, &c, b"new", None, &own).err(), ask(HistoryQuestion::EvictsForeign));
+    let both = WriteRecord { written: vec![mark("h4"), mark("h5")], confirmed: true };
+    assert!(guarded(&k, &c, b"new", None, &both).is_ok());
+    // No password: nothing goes into the history, so nothing leaves it.
+    let mut empty = k.login(&[("bwss:id", "x", false)], None, None);
+    empty["passwordHistory"] = k.history(5);
+    let out = guarded(&k, &empty, b"new", None, &own).unwrap();
+    assert_eq!(history_of(&k, &out.body).len(), 5);
+}
+
+#[test]
+fn identical_or_too_long_values_ask_nothing() {
+    let k = fx();
+    let mut c = k.login(&[("bwss:id", "x", false)], Some("old"), None);
+    c["passwordHistory"] = k.history(5);
+    let none = WriteRecord::default();
+    let out = guarded(&k, &c, b"old", None, &none).unwrap();
+    assert_eq!((out.body.get("login"), out.wrote_login), (c.get("login"), None));
+    assert_eq!(out.body["passwordHistory"], c["passwordHistory"]);
+    assert_eq!(guarded(&k, &c, &[b'x'; 8_000], None, &none).err(), Some(WriteError::TooLong));
+    // Only the login password asks: a tool field never does.
+    let field_item = k.note(&[("bwss:id", "x", false), ("bwss:password", "s", true)], None);
+    assert_eq!(guarded(&k, &field_item, b"t", None, &none).unwrap().wrote_login, None);
+}
+
+#[test]
+fn keep_separate_ends_the_questions() {
+    let k = fx();
+    let mut c = k.login(&[("bwss:id", "x", false)], Some("old"), Some("my notes"));
+    c["passwordHistory"] = k.history(5);
+    let none = WriteRecord::default();
+    let out = guarded(&k, &c, b"new", Some(HistoryAnswer::KeepSeparate), &none).unwrap();
+    assert_eq!(out.wrote_login, None);
+    assert_eq!(field(&out.body, &k.keys.user, "bwss:password"), Some(("new".into(), 1)));
+    assert_rest_unchanged(&c, &out.body, &["fields"]);
+    // From then on the field is the value source: a second write asks nothing and leaves the login alone.
+    let after = as_server(&out.body);
+    assert_eq!(k.marked(&after, B).source, ValueSource::Field);
+    let again = guarded(&k, &after, b"next", None, &none).unwrap();
+    assert_eq!(field(&again.body, &k.keys.user, "bwss:password"), Some(("next".into(), 1)));
+    assert_eq!(again.body["login"], c["login"]);
+}
+
+fn blob_with_history(k: &Bx, password: Option<&str>, history: Option<Cbor>) -> Value {
+    let mut content = blob_login(&[("bwss:id", "a")], password, None);
+    let Cbor::Map(entries) = &mut content else { unreachable!() };
+    if let Some(history) = history {
+        entries.push((t("passwordHistory"), history));
+    }
+    k.cipher(content)
+}
+
+#[test]
+fn blob_history_is_protected_too() {
+    let k = Bx::new();
+    let full = || Cbor::Array((0..5).map(|i| history_entry(&format!("h{i}"), "2025-01-01T00:00:00Z")).collect());
+    let mark = |t: &str| k.keys.marker.mark("a", t);
+    let write = |c: &Value, record: &WriteRecord| {
+        let p = Patch { answer: None, ..bx_patch(&k, c, Some(b"next")) };
+        apply_record(c, &p, &k, record)
+    };
+    let c = blob_with_history(&k, Some("cur"), Some(full()));
+    assert_eq!(write(&c, &WriteRecord::default()).err(), ask(HistoryQuestion::FirstWriteBack));
+    let foreign = WriteRecord { written: vec![], confirmed: true };
+    assert_eq!(write(&c, &foreign).err(), ask(HistoryQuestion::EvictsForeign));
+    let own = WriteRecord { written: vec![mark("h4")], confirmed: true };
+    let out = write(&c, &own).unwrap();
+    assert_eq!(out.wrote_login, Some(mark("next")));
+    let blob = sent(&k, &out.body);
+    let Some(Cbor::Array(history)) = blob.get("passwordHistory") else { panic!("no history") };
+    assert_eq!(history[4], history_entry("h3", "2025-01-01T00:00:00Z"));
+    // An entry without a text password is the empty password: not this device's.
+    let odd = Cbor::Array(vec![t("x"), t("x"), t("x"), t("x"), Cbor::Map(vec![])]);
+    let c = blob_with_history(&k, Some("cur"), Some(odd));
+    assert_eq!(write(&c, &own).err(), ask(HistoryQuestion::EvictsForeign));
+    assert!(write(&c, &WriteRecord { written: vec![mark("")], confirmed: true }).is_ok());
+    // No password or no history: nothing leaves.
+    assert!(write(&blob_with_history(&k, None, Some(full())), &foreign).is_ok());
+    assert!(write(&blob_with_history(&k, Some("cur"), Some(Cbor::Null)), &foreign).is_ok());
+}
+
+fn apply_record(c: &Value, p: &Patch, k: &Bx, record: &WriteRecord) -> Result<ApplyOutcome, WriteError> {
+    write::apply(c, p, B, &k.keys, record, &k.rng, NOW)
 }

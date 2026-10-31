@@ -10,7 +10,7 @@ use super::scan::{
     too_large, trashed,
 };
 use super::{Keys, Organizations};
-use crate::crypto::{ContentFormat, CryptoError, SymmetricKey};
+use crate::crypto::{ContentFormat, CryptoError, Marker, SymmetricKey};
 use crate::ports::Random;
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ const MAX_NOTES_ENC: usize = 10_000;
 const FIELD_TEXT: u64 = 0;
 const FIELD_HIDDEN: u64 = 1;
 /// `passwordHistory` keeps at most this many entries, newest first (§6.1).
-pub(super) const HISTORY_MAX: usize = 5;
+pub(crate) const HISTORY_MAX: usize = 5;
 /// Metadata only the server sends, dropped from every update body (§6.3). A blob's update body sends a new `data`.
 const RESPONSE_ONLY: [&str; 12] = [
     "id",
@@ -66,6 +66,58 @@ pub struct Patch {
     /// Field names; every copy goes (ADR 0014). `{ns}:attr:` removes every attribute field.
     pub remove: Vec<String>,
     pub value: ValueChange,
+    /// The user's answer to a history question about this change (ADR 0016); none in a patch queued before M3.
+    #[serde(default)]
+    pub answer: Option<HistoryAnswer>,
+}
+
+/// What this device wrote to an item's `login.password` (ADR 0016, §10): the value marks, newest first, at most
+/// `HISTORY_MAX`, and whether the first write-back was confirmed.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteRecord {
+    pub written: Vec<[u8; 32]>,
+    pub confirmed: bool,
+}
+
+/// Records a write of the value marked `mark` to `login.password`; writing there confirms the first write-back.
+pub fn record_write(record: &mut WriteRecord, mark: [u8; 32]) {
+    record.written.insert(0, mark);
+    record.written.truncate(HISTORY_MAX);
+    record.confirmed = true;
+}
+
+/// A question the user must answer before a write to `login.password` (ADR 0016).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryQuestion {
+    /// The first write-back to this hand-marked login from this device.
+    FirstWriteBack,
+    /// The write would push out of the full history a password this device did not write.
+    EvictsForeign,
+}
+
+impl HistoryQuestion {
+    /// The vectors' `expect.write.question` code.
+    pub fn code(self) -> &'static str {
+        match self {
+            HistoryQuestion::FirstWriteBack => "first-write-back",
+            HistoryQuestion::EvictsForeign => "evicts-foreign-history",
+        }
+    }
+}
+
+/// The user's answer to a `HistoryQuestion`; "cancel" is the caller dropping the change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HistoryAnswer {
+    WriteToLogin,
+    /// Write the value to a hidden `{ns}:password` instead, the value source from then on; the login, its history
+    /// and the notes stay untouched.
+    KeepSeparate,
+}
+
+/// A write's request body, and the mark of the value it writes to `login.password`, for `record_write`.
+pub struct ApplyOutcome {
+    pub body: Map<String, Value>,
+    pub wrote_login: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -117,6 +169,9 @@ pub enum WriteError {
     /// The clock is outside the years 0000-9999, so no date can be written from it.
     #[error("the clock is out of range")]
     BadClock,
+    /// Nothing was written: the user must answer first (ADR 0016). Like `Uninspectable`, the change is kept.
+    #[error("the write needs the user's answer: {}", .0.code())]
+    Ask(HistoryQuestion),
 }
 
 impl WriteError {
@@ -186,6 +241,8 @@ pub(crate) trait Body {
     /// Sets the login password and its revision date to `now`; the old one, when there is one, goes first into the
     /// history, which keeps `HISTORY_MAX` entries (§6.1).
     fn replace_password(&mut self, value: &str, now: &str) -> Result<(), CryptoError>;
+    /// The history entries the next `replace_password` pushes out, oldest last.
+    fn evicted(&self) -> Result<Vec<Zeroizing<String>>, CryptoError>;
     /// The longest field value, as stored.
     fn longest_value(&self) -> usize;
 }
@@ -315,6 +372,15 @@ impl<R: Random> Body for Fields<'_, R> {
         Ok(())
     }
 
+    fn evicted(&self) -> Result<Vec<Zeroizing<String>>, CryptoError> {
+        // As `replace_password`: only a password that is there goes into the history.
+        if !self.body.get("login").and_then(|l| l.get("password")).is_some_and(Value::is_string) {
+            return Ok(Vec::new());
+        }
+        let history = self.body.get("passwordHistory").and_then(Value::as_array).map_or(&[][..], Vec::as_slice);
+        history.iter().skip(HISTORY_MAX - 1).map(|e| decrypt_opt(e.get("password"), self.key)).collect()
+    }
+
     fn longest_value(&self) -> usize {
         self.fields.iter().map(|(f, _)| f.get("value").and_then(Value::as_str).map_or(0, str::len)).max().unwrap_or(0)
     }
@@ -394,6 +460,25 @@ impl<B: Body> Edit<'_, B> {
         Ok(self.body.replace_password(text, now)?)
     }
 
+    /// ADR 0016, before `text` replaces the login password: unless the user answered, asks on the first write-back
+    /// and before a password this device did not write leaves the full history. Returns the mark of what is written,
+    /// `None` when `write_login_password` writes nothing (too long, or identical).
+    fn guard_login(&self, text: &str, guard: &Guard) -> Result<Option<[u8; 32]>, WriteError> {
+        if self.body.stored_len(text) > MAX_PASSWORD_ENC || self.body.password_text()?.as_str() == text {
+            return Ok(None);
+        }
+        let mark = |t: &str| guard.marker.mark(guard.id, t);
+        if guard.answer.is_none() {
+            if !guard.record.confirmed {
+                return Err(WriteError::Ask(HistoryQuestion::FirstWriteBack));
+            }
+            if self.body.evicted()?.iter().any(|old| !guard.record.written.contains(&mark(old))) {
+                return Err(WriteError::Ask(HistoryQuestion::EvictsForeign));
+            }
+        }
+        Ok(Some(mark(text)))
+    }
+
     /// Writes `secret` back to `source` (§6.1, ADR 0005); with `owned`, into the tool's storage instead of a value
     /// the user owns.
     fn write_value(&mut self, source: ValueSource, secret: &[u8], owned: bool, now: &str) -> Result<(), WriteError> {
@@ -429,10 +514,23 @@ impl<B: Body> Edit<'_, B> {
         if self.body.longest_value() > MAX_FIELD_ENC { Err(WriteError::TooLong) } else { Ok(()) }
     }
 
-    /// Steps 3 and 4 of a write: the value back to its source, then the tool's own fields.
-    fn patch(&mut self, source: ValueSource, patch: &Patch, now_ms: i64) -> Result<(), WriteError> {
+    /// Steps 3 and 4 of a write: the value back to its source, then the tool's own fields. Returns the mark of the
+    /// value written to `login.password`, if one was.
+    fn patch(
+        &mut self,
+        source: ValueSource,
+        patch: &Patch,
+        guard: &Guard,
+        now_ms: i64,
+    ) -> Result<Option<[u8; 32]>, WriteError> {
+        let mut wrote = None;
         if let ValueChange::Set { secret, owned, .. } = &patch.value {
-            self.write_value(source, secret, *owned, &iso_ms(now_ms)?)?;
+            // "Keep separate" is the move of ADR 0005: the tool's own `{ns}:password`, the source from then on.
+            let owned = *owned || guard.answer == Some(HistoryAnswer::KeepSeparate);
+            if let (ValueSource::LoginPassword, false, Ok(text)) = (source, owned, std::str::from_utf8(secret)) {
+                wrote = self.guard_login(text, guard)?;
+            }
+            self.write_value(source, secret, owned, &iso_ms(now_ms)?)?;
         }
         let attr = self.ns.field("attr:");
         for name in &patch.remove {
@@ -445,7 +543,8 @@ impl<B: Body> Edit<'_, B> {
         for f in &patch.set {
             self.set(&f.name, &f.value, f.hidden)?;
         }
-        self.check_sizes()
+        self.check_sizes()?;
+        Ok(wrote)
     }
 
     /// §8.2 step 1: every field of the namespace goes, and the notes when they held the tool's secret.
@@ -470,6 +569,14 @@ impl<B: Body> Edit<'_, B> {
     }
 }
 
+/// What ADR 0016 checks a write to `login.password` against.
+struct Guard<'a> {
+    record: &'a WriteRecord,
+    answer: Option<HistoryAnswer>,
+    marker: &'a Marker,
+    id: &'a str,
+}
+
 /// The update body of a blob cipher: its new `data` beside the cipher's own metadata and item key, with the
 /// field-level parts null, as the SDK sends it (ADR 0021).
 fn blob_body(cipher: &Value, data: String, revision: &str) -> Map<String, Value> {
@@ -483,15 +590,18 @@ fn blob_body(cipher: &Value, data: String, revision: &str) -> Map<String, Value>
 }
 
 /// Applies `patch` to `cipher` (the server's copy, fresh or as last read) and returns the body of the update
-/// request. `now_ms` dates a replaced login password. A blob stays a blob, sealed under a fresh content key.
+/// request. `now_ms` dates a replaced login password. A blob stays a blob, sealed under a fresh content key. A write
+/// to `login.password` is checked against `record`, this device's writes to the item (ADR 0016): without
+/// `patch.answer` it may be `WriteError::Ask`.
 pub fn apply(
     cipher: &Value,
     patch: &Patch,
     ns: &Namespace,
     keys: &Keys,
+    record: &WriteRecord,
     rng: &impl Random,
     now_ms: i64,
-) -> Result<Map<String, Value>, WriteError> {
+) -> Result<ApplyOutcome, WriteError> {
     // 1. Abort checks against the copy being written over (§6.5). An organization blob scans as held.
     if trashed(cipher) {
         return Err(WriteError::Gone);
@@ -514,14 +624,15 @@ pub fn apply(
     // 2. Everything new is encrypted under the item's own key; 3 and 4, the value and the tool's own fields.
     let owner = owner(cipher, keys)?;
     let key = item_key(cipher, owner)?;
+    let guard = Guard { record, answer: patch.answer, marker: &keys.marker, id: &patch.id };
     if is_blob(cipher) {
         let mut edit = Edit { ns, body: open_blob(cipher, owner).map_err(WriteError::Uninspectable)? };
-        edit.patch(fresh.source, patch, now_ms)?;
-        return Ok(blob_body(cipher, edit.body.seal(&key, rng)?, revision));
+        let wrote_login = edit.patch(fresh.source, patch, &guard, now_ms)?;
+        return Ok(ApplyOutcome { body: blob_body(cipher, edit.body.seal(&key, rng)?, revision), wrote_login });
     }
     let mut edit = Edit { ns, body: Fields::read(cipher, &key, rng)? };
-    edit.patch(fresh.source, patch, now_ms)?;
-    Ok(edit.body.finish(revision))
+    let wrote_login = edit.patch(fresh.source, patch, &guard, now_ms)?;
+    Ok(ApplyOutcome { body: edit.body.finish(revision), wrote_login })
 }
 
 /// Body of the update that removes every field of the tool's namespace from `cipher` (§8.2 step 1). The notes are

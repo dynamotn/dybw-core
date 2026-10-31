@@ -291,6 +291,18 @@ impl Body for OpenBlob {
         Ok(())
     }
 
+    fn evicted(&self) -> Result<Vec<Zeroizing<String>>, CryptoError> {
+        // As `replace_password`: only a password that is there goes into the history.
+        if !matches!(find(&self.0, "typeData").and_then(|t| get(t, "password")), Some(Cbor::Text(_))) {
+            return Ok(Vec::new());
+        }
+        let history = match find(&self.0, "passwordHistory") {
+            Some(Cbor::Array(history)) => history.as_slice(),
+            _ => &[],
+        };
+        Ok(history.iter().skip(HISTORY_MAX - 1).map(|e| copied(text(get(e, "password")))).collect())
+    }
+
     fn longest_value(&self) -> usize {
         self.fields().iter().map(|f| text(get(f, "value")).map_or(0, str::len)).max().unwrap_or(0)
     }

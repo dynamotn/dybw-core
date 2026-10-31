@@ -8,7 +8,7 @@ use crate::crypto::{Cbor, EnvelopeNamespace, MarkScheme, Marker, SymmetricKey, s
 use crate::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
 use crate::testing::{FixedClock, SeededRandom, block_on};
 use crate::vault::scan::{MarkedItem, Scan, SkipReason, scan};
-use crate::vault::write::WriteError;
+use crate::vault::write::{HistoryAnswer, WriteError, WriteRecord};
 use crate::vault::{Keys, Namespace, Organizations, UnmarkedCache};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
@@ -196,6 +196,7 @@ struct Rig {
     state: DeviceState,
     policy: Policy,
     overrides: BTreeMap<String, ConflictOverride>,
+    answers: BTreeMap<String, HistoryAnswer>,
     allowed: Organizations,
     folder: Option<String>,
     unmarked: UnmarkedCache,
@@ -211,6 +212,7 @@ fn base(cipher: &str, value_fp: String) -> BaseEntry {
         fingerprint: value_fp,
         scope: None,
         push_confirmed: false,
+        record: WriteRecord::default(),
     }
 }
 
@@ -254,6 +256,7 @@ impl Rig {
             state: DeviceState::new("d1".into()),
             policy: Policy::Ask,
             overrides: BTreeMap::new(),
+            answers: BTreeMap::new(),
             allowed: Organizations::All,
             folder: None,
             unmarked: UnmarkedCache::default(),
@@ -294,6 +297,18 @@ impl Rig {
             "deletedDate": null, "edit": spec.edit, "viewPassword": true,
         }));
         id
+    }
+
+    /// A hand-marked login: its value is the login password.
+    fn add_login(&self, id: &str, password: &str) -> String {
+        let c = self.add(id, "unused");
+        let password = self.enc(&self.keys.user, password);
+        let mut w = self.world();
+        let cipher = w.cipher(&c);
+        cipher["type"] = json!(1);
+        cipher["fields"].as_array_mut().unwrap().truncate(1);
+        cipher["login"] = json!({ "username": null, "password": password, "uris": null, "totp": null });
+        c
     }
 
     fn add(&self, id: &str, value: &str) -> String {
@@ -367,6 +382,7 @@ impl Rig {
             allowed: &self.allowed,
             policy: self.policy,
             overrides: &self.overrides,
+            answers: &self.answers,
             applies: &*self.applies,
             upload_folder: self.folder.clone(),
             unmarked: &mut self.unmarked,
@@ -395,6 +411,7 @@ impl Rig {
             allowed: &self.allowed,
             policy: self.policy,
             overrides: &self.overrides,
+            answers: &self.answers,
             applies: &*self.applies,
             upload_folder: self.folder.clone(),
             unmarked: &mut self.unmarked,
@@ -414,6 +431,7 @@ impl Rig {
             allowed: &self.allowed,
             policy: self.policy,
             overrides: &self.overrides,
+            answers: &self.answers,
             applies: &*self.applies,
             upload_folder: self.folder.clone(),
             unmarked: &mut self.unmarked,
@@ -1395,4 +1413,45 @@ fn scopes_are_read_as_the_plugin_parses_them() {
     ] {
         assert_eq!(normalize_scope(raw), want, "{raw:?}");
     }
+}
+
+#[test]
+fn a_push_that_asks_is_held_with_the_base_unchanged() {
+    use crate::vault::write::HistoryQuestion::FirstWriteBack;
+    let mut r = Rig::obsidian();
+    let c = r.add_login("k", "p1");
+    assert_eq!(r.ok().pulled, ["k"]);
+    let base = r.state.base["k"].clone();
+    r.store.put("k", "p2");
+    let report = r.ok();
+    assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
+    assert!(report.pushed.is_empty() && report.errors.is_empty() && report.conflicts.is_empty());
+    assert_eq!((&r.state.base["k"], r.remote(&c).as_str()), (&base, "p1"));
+    // Answered, the push goes and the record learns the value.
+    r.answers.insert("k".into(), HistoryAnswer::WriteToLogin);
+    assert_eq!(r.ok().pushed, ["k"]);
+    r.answers.clear();
+    let (m2, m3) = (r.keys.marker.mark("k", "p2"), r.keys.marker.mark("k", "p3"));
+    let want = WriteRecord { written: vec![m2], confirmed: true };
+    assert_eq!((&r.state.base["k"].record, r.remote(&c).as_str()), (&want, "p2"));
+    // Confirmed: the next push asks nothing. An edit elsewhere, adopted or pulled, keeps the record.
+    r.store.put("k", "p3");
+    assert_eq!(r.ok().pushed, ["k"]);
+    r.world().bump(&c);
+    assert!(r.ok().skipped.questions.is_empty());
+    let want = WriteRecord { written: vec![m3, m2], confirmed: true };
+    assert_eq!(r.state.base["k"].record, want);
+    // The record belongs to its cipher: the id on a new cipher asks again.
+    r.world().cipher(&c)["deletedDate"] = json!("2026-01-01T00:00:00Z");
+    r.add_login("k", "q1");
+    r.store.put("k", "p4");
+    let report = r.sync_with("k", Policy::PreferLocal, ConflictKind::BothChanged);
+    assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
+    // "Keep separate" writes a tool field instead, which never asks again.
+    r.answers.insert("k".into(), HistoryAnswer::KeepSeparate);
+    assert_eq!(r.sync_with("k", Policy::PreferLocal, ConflictKind::BothChanged).pushed, ["k"]);
+    assert_eq!(r.state.base["k"].record, WriteRecord::default());
+    r.answers.clear();
+    r.store.put("k", "p5");
+    assert_eq!(r.ok().pushed, ["k"]);
 }

@@ -1,6 +1,7 @@
 //! The three-way planner: remote (Bitwarden), local (the tool's store) and base (both after the last sync).
 //! Pure: no I/O, ids sorted. A line-by-line port of the plugin's `plan.ts`.
 
+use crate::vault::write::WriteRecord;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,6 +14,8 @@ pub struct BaseEntry {
     pub scope: Option<String>,
     /// Organization items only: the user agreed to send this device's values to the item.
     pub push_confirmed: bool,
+    /// What this device wrote to the item's `login.password` (ADR 0016).
+    pub record: WriteRecord,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

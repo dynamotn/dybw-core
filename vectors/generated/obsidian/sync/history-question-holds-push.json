@@ -1,0 +1,89 @@
+{
+  "id": "sync/history-question-holds-push",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "new-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.F4YMD+r3uCXSsvl5mcNOUg==|XtG2DKUva7XDGBK7kqAbKA==|3uBpswMgcj3EKvItsN7nRu+f5cVhrMXILdU4cHV5vVk=",
+      "notes": null,
+      "login": {
+        "username": "2.R/CUd3RV67kz4QIFm69uSA==|j3ej308Fm0FtkC7OpqOqKA==|lbY7cIogSRqTqmBG0bmC/b4V7/cLLauSubemVsQteGU=",
+        "password": "2.+VM61wJFuy6tzB6O64hS5g==|AYBeFqwEIyDQrimleKznww==|IFd7xwuFPRyYCIe2VQffqFlEaSnyoC08BEVqQZ/ssUg=",
+        "uris": [
+          {
+            "uri": "2.fqho9JLruSRlSyso5e/qeg==|uTAjCwuKzTSZoJJ/nRncCjOPf3aH8+PlcWBMBZ/Yd6w=|UZOqrnc3DFneQZCSbj1V13krysxlk+lGchqICRkJGbE=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.A4llsFePCpXgRjE0ybxtoA==|aBHLOYWT9snpfJzGM7p5jA==|yfueKFxoM2RlfYb/J4vi5+6GjLCbIETkVNDWXizlupA=",
+          "value": "2.8qM/PyaPToqGvw9QTXfKqQ==|KSaDL2G6Sb519N1LyaXERQ==|6ULURXcpvHrNDlfo5PwO91C7mRYLcFmT1GEFtKmsQQg=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.KD3CUwEW8P6QcEOgiUJ6og==|jsCMxNnw91wRSJCmiM4IeQ==|CP+itOXE5Yk0eL4A0+YX+eCBQNgC9ek48bxcPEYupUI=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.16QyVeMyoJzwh8y9WRRZlA==|b1XlRinZlCI7YM1eqCAWaw==|B9DZzwmC2CoxE+ypZ42+YYYc03MIN8Ra6VY0+87ifyc=",
+          "lastUsedDate": "2025-11-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.QbUF7RetnQiy2Jc2h6848A==|dQRoEZyTOmR5qV3b+qU6gQ==|3A8i2uG5hKVE7haBxrXFug46SoXR9P11O0qHcOf6JnA=",
+          "lastUsedDate": "2025-10-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.HRigB2wc2x2d3wlGdopGyQ==|R9RP17LWcsMU2kQS9itCJg==|S23xII4ReMe2PIk+1JWf9l0T2wulck/51vGzFhgE498=",
+          "lastUsedDate": "2025-09-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "write": {
+      "question": "first-write-back"
+    },
+    "plan": [
+      {
+        "kind": "push",
+        "id": "alpha"
+      }
+    ]
+  }
+}

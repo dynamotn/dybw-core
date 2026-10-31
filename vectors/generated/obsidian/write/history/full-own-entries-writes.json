@@ -1,0 +1,126 @@
+{
+  "id": "write/history/full-own-entries-writes",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "current-pw",
+        "written": [
+          "old-5"
+        ],
+        "writeBackConfirmed": true
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.DTSCE2mgGnZ11SE3ND/zhw==|G1QGocw9YWURbL8fOZbnmQ==|Iu4MD1JkRJ011w+QJnS+FATqYVWPVt1ULglrMA8uW50=",
+      "notes": null,
+      "login": {
+        "username": "2.YOed91f6fqDbYKCtHGFUVQ==|WTQ5bt/JVMmo26dXuEfY7A==|hdZxF4ZGZmEEFmziNKRGdWLNF+uaFX0nny2eytE+Z7s=",
+        "password": "2.gdJ2YxdYqc8imsORedSNeg==|R2XF3+w/gDpHG07FTIgNzg==|OlSE5+M5zm6XlKd1ayzl381+4KV+12KGKXtD+CS8qSc=",
+        "uris": [
+          {
+            "uri": "2.njrzz2aQULcf7Idqc12bKA==|yjnD5obczEJh7exRXOp02/ou/cPVS3x4lj9Cde4yudc=|OBQhjrw9fUDBommYeFUtrLZPF6qihT84nqoxZ2h4k2E=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.yrHLHlm2qp3jbWCK8OMZNw==|ZQzk42s2Gg1auryMMcShgw==|/ALRBs6Nn1kIisNiEOGtAg50NuhyRZYIr4jjluazXOA=",
+          "value": "2.gV6xdd0fIaXGcp3cyriGxQ==|0tNff/IY//4lJud6RtqVlA==|V7BAIopDHw2+T0FZfjp5/5sAjQTRvwimpeQGf2Xch9Y=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.Xi1+Idsh6/ii8ZIxWdSUKw==|C/SjpdD7QdMY+rdiWI4SEQ==|Eoywl+Aa0eXyPkf4utebm+0QflBkPzlUzMqvMyBQ/Sg=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.Kpgkhf6Zq4jm/gdwQTTFzw==|nXgIr7Yyqfhyc/owECR7SA==|hqXkm/UjlizrqCrIXtlX+nyoTK8Gf2/RA6pzmAIpDuw=",
+          "lastUsedDate": "2025-11-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.K+Jnq9s3LucSGowsWbi/JA==|3fqGn6TAD9GbdWd0vt4Vnw==|QXFpcD+QydQ2tqGiAanz71+ZWCuWbhOW+CsTncg1AMA=",
+          "lastUsedDate": "2025-10-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.Vas4oamuBe0lRfRDkatKbA==|rs1TJROIGEHZQgCbJByIvg==|z1IBRPvy1Fbn1VeCNtRnihevMvF4n0xBrtoz3E//RfI=",
+          "lastUsedDate": "2025-09-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.e1fk5yRFBvJZcfB81bjQ0w==|Fl5rzX0vfQPUs3elWeWhUg==|qoDfBoX+pKryeEgPWuYLBwL05cYnOauZgJzyzDAr14g=",
+          "lastUsedDate": "2025-08-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw",
+    "answer": "unanswered"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "next-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "current-pw",
+              "old-1",
+              "old-2",
+              "old-3",
+              "old-4"
+            ]
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

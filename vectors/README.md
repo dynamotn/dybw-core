@@ -109,7 +109,10 @@ change to `fresh`.
   - **1.6 additions.** `answer` is `"write-to-login"` (the default, the
     "go ahead" above), `"keep-separate"` or `"unanswered"`, and applies to
     every kind of operation. A question the tool must ask before sending
-    anything is expressed as `expect.write` `{ "question": ... }`.
+    anything is expressed as `expect.write` `{ "question": ... }`. A sync
+    vector may carry `expect.write` without an `operation`: what one sync
+    from `device` and `local` sends, or the question it asks first, with no
+    answer given (`sync/history-question-holds-push`).
 
 ### `expect`
 

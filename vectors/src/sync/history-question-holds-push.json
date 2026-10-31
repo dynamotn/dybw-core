@@ -1,0 +1,87 @@
+{
+  "id": "sync/history-question-holds-push",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "obsidian"
+  ],
+  "options": {
+    "policy": "ask"
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "old-secret",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": [
+          {
+            "password": "old-1",
+            "lastUsedDate": "2025-12-01T00:00:00.000Z"
+          },
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-11-01T00:00:00.000Z"
+          },
+          {
+            "password": "old-3",
+            "lastUsedDate": "2025-10-01T00:00:00.000Z"
+          },
+          {
+            "password": "old-4",
+            "lastUsedDate": "2025-09-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "local": {
+    "alpha": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "question": "first-write-back"
+    },
+    "plan": [
+      {
+        "kind": "push",
+        "id": "alpha"
+      }
+    ]
+  }
+}

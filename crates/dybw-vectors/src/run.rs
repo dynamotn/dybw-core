@@ -2,15 +2,14 @@
 
 use crate::canonical::{NOW_MS, canonicalize, drop_tool_defined};
 use crate::keys::account_keys;
-use crate::scenario::{Operation, Policy, Scenario, WriteExpect};
+use crate::scenario::{Answer, Operation, Policy, Scenario, WriteExpect};
 use crate::server::{SERVER, VectorServer, urls};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
-use dybw_core::crypto::Marker;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom, block_on};
-use dybw_core::vault::write::{NewItem, Patch, ValueChange, WriteError};
-use dybw_core::vault::{Namespace, Organizations, UnmarkedCache, scan_vault};
+use dybw_core::vault::write::{HistoryAnswer, NewItem, Patch, ValueChange, WriteError, WriteRecord};
+use dybw_core::vault::{Keys, Namespace, Organizations, UnmarkedCache, scan_vault};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -121,11 +120,12 @@ fn op_value(value: &str) -> Result<Zeroizing<Vec<u8>>, String> {
 /// compared by meaning.
 pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
     let want = s.expect.write.as_ref().ok_or("no expect.write")?;
-    let op = s.operation.as_ref().ok_or("no operation")?;
+    let Some(op) = s.operation.as_ref() else { return sync_write(dir, s, want) };
     let ns = namespace(&s.namespace)?;
     let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
     let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
     let keys = scenario_keys.into_keys(ns);
+    let state = device_state(s, &keys);
     let mut api = client(server.clone())?;
     let rng = SeededRandom::new(0x0077_7269_7465);
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
@@ -137,8 +137,9 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
         let item = |id: &str| report.items.iter().find(|i| i.id == id).ok_or(format!("no item {id}"));
         *server.fresh.borrow_mut() = op.fresh().cloned();
         Ok::<_, String>(match op {
-            Operation::SetValue { id, value, .. } => {
+            Operation::SetValue { id, value, answer, .. } => {
                 let found = item(id)?;
+                let record = state.base.get(id).map(|b| b.record.clone()).unwrap_or_default();
                 let patch = Patch {
                     id: found.id.clone(),
                     cipher_id: Some(found.cipher_id.clone()),
@@ -152,8 +153,13 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                         base_mark: found.mark,
                         owned: false,
                     },
+                    answer: match answer {
+                        Answer::WriteToLogin => Some(HistoryAnswer::WriteToLogin),
+                        Answer::KeepSeparate => Some(HistoryAnswer::KeepSeparate),
+                        Answer::Unanswered => None,
+                    },
                 };
-                sync::update(&mut api, ns, &keys, &rng, NOW_MS, &found.cipher, &patch).await.map(|_| ())
+                sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &found.cipher, &patch).await.map(|_| ())
             }
             Operation::Create { id, value, folder_id, .. } => {
                 let new = NewItem {
@@ -184,7 +190,10 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
             compare("error code", e.code(), Some(want.error.as_str()))?;
             compare_requests(&s.namespace, sent, &[])
         }
-        (WriteExpect::Question(_), _) => Err("a question expectation needs the core's write records".into()),
+        (WriteExpect::Question(want), Err(SyncWriteError::Write(WriteError::Ask(q)))) => {
+            compare("question", q.code(), want.question.as_str())?;
+            compare_requests(&s.namespace, sent, &[])
+        }
         (_, Ok(())) => Err("expected an error, the write succeeded".into()),
         (_, Err(e)) => Err(format!("unexpected error: {e}")),
     }
@@ -199,6 +208,90 @@ impl LocalValues for MapValues {
     }
     fn set(&mut self, id: &str, value: &str) {
         self.0.insert(id.to_owned(), value.to_owned());
+    }
+}
+
+/// The device state of `device` (fingerprints and write records marked from the plaintext with the namespace's
+/// marker); empty without one.
+fn device_state(s: &Scenario, keys: &Keys) -> DeviceState {
+    let marker = &keys.marker;
+    let mut state = DeviceState::new("vectors-device".into());
+    if let Some(device) = &s.device {
+        for (id, e) in &device.base {
+            let record = WriteRecord {
+                written: e.written.iter().map(|w| marker.mark(id, w)).collect(),
+                confirmed: e.write_back_confirmed,
+            };
+            let entry = BaseEntry {
+                cipher_id: e.cipher.clone(),
+                revision_date: e.revision_date.clone().unwrap_or_default(),
+                fingerprint: marker.mark_b64(id, &e.value),
+                scope: None,
+                push_confirmed: e.push_confirmed == Some(true),
+                record,
+            };
+            state.base.insert(id.clone(), entry);
+        }
+        state.pending_creates.clone_from(&device.pending_creates);
+    }
+    state
+}
+
+fn local_values(s: &Scenario) -> MapValues {
+    MapValues(s.local.iter().flatten().filter_map(|(id, v)| Some((id.clone(), v.clone()?))).collect())
+}
+
+fn policy(s: &Scenario) -> sync::Policy {
+    match s.options.policy {
+        Policy::Ask => sync::Policy::Ask,
+        Policy::PreferRemote => sync::Policy::PreferRemote,
+        Policy::PreferLocal => sync::Policy::PreferLocal,
+    }
+}
+
+/// `expect.write` of a sync vector (no `operation`): one sync from `device` and `local` with no answers, then the
+/// requests it sent, or the question it asked first with nothing sent and the base unchanged.
+fn sync_write(dir: &Path, s: &Scenario, want: &WriteExpect) -> Result<(), String> {
+    let ns = namespace(&s.namespace)?;
+    let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
+    let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
+    let keys = scenario_keys.into_keys(ns);
+    let mut state = device_state(s, &keys);
+    let before = state.clone();
+    let mut local = local_values(s);
+    let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
+    let rng = SeededRandom::new(0x0000_7379_6e63);
+    let (overrides, answers) = (BTreeMap::new(), BTreeMap::new());
+    let mut unmarked = UnmarkedCache::default();
+    let mut api = client(server.clone())?;
+    let report = block_on(async {
+        api.login(&api_key()?).await.map_err(|e| e.to_string())?;
+        let mut ctx = SyncContext {
+            client: &mut api,
+            ns,
+            keys: &keys,
+            rng: &rng,
+            allowed: &allowed,
+            policy: policy(s),
+            overrides: &overrides,
+            answers: &answers,
+            applies: &|_| true,
+            upload_folder: None,
+            unmarked: &mut unmarked,
+        };
+        sync::run_sync(&mut ctx, &mut state, &mut local, |_| {}, || false).await.map_err(|e| e.to_string())
+    })?;
+    let sent =
+        server.sent.borrow().iter().map(|r| canonicalize(r, &keys.user, &keys.orgs)).collect::<Result<Vec<_>, _>>()?;
+    match want {
+        WriteExpect::Requests(want) => compare_requests(&s.namespace, sent, &want.requests),
+        WriteExpect::Question(want) => {
+            let asked: Vec<&str> = report.skipped.questions.iter().map(|(_, q)| q.code()).collect();
+            compare("questions", asked, vec![want.question.as_str()])?;
+            compare("base", &state.base, &before.base)?;
+            compare_requests(&s.namespace, sent, &[])
+        }
+        WriteExpect::Error(_) => Err("a sync vector has no error expectation".into()),
     }
 }
 
@@ -224,31 +317,11 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
     let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
     let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
     let keys = scenario_keys.into_keys(ns);
-    let marker = Marker::new(&keys.user, ns.marks);
-    let mut state = DeviceState::new("vectors-device".into());
-    if let Some(device) = &s.device {
-        for (id, e) in &device.base {
-            let entry = BaseEntry {
-                cipher_id: e.cipher.clone(),
-                revision_date: e.revision_date.clone().unwrap_or_default(),
-                fingerprint: marker.mark_b64(id, &e.value),
-                scope: None,
-                push_confirmed: e.push_confirmed == Some(true),
-            };
-            state.base.insert(id.clone(), entry);
-        }
-        state.pending_creates.clone_from(&device.pending_creates);
-    }
-    let values = s.local.iter().flatten().filter_map(|(id, v)| Some((id.clone(), v.clone()?))).collect();
-    let local = MapValues(values);
-    let policy = match s.options.policy {
-        Policy::Ask => sync::Policy::Ask,
-        Policy::PreferRemote => sync::Policy::PreferRemote,
-        Policy::PreferLocal => sync::Policy::PreferLocal,
-    };
+    let state = device_state(s, &keys);
+    let local = local_values(s);
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
     let rng = SeededRandom::new(0x0000_706c_616e);
-    let overrides = BTreeMap::new();
+    let (overrides, answers) = (BTreeMap::new(), BTreeMap::new());
     let mut unmarked = UnmarkedCache::default();
     let mut api = client(server)?;
     let planned = block_on(async {
@@ -259,8 +332,9 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
             keys: &keys,
             rng: &rng,
             allowed: &allowed,
-            policy,
+            policy: policy(s),
             overrides: &overrides,
+            answers: &answers,
             applies: &|_| true,
             upload_folder: None,
             unmarked: &mut unmarked,

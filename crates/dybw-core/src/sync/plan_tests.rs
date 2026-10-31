@@ -29,6 +29,7 @@ fn bc(id: &str, rev: &str, fp: &str, cipher_id: &str) -> (String, BaseEntry) {
         fingerprint: fp.into(),
         scope: None,
         push_confirmed: false,
+        record: Default::default(),
     };
     (id.into(), e)
 }

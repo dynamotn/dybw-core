@@ -1,0 +1,57 @@
+{
+  "id": "write/blob/history-full-foreign-asks",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§6.1",
+    "§10"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "current-pw",
+        "written": [
+          "old-1"
+        ],
+        "writeBackConfirmed": true
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYPt39lqCOHvBZYuDdseEKQzWH4SN5lkrOWFDsEOB9gPWRQIqVW6GmcEX0PubdZfRyHTTQbgwItf8UkEMo/ia1zzlje+SV3hYHinD0tlGinwE05ZGyLpgDXUIyBCseExsQ6ZlNCSw4WvqBCg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.IzlycsXo+pSgRl8WQhKkKg==|f4gss3o4RECYn+uceXRxapjrTqnlbKmeSt04L4MkAxnNAW1QOuIgoRxQzyIb5Jgvq0X0PNtfOyPLQoEWNVIuqW69bZ6y3uyJEH8RESUXG8s=|npNuV4c/S9e5MVTjnu734N2B2BU2aZtWb15VctSjy6o=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUOxsIu9oDxCx/3Gs7WvH7QY6AAE4gQI6AAE4gAGhBUxYAXvUrmTiM5GUahRZAiVNu512UGV/2xnHrUID9yLB1Jr1cUYY1q5sMvSwJdKR2Oz5gGKVj4iOGCC5O61jzn/4urMVnI7Dit2NhnwbWebQpSnJ3b2xyBcv0gwunA/TJ9lb6S3anVsi2rqe4ZEWlLScbRzj16uYTjXrT97ddL4QXAD4/Lhj2L4s7FJgmlUfyWIKrShdonwOOXVJhGt1uabMxnvgGUfLEI91+pgN+E6ozDaYRy9kzP4ENGieptj7iKph0D2LATnfbF1rVMRy7dO6E9iDFf7IBdR+v5LQ52EIucOEzGCKB0w6hSkSNhRDimR0Aqk9p+bTJo6veiJwRwWAGiXTq2UPsfUzlDmiOXNV+p2q8gM8yoPPdBm1MDEdFQ8yeL4RN9HQepybnrt36b69O1GrIGtQwMIETCCzLNxBauOxX9hb37qHURLVDV3CqRHPEwwOlIr0/OsgC4gSK9xoRxAhJGcia0vYtOetFRUkw5EMrjEZ7sCeSKlqBVHt58iC4RqaWLAG07I02y9a6jPiUMZkcUFecsviCV/3nWlmfDt944DkqO5glXchG4G9Zzo5qefqCfMYfm1mWeCLXVXpDFZw+AipVd2c4TSdph92NdJ26sKeVbGQNkaAKfbWVOFULePNG0aXBjXUQ8mhMUa/iVv/j4DAzS4X4xww+41/TeVgb11mpLvDwcU9uQMm5Zs0Rx8CjUcXQr6SRpfNgttkTT0eih/O1Nqlnh1i1Keulr1l6OU=\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw",
+    "answer": "unanswered"
+  },
+  "expect": {
+    "write": {
+      "question": "evicts-foreign-history"
+    }
+  }
+}

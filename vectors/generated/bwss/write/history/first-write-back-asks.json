@@ -1,0 +1,83 @@
+{
+  "id": "write/history/first-write-back-asks",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "current-pw"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.ezHT9VxoGmEA+ntVvqHFyA==|AJynGbcwMA2q99hSW+KzdQ==|pZeyXsL1oMKV9hdYSq8wOnkJaZDRJcM9Ra3lNjQxDZQ=",
+      "notes": null,
+      "login": {
+        "username": "2.wsg2g9fbhEBo0fkeRiOrWg==|8sW3/7ZkxrhQJ7QGgyRXfA==|ma7NiPGaQ0IaYWF+09xC5H5sxSa3/cqdVKhr5zBHS+Y=",
+        "password": "2.3yq7AQX7McgMJyZ0w7XJUw==|kWyrD0eP/IrY3TupcjMbjw==|OdGw+hSTqWkU6MYiLdNbhmpuLynlOrtjdd6CvAMuo0c=",
+        "uris": [
+          {
+            "uri": "2.yb0BaberBuhgoe06rnsIEQ==|1id2tKShcP3uATTsbbrYjx6IoVeBtg2Uh6qSkXzKbYQ=|dnlWxE6o5onhaQiwA69nGp1XAtQIGZ7su5pcLalh/EA=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.Gztv7R/AuG5vylo4wsOxaA==|2IANo9JW9Og2qvX0H3bU7A==|7vwO8HWgevrnddLGWEiAYXMzWLeiigRaM0xwrYQyldM=",
+          "value": "2.OYCbVjkQz02ETUIsQgMNcQ==|BkH8xyiSauyirZrJeNAUtw==|eBp937HBK5eiWXehNx8M0QDB0FAIINDq/EEJrsVKiBo=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.D3R3QAm4EnTLaOFv0rQDIQ==|Vp1z3Dy85oQhgDCJLBRSsg==|5eg7G9Tqu3B/CUDayzqZThlOW+vlWByGn+XOwAab9oA=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.RDCL0b8mYmaShu5K4+jEbQ==|I2aWwK2oIk715UYrnrkxsw==|txKZBx7oj6Li9+oZq0bVX+EnfDWtGU7Yd8xUaJhn+KQ=",
+          "lastUsedDate": "2025-11-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.gRQfvW4u77mgTNdY6aMGWw==|zKi2OSfFbpL7fZfatoRv4A==|HSf9Ba9eXhkyN5o+W+ES15o8L/6dRfMHXrL4jTKEL6I=",
+          "lastUsedDate": "2025-10-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.c86tivYQCnuYyxd+RKF/UA==|Rli8bvGxGbhE3omDW0+LjA==|Y7FbKSrv/gfrLtwuplv9VXqrIJ1aBVewc6HlBn639pU=",
+          "lastUsedDate": "2025-09-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw",
+    "answer": "unanswered"
+  },
+  "expect": {
+    "write": {
+      "question": "first-write-back"
+    }
+  }
+}

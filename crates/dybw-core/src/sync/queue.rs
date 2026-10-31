@@ -5,10 +5,13 @@ use super::write::{DeleteOutcome, SyncWriteError, create, delete, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
 use crate::vault::scan::{MarkedItem, Scan, ValueSource, duplicate_order, organization, scan, trashed};
-use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
+use crate::vault::write::{
+    FieldSet, HistoryQuestion, NewItem, Patch, ValueChange, WriteError, WriteRecord, record_write,
+};
 use crate::vault::{Keys, Namespace, Organizations};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 /// One queued write. Secrets inside are `Zeroizing`, so they are wiped when the op is dropped.
 #[derive(Clone, Serialize, Deserialize)]
@@ -44,6 +47,8 @@ pub struct FlushReport {
     /// (retrying cannot trash it: it is no longer the tool's, so the delete is not kept). A transient cause
     /// of the latter also stops the flush. The user must hear about these.
     pub refused: Vec<(String, ApiError)>,
+    /// Still queued, like `kept`: the write needs the user's answer first (ADR 0016). The flush stopped at it.
+    pub questions: Vec<(String, HistoryQuestion)>,
 }
 
 fn target(op: &Op) -> &str {
@@ -80,6 +85,8 @@ fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option
         set,
         remove,
         value,
+        // A later answer is the newer decision; without one, the first one's still holds.
+        answer: later.answer.or(first.answer),
     }
 }
 
@@ -141,6 +148,7 @@ pub(super) enum Step {
     DropValue,
     Refuse(ApiError),
     Keep(String),
+    Ask(HistoryQuestion),
 }
 
 /// Errors that pass with time or a new login (bwss `api_failure` treats 401 as transient): the op waits.
@@ -155,6 +163,8 @@ pub(super) fn classify(e: SyncWriteError) -> Step {
             Step::Keep(e.to_string())
         }
         SyncWriteError::Write(WriteError::SourceChanged) => Step::DropValue,
+        // Nothing was written: the change waits for the user's answer, never dropped.
+        SyncWriteError::Write(WriteError::Ask(q)) => Step::Ask(q),
         SyncWriteError::Write(e) => Step::Drop(e),
         SyncWriteError::Api(e) if waits(&e) => Step::Keep(e.to_string()),
         SyncWriteError::Api(e) => Step::Refuse(e),
@@ -216,11 +226,13 @@ fn moved(cipher: &Value, recorded: Option<&str>) -> bool {
     organization(cipher).map(|o| o.as_str().unwrap_or_default()) != recorded
 }
 
+#[expect(clippy::too_many_arguments, reason = "flush's inputs, passed through")]
 async fn run<H: Http, C: Clock>(
     op: &Op,
     client: &mut Client<H, C>,
     ns: &Namespace,
     keys: &Keys,
+    records: &mut BTreeMap<String, WriteRecord>,
     rng: &impl Random,
     now_ms: i64,
     ciphers: &mut Vec<Value>,
@@ -248,12 +260,16 @@ async fn run<H: Http, C: Clock>(
             if moved(&cipher, p.organization_id.as_deref()) {
                 return classify(SyncWriteError::OwnerChanged);
             }
-            match update(client, ns, keys, rng, now_ms, &cipher, p).await {
+            let record = records.get(&p.id).cloned().unwrap_or_default();
+            match update(client, ns, keys, &record, rng, now_ms, &cipher, p).await {
                 Ok(reply) => {
                     // The next op for this item reads the server's answer, not the snapshot.
-                    if let Some(reply) = reply {
+                    if let Some((reply, wrote_login)) = reply {
                         ciphers.retain(|c| server_id(c) != server_id(&cipher));
                         ciphers.push(reply);
+                        if let Some(mark) = wrote_login {
+                            record_write(records.entry(p.id.clone()).or_default(), mark);
+                        }
                     }
                     Step::Done
                 }
@@ -288,12 +304,16 @@ async fn run<H: Http, C: Clock>(
 /// replies of earlier ones). A transient failure, an item that keeps changing and a copy that cannot be read keep
 /// the op and stop the flush; everything else removes the op and goes on, and says so in the report.
 /// `Gone` and `Unmarked` drop an op (the item left the tool); `SourceChanged` drops the value
-/// and sends the patch's other changes (bwss). The caller saves the queue afterwards.
+/// and sends the patch's other changes (bwss). A write that asks a history question (ADR 0016) is kept and stops the
+/// flush too. `records` holds this device's write records by `{ns}:id`, updated by every write to a login password.
+/// The caller saves the queue and the records afterwards.
+#[expect(clippy::too_many_arguments, reason = "the writer's inputs, each the caller's")]
 pub async fn flush<H: Http, C: Clock>(
     queue: &mut Vec<Op>,
     client: &mut Client<H, C>,
     ns: &Namespace,
     keys: &Keys,
+    records: &mut BTreeMap<String, WriteRecord>,
     rng: &impl Random,
     now_ms: i64,
     sync: &Value,
@@ -302,7 +322,7 @@ pub async fn flush<H: Http, C: Clock>(
     let mut ciphers = sync.get("ciphers").and_then(Value::as_array).cloned().unwrap_or_default();
     while let Some(op) = queue.first() {
         let id = target(op).to_owned();
-        match run(op, client, ns, keys, rng, now_ms, &mut ciphers).await {
+        match run(op, client, ns, keys, records, rng, now_ms, &mut ciphers).await {
             Step::Done => report.done.push(id),
             Step::Drop(e) => report.dropped.push((id, e)),
             Step::DropValue => {
@@ -325,6 +345,10 @@ pub async fn flush<H: Http, C: Clock>(
             }
             Step::Keep(why) => {
                 report.kept.push((id, why));
+                break;
+            }
+            Step::Ask(q) => {
+                report.questions.push((id, q));
                 break;
             }
         }

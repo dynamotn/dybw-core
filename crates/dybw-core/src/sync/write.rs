@@ -3,7 +3,9 @@
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
 use crate::vault::scan::{Scan, organization, read_only, scan, trashed};
-use crate::vault::write::{NewItem, Patch, ValueChange, WriteError, apply, has_foreign_content, new_item, strip};
+use crate::vault::write::{
+    NewItem, Patch, ValueChange, WriteError, WriteRecord, apply, has_foreign_content, new_item, strip,
+};
 use crate::vault::{Keys, Namespace, Organizations};
 use serde_json::Value;
 
@@ -66,25 +68,29 @@ async fn refetch<H: Http, C: Clock>(client: &mut Client<H, C>, id: &str) -> Resu
 
 /// Applies `patch` to `cipher` and sends it. When the server says the copy is out of date, the same patch is
 /// applied to a refetched copy (§6.5): `SourceChanged`, `Gone` and `Unmarked` end it, and at most `ATTEMPTS` writes
-/// are sent in all. `now_ms` dates a replaced login password. Returns the server's reply, or `None` for an empty
-/// patch, which sends nothing (a PUT would bump the revision date and look like an edit to other devices).
+/// are sent in all. `now_ms` dates a replaced login password; `record` is this device's record of the item (ADR
+/// 0016, see `apply`). Returns the server's reply with the mark of the value written to `login.password` (for
+/// `record_write`), or `None` for an empty patch, which sends nothing (a PUT would bump the revision date and look
+/// like an edit to other devices).
+#[expect(clippy::too_many_arguments, reason = "the writer's inputs, each the caller's")]
 pub async fn update<H: Http, C: Clock>(
     client: &mut Client<H, C>,
     ns: &Namespace,
     keys: &Keys,
+    record: &WriteRecord,
     rng: &impl Random,
     now_ms: i64,
     cipher: &Value,
     patch: &Patch,
-) -> Result<Option<Value>, SyncWriteError> {
+) -> Result<Option<(Value, Option<[u8; 32]>)>, SyncWriteError> {
     if matches!(patch.value, ValueChange::Keep) && patch.set.is_empty() && patch.remove.is_empty() {
         return Ok(None);
     }
     let id = cipher_id(cipher)?;
     let mut current = cipher.clone();
     for attempt in 1..=ATTEMPTS {
-        let body = apply(&current, patch, ns, keys, rng, now_ms)?;
-        match client.update_cipher(&id, body).await {
+        let applied = apply(&current, patch, ns, keys, record, rng, now_ms)?;
+        match client.update_cipher(&id, applied.body).await {
             Err(e) if e.is_out_of_date() => {
                 if attempt < ATTEMPTS {
                     let fresh = refetch(client, &id).await?.ok_or(WriteError::Gone)?;
@@ -97,7 +103,7 @@ pub async fn update<H: Http, C: Clock>(
                     current = fresh;
                 }
             }
-            sent => return Ok(Some(sent?)),
+            sent => return Ok(Some((sent?, applied.wrote_login))),
         }
     }
     Err(SyncWriteError::StillChanging)

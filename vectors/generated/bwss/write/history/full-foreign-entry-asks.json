@@ -1,0 +1,91 @@
+{
+  "id": "write/history/full-foreign-entry-asks",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "current-pw",
+        "written": [
+          "old-1"
+        ],
+        "writeBackConfirmed": true
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.0tZ3RvKSuCs3gg4CKyEaNw==|I7rCOYLRC2KhofkhxaNkqg==|tW4EaO0NWM0TCi9aMjooUErV+TMyiCIK/jJ6Lzqe8fE=",
+      "notes": null,
+      "login": {
+        "username": "2.hbjFOMwn+99yweGqIQwk9A==|jxvuylZhFQUaJTQ+3AGfPw==|v62XPbdGBOGlestpyY41oyOARQn2m7iGx7mdmUmB3OE=",
+        "password": "2.2qAYqAOQeyvuu1UFQs9N/w==|OwK3tFlgzwvvchawAH38cw==|fjFw8Z9Zj1heaZbJqNGOila92RFSFU7xkuys7F4un4o=",
+        "uris": [
+          {
+            "uri": "2.M36H3WwXCMUP5/cpCcRB2g==|ao8lV2/SJMKdsh9f4JG7xYmw1XYCd+4EVcMSTiNwMts=|oEVmEFWPFImjee5bMjYCh7SZoIqlGoJzXTHq+Zq6rsE=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.65GGzSS0vz7GxOGmr2iuIQ==|IJZJpk76/XAdX76IfYyd1Q==|eZ9hhF3em02AgHPLMXCa5jBcsdLj88g6MiU6fbQHDdY=",
+          "value": "2.sSbQs83ZYOI9YjpheWvSVg==|uIWCjUPx5h21r6aVnBvXtw==|Bulw/3wkT8g7FWSmH1kncDPINK0fvH706rj8a8xuUhQ=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.ZDuTxkmt9JYsXuMq4GJnUA==|UkK6fruhbWPGXwMaUS+2Ng==|6tq+fKeEcMSJz4J0PinGW/6iUMjReZFS24ad05h/Nrw=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.sN2q406je0c+8wmLABwplg==|auiIthx0+sXesxtxD4s97A==|pGUQK18qPhe/CIgmlIC86H7Hh7r+Y8QZ2PB2XlKMZuE=",
+          "lastUsedDate": "2025-11-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.OsKaf2Ui3M6tP1asHP2Xbg==|YXL7iBKqu+CrHerfof9E0Q==|o7mX68y1KjaH5yLETD1BkX9bmS0iyNpojGXdGGN9NX4=",
+          "lastUsedDate": "2025-10-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.2aeYGaXcYoHggyv/hxPlQg==|OhXhLF96yYZQzulJ4CqmHA==|5pxPsoNtdphJLGE39IdJgkFwvO3wFQEgX55nGOO7Zqk=",
+          "lastUsedDate": "2025-09-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.0vfDZfPNd79ucwf59cih+A==|p/6mkiTHZ5+IyY1EXb6frA==|yTyogxFY9lP5PatiavXBFjEcPgM67tP+3a5TfSkuL34=",
+          "lastUsedDate": "2025-08-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw",
+    "answer": "unanswered"
+  },
+  "expect": {
+    "write": {
+      "question": "evicts-foreign-history"
+    }
+  }
+}

@@ -3,6 +3,8 @@
 
 use super::plan::BaseEntry;
 use crate::vault::namespace::Namespace;
+use crate::vault::write::{HISTORY_MAX, WriteRecord};
+use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 
@@ -50,7 +52,12 @@ pub fn parse_plugin_state(raw: &Value, ns: &Namespace, fresh_id: impl FnOnce() -
             (str_of(e, "cipherId"), str_of(e, "revisionDate"), str_of(e, "fingerprint"))
         {
             let (scope, push_confirmed) = (str_of(e, "scope"), e.get("pushConfirmed") == Some(&Value::Bool(true)));
-            state.base.insert(id.clone(), BaseEntry { cipher_id, revision_date, fingerprint, scope, push_confirmed });
+            // A mark that is not 32 bytes of base64 is dropped: it can only make a write ask, never skip a question.
+            let marks = e.get("writtenMarks").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str);
+            let written = marks.filter_map(|m| B64.decode(m).ok()?.try_into().ok()).take(HISTORY_MAX).collect();
+            let record = WriteRecord { written, confirmed: e.get("writeBackConfirmed") == Some(&Value::Bool(true)) };
+            let entry = BaseEntry { cipher_id, revision_date, fingerprint, scope, push_confirmed, record };
+            state.base.insert(id.clone(), entry);
         }
     }
     for (id, s) in r.get("pendingScopes").and_then(Value::as_object).into_iter().flatten() {
@@ -78,6 +85,13 @@ pub fn to_plugin_json(state: &DeviceState) -> Value {
             }
             if e.push_confirmed {
                 o.insert("pushConfirmed".into(), json!(true));
+            }
+            if !e.record.written.is_empty() {
+                let marks: Vec<String> = e.record.written.iter().map(|m| B64.encode(m)).collect();
+                o.insert("writtenMarks".into(), json!(marks));
+            }
+            if e.record.confirmed {
+                o.insert("writeBackConfirmed".into(), json!(true));
             }
             (id.clone(), Value::Object(o))
         })

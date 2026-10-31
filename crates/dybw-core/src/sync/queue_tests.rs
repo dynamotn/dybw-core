@@ -7,7 +7,7 @@ use crate::api::ApiError;
 use crate::crypto::SymmetricKey;
 use crate::testing::block_on;
 use crate::vault::scan::ValueSource;
-use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
+use crate::vault::write::{FieldSet, HistoryAnswer, HistoryQuestion, NewItem, Patch, ValueChange, WriteError};
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
@@ -29,6 +29,7 @@ fn patch(id: &str, v: ValueChange) -> Patch {
         set: vec![],
         remove: vec![],
         value: v,
+        answer: None,
     }
 }
 
@@ -217,7 +218,7 @@ const REV: &str = "2026-01-01T00:00:00Z";
 impl Rig {
     fn flush(&mut self, queue: &mut Vec<Op>, ciphers: &[Value]) -> FlushReport {
         let sync = json!({ "ciphers": ciphers });
-        block_on(flush(queue, &mut self.client, B, &self.keys, &self.rng, 1_000, &sync))
+        block_on(flush(queue, &mut self.client, B, &self.keys, &mut self.records, &self.rng, 1_000, &sync))
     }
 
     /// A tool item with `bwss:id` `id` and the server id `cid`.
@@ -751,4 +752,86 @@ fn queued_items_follow_the_duplicate_winner() {
         assert_eq!(strs(&r.flush(&mut queue, &ciphers).done), ["x"]);
         assert_eq!(r.log(), [format!("Put /ciphers/{winner}"), format!("Put /ciphers/{winner}/delete")]);
     }
+}
+
+// ---- history questions (ADR 0016) ----
+
+impl Rig {
+    /// A hand-marked login `cid` with `bwss:id` `id`: its value is the login password.
+    fn login_item(&self, cid: &str, id: &str, password: &str) -> Value {
+        let mut c = self.note(REV, &[("bwss:id", id, false)]);
+        c["id"] = json!(cid);
+        c["type"] = json!(1);
+        c["secureNote"] = Value::Null;
+        c["login"] =
+            json!({ "username": null, "password": self.enc(&self.keys.user, password), "uris": null, "totp": null });
+        c
+    }
+
+    /// A queued write of `secret` back to the login password of `c`, unanswered.
+    fn login_change(&self, c: &Value, secret: &[u8]) -> Op {
+        let Op::Patch(mut p) = self.change(c, Some(secret)) else { unreachable!() };
+        let ValueChange::Set { base_mark, .. } = p.value else { unreachable!() };
+        p.value = ValueChange::Set {
+            source: ValueSource::LoginPassword,
+            secret: Zeroizing::new(secret.to_vec()),
+            base_mark,
+            owned: false,
+        };
+        p.set.clear();
+        Op::Patch(p)
+    }
+}
+
+#[test]
+fn flush_keeps_a_write_that_asks() {
+    let mut r = Rig::new();
+    let c1 = r.login_item("c1", "x", "old");
+    let mut queue = vec![r.login_change(&c1, b"new"), create_op("y")];
+    let report = r.flush(&mut queue, std::slice::from_ref(&c1));
+    // Nothing written, nothing dropped: the write waits for the answer, and the flush stops at it.
+    assert_eq!(
+        report.questions.iter().map(|(i, q)| (i.as_str(), *q)).collect::<Vec<_>>(),
+        [("x", HistoryQuestion::FirstWriteBack)]
+    );
+    assert!(report.done.is_empty() && report.kept.is_empty() && report.dropped.is_empty() && report.refused.is_empty());
+    assert_eq!(ids(&queue), ["patch x", "create y"]);
+    assert!(r.log().is_empty());
+    assert!(r.records.is_empty());
+    // Answered, it goes, and the record learns what this device wrote.
+    if let Op::Patch(p) = &mut queue[0] {
+        p.answer = Some(HistoryAnswer::WriteToLogin);
+    }
+    r.fake.echo();
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[c1]);
+    assert_eq!(strs(&report.done), ["x", "y"]);
+    assert!(queue.is_empty());
+    let record = &r.records["x"];
+    assert_eq!((record.written.as_slice(), record.confirmed), (&[r.keys.marker.mark("x", "new")][..], true));
+}
+
+#[test]
+fn queued_patch_without_answer_reads() {
+    // An M2 queue file has no `answer`: unanswered.
+    let old: Vec<Op> = serde_json::from_value(json!([
+        { "Patch": { "id": "a", "cipher_id": "c1", "base_revision": "r", "set": [], "remove": [], "value": "Keep" } },
+    ]))
+    .unwrap();
+    assert_eq!(as_patch(&old[0]).answer, None);
+    let mut p = patch("a", ValueChange::Keep);
+    p.answer = Some(HistoryAnswer::KeepSeparate);
+    let back: Patch = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
+    assert_eq!(back.answer, Some(HistoryAnswer::KeepSeparate));
+}
+
+#[test]
+fn a_merged_patch_keeps_the_latest_answer() {
+    let answered = |a: Option<HistoryAnswer>| Op::Patch(Patch { answer: a, ..patch("a", ValueChange::Keep) });
+    let mut queue = Vec::new();
+    push(&mut queue, answered(Some(HistoryAnswer::KeepSeparate)), None);
+    push(&mut queue, answered(None), None);
+    assert_eq!(as_patch(&queue[0]).answer, Some(HistoryAnswer::KeepSeparate));
+    push(&mut queue, answered(Some(HistoryAnswer::WriteToLogin)), None);
+    assert_eq!((queue.len(), as_patch(&queue[0]).answer), (1, Some(HistoryAnswer::WriteToLogin)));
 }

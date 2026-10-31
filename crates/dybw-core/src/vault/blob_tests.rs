@@ -174,8 +174,9 @@ fn marked_blob_is_written_as_a_blob() {
         set: Vec::new(),
         remove: Vec::new(),
         value: write::ValueChange::Keep,
+        answer: None,
     };
-    let got = write::apply(&c, &patch, &Namespace::BWSS, &k.keys, &k.rng, 0).unwrap();
+    let got = write::apply(&c, &patch, &Namespace::BWSS, &k.keys, &Default::default(), &k.rng, 0).unwrap().body;
     assert!(got["data"].is_string());
     assert_eq!((&got["fields"], &got["key"]), (&Value::Null, &c["key"]));
 }
