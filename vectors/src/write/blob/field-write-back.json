@@ -1,0 +1,91 @@
+{
+  "id": "write/blob/field-write-back",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§5",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "format": "blob",
+      "name": "Note c1",
+      "notes": "user notes",
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "other",
+          "value": "keep",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "old-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": "user notes",
+          "login": null,
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "other",
+              "value": "keep",
+              "type": 0
+            },
+            {
+              "name": "{ns}:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
+        }
+      ]
+    }
+  }
+}

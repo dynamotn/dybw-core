@@ -1,0 +1,75 @@
+{
+  "id": "write/blob/field-write-back",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§5",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYNFy3upb1kDYm6Y/9OwhgPIWv8USa86qZWFDRI6zZ5pT810AIe0CtPRhc6zvib6YzNxOdK0/QnsDxt/XdlGqLJ49MzW6O7CHyTJAOZQnucLnbgGcAb09jkyFHuUGfRs3lv5tmGKANdPM7Mg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.dzv/Jkp/y2BRzC3nzOb9XQ==|CdBUR0YjxhFi4wnEaVnB88fcMeHi9/IgzMs0SroUYo8ArGBmgJqNadOYEPqi3v8R5hLrxM4mQWLowb/SVTLyWQiniXh4hfsEfU+qZiWFr0Q=|ZS5+EFMdiwt50QCNlpo98RwVE+7vN+5MeKmsd8yd3Vc=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUB4kipLed+wSpuS+20wGJeo6AAE4gQI6AAE4gAGhBUy0dQf9yMiR4NoAIYdZAQMam2Q6tSlKioP9PjGcfABuoWlNCCDygxmNzww1DReFHAK35MniWKGtqHvvCDJvjrlZws3o+y+iRyTSRi1O1GCfmfmxKknMVNYqAFp8EnfIP8V+ypVzQEqCtsNuctSIYr2i2B0UObfF62jZBgtO10ltdmpu0P8bsqsu+E/h24NSaa/wmhCZWxE9V2PIjl68i2z9DCwf16P71eH+SzifMmTShioih9Oyfj09T6JeTbwtMQU1q7fmcIDCEG8G7bKX3N03XEoeJkeeusJXY9i+BCtpLK4o5JUt+0Mf2nKh1RWE/5rFNrQgsEgOmYMTAcYp2Yrtf46cn4Q1C8xm18uQiDPs/toP\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": "user notes",
+          "login": null,
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "other",
+              "value": "keep",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
+        }
+      ]
+    }
+  }
+}

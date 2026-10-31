@@ -1039,6 +1039,17 @@ def test_blob_padding_matches_sdk():
         assert bwcrypto.pad(plain[:-n], 64) == plain
 
 
+def test_blob_extra_is_sealed_after_the_known_keys():
+    cipher, account = _blob(blobExtra={"xUnknown": {"kept": [1, True, None]}})
+    content = gen.open_blob(cipher, account)["content"]
+    assert content["xUnknown"] == {"kept": [1, True, None]}
+    assert list(content)[-1] == "xUnknown"
+    assert "xUnknown" not in cipher
+    src = {k: v for k, v in BLOB_FIXTURE["ciphers"][0].items() if k != "format"}
+    with pytest.raises(gen.GenError, match="blobExtra needs format blob"):
+        gen.encrypt_cipher(gen.expand_ns({**src, "blobExtra": {"xK": 1}}, "bwss"), account, "read/blob", "bwss")
+
+
 def test_blob_tamper_breaks_only_the_named_part():
     for part in ("envelope", "wrapped_cek"):
         cipher, account = _blob(tamper=[part])

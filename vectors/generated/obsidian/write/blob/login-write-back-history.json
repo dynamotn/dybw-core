@@ -1,0 +1,79 @@
+{
+  "id": "write/blob/login-write-back-history",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§5",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYVYr3/GJN2itpyMg3h4u4/01zKqFf0+zKWFAj9xvWAu+RxjCit43IzgULq9NnmSZb+BZPqiK6anLBdRgknkfTidpFl3Okn7qf3ieNBXm3SXW3DBOddk5sCwMr2YR5WPnW2a/uJfv4UcW2bA==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.JTRG7yQmW/jEM8p44vh4FQ==|MuJa5UTmLJwSbs4Kd4RRlF1/BsZeDgQwNu7gWDq2W+1Y9GH/Dr8KR+sqBFFsyJk2sxPoqHp5FEicxJevMPrZGqiaDIofiEzxYgqB8M5+Mu8=|LTnpsQIxrMddtqNMPddJ8z3IG3+1mwyXJQ7Wg19daak=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUIFytRgwMvgfeXR01G4aW+I6AAE4gQI6AAE4gAGhBUxMlNv8JZbkOtg1r6ZZAe6nhOpxCWvD41MtChAk28WULx355e862UDgG8q3rzNFAnslCFYBhlEzn7CwuPoQrpuk+tfZg9QF2nVpw9joNFYZco4NUy2XJ3LQJvAE88nbeVXWmMThQcz0CC48zqwsMh/xZEptJNZSYtwRmZfD5hyG+n5yOezeOdsHsBUvL1xWuaW04Tm/OcRYZyTNNvVwpLe/0877D6cWK/sUYGVAflBSNBdbgiFaX4WQskzJn2EOJE2R2ZxErVvw43P2mlM6J16ISQkmoMFnx1ZiOdlgOava/4jq67o1ksIaYfo5E17q5nDSnc3CcGvPFR+BCxUzngCtsXwssgaC8s5AUm5QM1s2YQGIS6Wa2cPRZsya67XBAUcoNemIhd1UQQ/gEM37mam3/sNQfCm5e2ZvUFWzlsIS9Ri1hKtvmWHZmZVckRZHa3QMqHqypW+jY4b16eaB8GcdlOSJuzYwhifw8K9MV2pEI57E9Ero0/XHV2yLPRtm3uPF7/y+XIhEyEtk01E0Bt9VgkmgpzDCND/B2JvPJiDglSyb72nrqtaGNq1MiO7W/h3lEQeym8/iQGH9bJQCnNGlc8d4RntWP5BfhDTFTJI/QYSGkoMcJSrxYrjSPICAgwjArrJXL+0dN0zZ85GP7vuSaIYRZGoNpMNl2hpGfA==\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Login c1",
+          "notes": null,
+          "login": {
+            "username": "user",
+            "password": "next-pw",
+            "uris": [
+              "https://example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "current-pw",
+              "old-1",
+              "old-2",
+              "old-3",
+              "old-4"
+            ]
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
+        }
+      ]
+    }
+  }
+}

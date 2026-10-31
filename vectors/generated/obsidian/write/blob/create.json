@@ -1,0 +1,50 @@
+{
+  "id": "write/blob/create",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§6.2"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [],
+  "operation": {
+    "kind": "create",
+    "id": "alpha",
+    "value": "alpha-secret",
+    "folderId": null
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "POST",
+          "cipher": null,
+          "type": 2,
+          "name": "<tool-defined>",
+          "notes": null,
+          "login": null,
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "obsidian:password",
+              "value": "alpha-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": null,
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
+        }
+      ]
+    }
+  }
+}

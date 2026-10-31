@@ -1,0 +1,60 @@
+{
+  "id": "write/blob/strip",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§8.2"
+  ],
+  "account": "cose-v2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYc0sswp7KKjhY9laoJ5+r2KTEKPGDZzSCWFDMCq9oFh5Z1XAQkPtrvavWAQZBSsIKzr6/XAz68AuLPd0hqHSOdKC9ekZWdq59PceqDpLHvaccY4qCd5Ro9g3maBEWRHKcexxdGwCjQEzP+Q==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.k24eym9hcWTs64A8nIw79Q==|HMnN6w48V+mTpor6zkrbZOLLVRUO5tT3eu9v08vqLeSLojlNLAL4v9RWmflbgke8wuavsvuda1aQ/TOFAtWCZLqTDRakPER8tJVwkWseCvo=|8upnYAUhkB9DYKbLnA+1FCn3YFw7cnK1vRZrwC0ZklY=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUJRm3I1ZJGzOAf/vyiHKP8I6AAE4gQI6AAE4gAGhBUyEvGUxGcXvwcTqNMJZAQV7iOLizAPJit/71y19gmOitm2vm+5Gi3JHoiPIbPuY9I3IM3U5l+oyP6zkMlO8WTVl1cehT16vLNogN8Tj31mp/cQk6crCWDY+0cNk+yQQG2HIsqYRBcGHX56f5WRtHOKXGpE2167451hI3F+9WQSH/6BRv9te2pDJJeXPjieifz2yh234TUjhb37EtZln26vPKjBAX28VJZUJtlSSKU+7WTWZABbjkkWqybyQfe3c0Jpr9Nu3kQITpsPpqIvM6n4W0+N5QUP3GSUeES06hIX2dYuhvMSZoSkSTnMqNVOMIXWlDFjDNFOSNpUTMku+/kB6HoO/0ilysye0dWGiNKAUpu7odVU=\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "delete",
+    "id": "alpha"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": null,
+          "login": null,
+          "fields": [],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
+        },
+        {
+          "method": "trash",
+          "cipher": "c1"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "id": "write/blob/unknown-keys-kept",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "format": "blob",
+      "name": "Note c1",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "old-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true,
+      "blobExtra": {
+        "xUnknown": {
+          "kept": [
+            1,
+            true,
+            null,
+            "text"
+          ]
+        }
+      },
+      "extra": {
+        "xTop": "top"
+      }
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": null,
+          "login": null,
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "{ns}:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {
+            "xTop": "top"
+          },
+          "blob": true,
+          "blobExtra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null,
+                "text"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,10 +1,12 @@
 //! Ported from bwss `src/bw/write.rs` (except the ACL union and the registry note, M4) and the plugin's
 //! `newSecretRequest` / `updateValueRequest` cases (`test/sync.test.ts`).
 
+use super::blob::{BLOB_SECURITY_VERSION, OpenBlob, open_blob};
+use super::blob_tests::{Bx, login as blob_login, t, versioned};
 use super::scan::{MarkedItem, Scan, Uninspectable, ValueSource};
 use super::write::*;
 use super::*;
-use crate::crypto::{CoseAlgorithm, CryptoError, MarkScheme, Marker, SymmetricKey};
+use crate::crypto::{Cbor, CoseAlgorithm, CryptoError, MarkScheme, Marker, SymmetricKey, parse_cek};
 use crate::testing::SeededRandom;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -1020,13 +1022,13 @@ fn oversized_cipher_is_never_written() {
 }
 
 #[test]
-fn blob_cipher_is_never_written() {
-    // A blob cipher scans as held; the update body would drop `data` (response-only) and wipe the blob.
+fn unreadable_blob_is_never_written() {
+    // A blob that does not open is held; a field-level body would drop `data` (response-only) and wipe the blob.
     let k = fx();
     let c = k.login(&[("bwss:id", "x", false), ("bwss:password", "old", true)], Some("pw"), None);
     let p = k.set_secret(&c, B, b"new");
-    let blob = with_key(&c, "data", json!("{\"format_version\":1,\"x\":2}"));
-    let held = Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
+    let blob = with_key(&with_key(&c, "passwordHistory", json!(null)), "data", json!("{\"format_version\":1,\"x\":2}"));
+    let held = Err(WriteError::Uninspectable(Uninspectable::Blob));
     assert_eq!(k.apply(&blob, &p, B), held);
     assert_eq!(k.apply(&blob, &k.keep(&c, B), B), held);
     assert_eq!(strip(&blob, B, &k.keys, &k.rng), held);
@@ -1192,4 +1194,429 @@ fn a_clock_outside_the_year_range_is_an_error() {
     assert!(apply(&c, &p, B, &k.keys, &k.rng, -62_167_219_200_000).is_ok());
     // no date is needed when the value is kept
     assert!(apply(&c, &k.keep(&c, B), B, &k.keys, &k.rng, i64::MAX).is_ok());
+}
+
+// Blob ciphers (ADR 0021): a write keeps a blob a blob, and a new item is a blob on a version 2 account.
+
+fn bx_patch(k: &Bx, c: &Value, secret: Option<&[u8]>) -> Patch {
+    let s = scan(c, B, &k.keys, &Organizations::All);
+    let Scan::Marked(m) = s else { panic!("expected Marked, got {s:?}") };
+    let value = match secret {
+        Some(secret) => ValueChange::Set {
+            source: m.source,
+            secret: Zeroizing::new(secret.to_vec()),
+            base_mark: m.mark,
+            owned: false,
+        },
+        None => ValueChange::Keep,
+    };
+    Patch {
+        id: m.id.clone(),
+        cipher_id: Some(m.cipher_id.clone()),
+        organization_id: None,
+        base_revision: m.revision_date.clone(),
+        set: Vec::new(),
+        remove: Vec::new(),
+        value,
+    }
+}
+
+fn bx_write(k: &Bx, c: &Value, secret: &[u8]) -> Result<Map<String, Value>, WriteError> {
+    apply(c, &bx_patch(k, c, Some(secret)), B, &k.keys, &k.rng, NOW)
+}
+
+/// The blob a body sends, opened as the server's copy.
+fn sent(k: &Bx, body: &Map<String, Value>) -> OpenBlob {
+    open_blob(&as_server(body), &k.keys.user).unwrap()
+}
+
+fn sent_value(k: &Bx, body: &Map<String, Value>) -> (ValueSource, Vec<u8>) {
+    let s = scan(&as_server(body), B, &k.keys, &Organizations::All);
+    let Scan::Marked(m) = s else { panic!("expected Marked, got {s:?}") };
+    (m.source, m.value.to_vec())
+}
+
+/// The id of the content key a blob body is sealed with.
+fn cek_id(k: &Bx, body: &Map<String, Value>) -> [u8; 16] {
+    let item = k.keys.user.decrypt_key(body["key"].as_str().unwrap()).unwrap();
+    let data: Value = serde_json::from_str(body["data"].as_str().unwrap()).unwrap();
+    *parse_cek(&item.decrypt(data["wrapped_cek"].as_str().unwrap()).unwrap()).unwrap().id()
+}
+
+fn blob_fields(fields: &[(&str, Cbor)]) -> Cbor {
+    Cbor::Array(
+        fields
+            .iter()
+            .map(|(n, v)| {
+                Cbor::Map(vec![
+                    (t("name"), t(n)),
+                    (t("value"), v.clone()),
+                    (t("type"), Cbor::Uint(0)),
+                    (t("linkedId"), Cbor::Null),
+                ])
+            })
+            .collect(),
+    )
+}
+
+/// A `CipherBlobV1` from its parts, in this order; a cipher of `ty`.
+fn blob_cipher(k: &Bx, ty: u64, parts: Vec<(&str, Cbor)>) -> Value {
+    let mut c = k.cipher(Cbor::Map(parts.into_iter().map(|(key, v)| (t(key), v)).collect()));
+    c["type"] = json!(ty);
+    c
+}
+
+fn secure_note(k: &Bx, fields: &[(&str, &str)], notes: Option<&str>) -> Value {
+    let fields: Vec<(&str, Cbor)> = fields.iter().map(|(n, v)| (*n, t(v))).collect();
+    let type_data = Cbor::Map(vec![(t("type"), t("secureNote")), (t("secureNoteType"), Cbor::Uint(0))]);
+    let notes = notes.map_or(Cbor::Null, t);
+    blob_cipher(
+        k,
+        2,
+        vec![("name", t("Note")), ("notes", notes), ("typeData", type_data), ("fields", blob_fields(&fields))],
+    )
+}
+
+fn history_entry(password: &str, date: &str) -> Cbor {
+    Cbor::Map(vec![(t("password"), t(password)), (t("lastUsedDate"), t(date))])
+}
+
+fn names_of(blob: &OpenBlob) -> Vec<Option<&str>> {
+    blob.field_names()
+}
+
+#[test]
+fn blob_write_uses_a_fresh_cek() {
+    let k = Bx::new();
+    let c = k.cipher(blob_login(&[("bwss:id", "a"), ("bwss:password", "old")], Some("pw"), None));
+    let p = bx_patch(&k, &c, Some(b"new"));
+    let one = apply(&c, &p, B, &k.keys, &k.rng, NOW).unwrap();
+    let two = apply(&c, &p, B, &k.keys, &k.rng, NOW).unwrap();
+    let ids = [cek_id(&k, c.as_object().unwrap()), cek_id(&k, &one), cek_id(&k, &two)];
+    assert_ne!(ids[0], ids[1]);
+    assert_ne!(ids[0], ids[2]);
+    assert_ne!(ids[1], ids[2]);
+    assert_ne!(one["data"], two["data"]);
+}
+
+#[test]
+fn blob_write_keeps_the_item_key() {
+    let k = Bx::new();
+    let mut c = k.cipher(blob_login(&[("bwss:id", "a"), ("bwss:password", "old")], Some("pw"), Some("mine")));
+    for (key, v) in [
+        ("folderId", json!("f1")),
+        ("favorite", json!(true)),
+        ("xUnknown", json!({ "a": 1 })),
+        ("attachments", json!([{ "id": "att" }])),
+        ("edit", json!(true)),
+    ] {
+        c[key] = v;
+    }
+    let body = bx_write(&k, &c, b"new").unwrap();
+    assert_eq!(body["key"], c["key"]);
+    for key in ["name", "notes", "login", "fields", "passwordHistory"] {
+        assert_eq!(body[key], Value::Null, "{key}");
+    }
+    assert_eq!(body["lastKnownRevisionDate"], c["revisionDate"]);
+    assert_ne!(body["data"], c["data"]);
+    assert_rest_unchanged(&c, &body, &[]);
+    assert_eq!(sent_value(&k, &body), (ValueSource::Field, b"new".to_vec()));
+    let blob = sent(&k, &body);
+    assert_eq!((blob.login_password(), blob.notes()), (Some("pw"), Some("mine")));
+    // A kept value still seals the content again.
+    let body = apply(&c, &bx_patch(&k, &c, None), B, &k.keys, &k.rng, NOW).unwrap();
+    assert_eq!(sent_value(&k, &body), (ValueSource::Field, b"old".to_vec()));
+    assert_ne!(body["data"], c["data"]);
+    // A field-level cipher on the same account never becomes a blob.
+    let fields = Fx { rng: SeededRandom::new(3), keys: Bx::new().keys };
+    let plain = fields.note(&[("bwss:id", "a", false), ("bwss:password", "old", true)], None);
+    let body = fields.apply(&plain, &fields.set_secret(&plain, B, b"new"), B).unwrap();
+    assert!(!body.contains_key("data") && !body.contains_key("key"));
+    assert_eq!(field(&body, &fields.keys.user, "bwss:password"), Some(("new".into(), 1)));
+}
+
+#[test]
+fn blob_create_needs_version_2() {
+    assert_eq!(BLOB_SECURITY_VERSION, 2);
+    let mut k = Bx::new();
+    let it = item(b"s", vec![fs("bwss:label", "L", false)]);
+    for v in [0, 1] {
+        k.keys.security_version = v;
+        let body = new_item(&it, B, &k.keys, &k.rng).unwrap();
+        assert!(!body.contains_key("data"), "{v}");
+        assert_eq!(body["key"], Value::Null);
+        assert_eq!(names(&body, &k.keys.user), ["bwss:id", "bwss:password", "bwss:label"]);
+    }
+    let mut item_keys = Vec::new();
+    for v in [BLOB_SECURITY_VERSION, 3] {
+        k.keys.security_version = v;
+        let body = new_item(&it, B, &k.keys, &k.rng).unwrap();
+        for key in ["name", "notes", "login", "fields", "passwordHistory"] {
+            assert_eq!(body[key], Value::Null, "{key}");
+        }
+        assert_eq!(
+            (&body["type"], &body["organizationId"], &body["folderId"], &body["secureNote"]),
+            (&json!(2), &Value::Null, &json!("f1"), &json!({ "type": 0 }))
+        );
+        assert!(!body.contains_key("lastKnownRevisionDate"));
+        // A fresh 64-byte item key, wrapped under the user key.
+        let item_key = k.keys.user.decrypt_key(body["key"].as_str().unwrap()).unwrap();
+        assert_eq!(item_key.to_bytes().len(), 64);
+        item_keys.push(item_key.to_bytes().to_vec());
+        let blob = sent(&k, &body);
+        assert_eq!(names_of(&blob), [Some("bwss:id"), Some("bwss:password"), Some("bwss:label")]);
+        assert_eq!(blob.get("name"), Some(&t("GitHub token")));
+        assert_eq!(blob.get("notes"), Some(&Cbor::Null));
+        assert_eq!(
+            blob.get("typeData"),
+            Some(&Cbor::Map(vec![(t("type"), t("secureNote")), (t("secureNoteType"), Cbor::Uint(0))]))
+        );
+        let Some(Cbor::Array(fields)) = blob.get("fields") else { panic!("no fields") };
+        let kinds: Vec<_> = fields.iter().map(|f| super::blob::get(f, "type").cloned()).collect();
+        assert_eq!(kinds, [Some(Cbor::Uint(0)), Some(Cbor::Uint(1)), Some(Cbor::Uint(0))]);
+        assert_eq!(sent_value(&k, &body), (ValueSource::Field, b"s".to_vec()));
+    }
+    assert_ne!(item_keys[0], item_keys[1]);
+    // §6.4 on the plaintext: too long for a field goes to the new item's notes, too long for the notes fails.
+    let body = new_item(&item(&[b'x'; 6_000], vec![]), B, &k.keys, &k.rng).unwrap();
+    assert_eq!(names_of(&sent(&k, &body)), [Some("bwss:id"), Some("bwss:location")]);
+    assert_eq!(sent_value(&k, &body), (ValueSource::Notes, vec![b'x'; 6_000]));
+    assert_eq!(new_item(&item(&[b'x'; 10_001], vec![]), B, &k.keys, &k.rng), Err(WriteError::TooLong));
+    let oversize = item(b"s", vec![fs("bwss:label", &"x".repeat(5_001), false)]);
+    assert_eq!(new_item(&oversize, B, &k.keys, &k.rng), Err(WriteError::TooLong));
+}
+
+#[test]
+fn blob_login_write_back_keeps_the_history() {
+    let k = Bx::new();
+    let mut content = blob_login(&[("bwss:id", "a")], Some("cur"), None);
+    let Cbor::Map(entries) = &mut content else { unreachable!() };
+    let history: Vec<Cbor> = (0..5).map(|i| history_entry(&format!("h{i}"), "2025-01-01T00:00:00Z")).collect();
+    entries.push((t("passwordHistory"), Cbor::Array(history)));
+    let c = k.cipher(content);
+    let body = bx_write(&k, &c, b"next").unwrap();
+    let blob = sent(&k, &body);
+    assert_eq!(blob.login_password(), Some("next"));
+    let Some(Cbor::Array(history)) = blob.get("passwordHistory") else { panic!("no history") };
+    assert_eq!(history.len(), 5);
+    assert_eq!(history[0], history_entry("cur", NOW_ISO));
+    assert_eq!(history[1], history_entry("h0", "2025-01-01T00:00:00Z"));
+    assert_eq!(history[4], history_entry("h3", "2025-01-01T00:00:00Z"));
+    let Some(type_data) = blob.get("typeData") else { panic!("no typeData") };
+    assert_eq!(super::blob::get(type_data, "passwordRevisionDate"), Some(&t(NOW_ISO)));
+    assert_eq!(super::blob::get(type_data, "username"), Some(&t("me")));
+    // An identical value is not written: the history stays.
+    let body = bx_write(&k, &c, b"cur").unwrap();
+    let blob = sent(&k, &body);
+    let Some(Cbor::Array(history)) = blob.get("passwordHistory") else { panic!("no history") };
+    assert_eq!(history[0], history_entry("h0", "2025-01-01T00:00:00Z"));
+    // No old password: no history entry; an empty value is no value.
+    let c = k.cipher(blob_login(&[("bwss:id", "a")], None, None));
+    let blob = sent(&k, &bx_write(&k, &c, b"x").unwrap());
+    assert_eq!((blob.login_password(), blob.get("passwordHistory")), (Some("x"), None));
+    let c = k.cipher(blob_login(&[("bwss:id", "a")], Some("cur"), None));
+    let blob = sent(&k, &bx_write(&k, &c, b"").unwrap());
+    let type_data = blob.get("typeData").unwrap();
+    assert_eq!(super::blob::get(type_data, "password"), Some(&Cbor::Null));
+    assert_eq!(blob.get("passwordHistory"), Some(&Cbor::Array(vec![history_entry("cur", NOW_ISO)])));
+    // Too long for the password, on its plaintext length.
+    assert_eq!(bx_write(&k, &c, &[b'x'; 5_001]), Err(WriteError::TooLong));
+    assert!(bx_write(&k, &c, &[b'x'; 5_000]).is_ok());
+    // Binary goes into a new tool field; the password and its history are left alone (ADR 0005).
+    let body = bx_write(&k, &c, &[0xff, 0]).unwrap();
+    let blob = sent(&k, &body);
+    assert_eq!(names_of(&blob), [Some("bwss:id"), Some("bwss:password"), Some("bwss:encoding")]);
+    assert_eq!((blob.login_password(), blob.get("passwordHistory")), (Some("cur"), None));
+    assert_eq!(sent_value(&k, &body), (ValueSource::Field, vec![0xff, 0]));
+}
+
+#[test]
+fn blob_size_rules_use_the_plaintext() {
+    let k = Bx::new();
+    let c = k.cipher(blob_login(&[("bwss:id", "a"), ("bwss:password", "old")], Some("pw"), None));
+    // 4,500 bytes fit a blob field, though a type 2 string of them would not.
+    let body = bx_write(&k, &c, &[b'x'; 4_500]).unwrap();
+    assert_eq!(names_of(&sent(&k, &body)), [Some("bwss:id"), Some("bwss:password")]);
+    // Over 5,000: into the empty notes, with the location mark; over 10,000: refused.
+    let body = bx_write(&k, &c, &[b'x'; 6_000]).unwrap();
+    let blob = sent(&k, &body);
+    assert_eq!(names_of(&blob), [Some("bwss:id"), Some("bwss:location")]);
+    assert_eq!(blob.notes().map(str::len), Some(6_000));
+    assert_eq!(bx_write(&k, &c, &[b'x'; 10_001]), Err(WriteError::TooLong));
+    // Notes the user wrote are never overwritten.
+    let mine = k.cipher(blob_login(&[("bwss:id", "a"), ("bwss:password", "old")], Some("pw"), Some("mine")));
+    assert_eq!(bx_write(&k, &mine, &[b'x'; 6_000]), Err(WriteError::NotesTaken));
+    // A value that fits again clears the stale copy in the notes and its mark (ADR 0010).
+    let stale = k.cipher(blob_login(
+        &[("bwss:id", "a"), ("bwss:password", "old"), ("bwss:location", " notes "), ("bwss:location", "x")],
+        Some("pw"),
+        Some("stale"),
+    ));
+    let blob = sent(&k, &bx_write(&k, &stale, b"fresh").unwrap());
+    assert_eq!(names_of(&blob), [Some("bwss:id"), Some("bwss:password")]);
+    assert_eq!((blob.notes(), blob.get("notes")), (None, Some(&Cbor::Null)));
+    // The notes as the value source.
+    let in_notes = k.cipher(blob_login(&[("bwss:id", "a"), ("bwss:location", "notes")], Some("pw"), Some("old")));
+    let body = bx_write(&k, &in_notes, b"n2").unwrap();
+    assert_eq!(sent_value(&k, &body), (ValueSource::Notes, b"n2".to_vec()));
+    assert_eq!(bx_write(&k, &in_notes, &[b'x'; 10_001]), Err(WriteError::TooLong));
+    let note = secure_note(&k, &[("bwss:id", "a")], Some("body"));
+    let body = bx_write(&k, &note, b"b2").unwrap();
+    assert_eq!(sent_value(&k, &body), (ValueSource::NoteBody, b"b2".to_vec()));
+    // A tool field over the limit never reaches the server; an empty one is no value.
+    let p = Patch { set: vec![fs("bwss:label", &"x".repeat(5_001), false)], ..bx_patch(&k, &c, None) };
+    assert_eq!(apply(&c, &p, B, &k.keys, &k.rng, NOW), Err(WriteError::TooLong));
+    let p = Patch { set: vec![fs("bwss:label", "", false)], ..bx_patch(&k, &c, None) };
+    let blob = sent(&k, &apply(&c, &p, B, &k.keys, &k.rng, NOW).unwrap());
+    assert_eq!(blob.field_value(2), None);
+}
+
+#[test]
+fn blob_tool_fields_and_unknown_keys() {
+    let k = Bx::new();
+    let fido = Cbor::Array(vec![Cbor::Map(vec![(t("credentialId"), t("c"))])]);
+    let type_data = Cbor::Map(vec![
+        (t("type"), t("login")),
+        (t("password"), t("pw")),
+        (t("fido2Credentials"), fido.clone()),
+        (t("xTypeData"), Cbor::bytes(vec![1, 2])),
+    ]);
+    let fields = Cbor::Array(vec![
+        Cbor::Map(vec![(t("name"), t("bwss:id")), (t("value"), t("a")), (t("xField"), Cbor::Bool(true))]),
+        Cbor::Map(vec![(t("name"), t("bwss:attr:k")), (t("value"), t("1")), (t("type"), Cbor::Uint(1))]),
+        Cbor::Map(vec![(t("name"), t("other:id")), (t("value"), t("b"))]),
+        Cbor::Map(vec![(t("name"), t("bwss:attr:k")), (t("value"), t("2"))]),
+        Cbor::Map(vec![(t("name"), t("bwss:label")), (t("value"), t("old")), (t("type"), Cbor::Uint(1))]),
+        Cbor::Map(vec![(t("value"), t("nameless"))]),
+    ]);
+    let unknown = Cbor::Map(vec![(t("nested"), Cbor::Array(vec![Cbor::Nint(4), Cbor::Null]))]);
+    let c = blob_cipher(
+        &k,
+        1,
+        vec![
+            ("xFirst", unknown.clone()),
+            ("name", t("Blob")),
+            ("typeData", type_data.clone()),
+            ("fields", fields),
+            ("notes", Cbor::Null),
+        ],
+    );
+    let p = Patch {
+        set: vec![fs("bwss:label", "new", false), fs("bwss:attr:j", "3", false)],
+        remove: vec!["bwss:attr:".into()],
+        ..bx_patch(&k, &c, None)
+    };
+    let blob = sent(&k, &apply(&c, &p, B, &k.keys, &k.rng, NOW).unwrap());
+    assert_eq!(names_of(&blob), [Some("bwss:id"), Some("other:id"), Some("bwss:label"), None, Some("bwss:attr:j")]);
+    let Some(Cbor::Array(fields)) = blob.get("fields") else { panic!("no fields") };
+    // Changed in place, kind kept; every key of an untouched field kept as decoded.
+    assert_eq!(
+        fields[2],
+        Cbor::Map(vec![(t("name"), t("bwss:label")), (t("value"), t("new")), (t("type"), Cbor::Uint(1))])
+    );
+    assert_eq!(
+        fields[0],
+        Cbor::Map(vec![(t("name"), t("bwss:id")), (t("value"), t("a")), (t("xField"), Cbor::Bool(true))])
+    );
+    assert_eq!(
+        fields[4],
+        Cbor::Map(vec![
+            (t("name"), t("bwss:attr:j")),
+            (t("value"), t("3")),
+            (t("type"), Cbor::Uint(0)),
+            (t("linkedId"), Cbor::Null)
+        ])
+    );
+    assert_eq!((blob.get("xFirst"), blob.get("typeData")), (Some(&unknown), Some(&type_data)));
+    let Some(Cbor::Map(_)) = blob.get("typeData") else { panic!() };
+    // The content's keys keep their order.
+    let open = sent(&k, &apply(&c, &bx_patch(&k, &c, Some(b"next")), B, &k.keys, &k.rng, NOW).unwrap());
+    let Some(Cbor::Map(td)) = open.get("typeData") else { panic!("no typeData") };
+    let keys: Vec<_> = td.iter().map(|(key, _)| key.clone()).collect();
+    assert_eq!(keys, [t("type"), t("password"), t("fido2Credentials"), t("xTypeData"), t("passwordRevisionDate")]);
+    assert_eq!(super::blob::get(open.get("typeData").unwrap(), "fido2Credentials"), Some(&fido));
+}
+
+#[test]
+fn blob_strip_and_foreign_content() {
+    let k = Bx::new();
+    let c = secure_note(
+        &k,
+        &[("bwss:id", "a"), ("bwss:location", "notes"), ("other:id", "b"), ("bwss:attr:x", "1")],
+        Some("secret"),
+    );
+    let body = strip(&c, B, &k.keys, &k.rng).unwrap();
+    assert_eq!(body["key"], c["key"]);
+    for key in ["name", "notes", "login", "fields", "passwordHistory"] {
+        assert_eq!(body[key], Value::Null, "{key}");
+    }
+    assert_eq!(body["lastKnownRevisionDate"], c["revisionDate"]);
+    let blob = sent(&k, &body);
+    assert_eq!((names_of(&blob), blob.notes()), (vec![Some("other:id")], None));
+    assert_eq!(has_foreign_content(&as_server(&body), B, &k.keys), Ok(true));
+    // Notes the user wrote stay.
+    let mine = secure_note(&k, &[("bwss:id", "a"), ("bwss:password", "s")], Some("mine"));
+    let body = strip(&mine, B, &k.keys, &k.rng).unwrap();
+    assert_eq!(sent(&k, &body).notes(), Some("mine"));
+    let bare = secure_note(&k, &[("bwss:id", "a"), ("bwss:password", "s")], None);
+    let body = strip(&bare, B, &k.keys, &k.rng).unwrap();
+    assert_eq!(names_of(&sent(&k, &body)), Vec::<Option<&str>>::new());
+    assert_eq!(has_foreign_content(&as_server(&body), B, &k.keys), Ok(false));
+
+    // Each kind of foreign content of §8.2, inside the blob.
+    let login = |td: Vec<(&str, Cbor)>, rest: Vec<(&str, Cbor)>| {
+        let mut type_data = vec![(t("type"), t("login"))];
+        type_data.extend(td.into_iter().map(|(key, v)| (t(key), v)));
+        let mut parts = vec![("name", t("L")), ("typeData", Cbor::Map(type_data))];
+        parts.extend(rest);
+        has_foreign_content(&blob_cipher(&k, 1, parts), B, &k.keys).unwrap()
+    };
+    let uris = |uri: Cbor| Cbor::Array(vec![Cbor::Map(vec![(t("uri"), uri), (t("match"), Cbor::Null)])]);
+    let cases = [
+        (vec![], vec![], false),
+        (vec![("username", t("")), ("password", Cbor::Null), ("uris", uris(Cbor::Null))], vec![], false),
+        (vec![("uris", t("not a list")), ("fido2Credentials", Cbor::Array(vec![]))], vec![], false),
+        (vec![("username", t("me"))], vec![], true),
+        (vec![("password", t("pw"))], vec![], true),
+        (vec![("totp", t("otp"))], vec![], true),
+        (vec![("uris", uris(t("https://x")))], vec![], true),
+        (vec![("fido2Credentials", Cbor::Array(vec![Cbor::Null]))], vec![], true),
+        (vec![], vec![("passwordHistory", Cbor::Array(vec![]))], false),
+        (vec![], vec![("passwordHistory", Cbor::Array(vec![history_entry("h", "2025-01-01T00:00:00Z")]))], true),
+        (vec![], vec![("notes", t(""))], false),
+        (vec![], vec![("notes", t("n"))], true),
+        (vec![], vec![("fields", blob_fields(&[("bwss:id", t("a"))]))], false),
+        (vec![], vec![("fields", blob_fields(&[("note", t("a"))]))], true),
+        (vec![], vec![("fields", Cbor::Array(vec![Cbor::Map(vec![(t("value"), t("v"))])]))], true),
+    ];
+    for (i, (td, rest, want)) in cases.into_iter().enumerate() {
+        assert_eq!(login(td, rest), want, "case {i}");
+    }
+    // An attachment, and a type the tool does not read, count without opening the blob.
+    let mut c = secure_note(&k, &[("bwss:id", "a")], None);
+    c["attachments"] = json!([{ "id": "att" }]);
+    assert_eq!(has_foreign_content(&c, B, &k.keys), Ok(true));
+    let mut card = super::blob_tests::tampered(&secure_note(&k, &[("bwss:id", "a")], None));
+    card["type"] = json!(3);
+    assert_eq!(has_foreign_content(&card, B, &k.keys), Ok(true));
+    card["type"] = json!(2);
+    assert_eq!(has_foreign_content(&card, B, &k.keys), Err(WriteError::Uninspectable(Uninspectable::Blob)));
+    assert_eq!(strip(&card, B, &k.keys, &k.rng), Err(WriteError::Uninspectable(Uninspectable::Blob)));
+}
+
+#[test]
+fn organization_blob_is_never_written() {
+    let k = Bx::new();
+    let org = &k.keys.orgs["org1"];
+    let mut c = k.sealed_with(org, &versioned(blob_login(&[("bwss:id", "a")], Some("pw"), None)), json!(1));
+    c["organizationId"] = json!("org1");
+    let held = Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
+    assert_eq!(strip(&c, B, &k.keys, &k.rng), held);
+    let p = bx_patch(&k, &k.cipher(blob_login(&[("bwss:id", "a")], None, None)), None);
+    assert_eq!(apply(&c, &p, B, &k.keys, &k.rng, NOW), held);
+    assert_eq!(has_foreign_content(&c, B, &k.keys), held.map(|_: Map<String, Value>| false));
+    // A trashed blob is gone, as any item.
+    let mut gone = k.cipher(blob_login(&[("bwss:id", "a")], Some("pw"), None));
+    gone["deletedDate"] = json!("2026-01-03T00:00:00Z");
+    assert_eq!(strip(&gone, B, &k.keys, &k.rng), Err(WriteError::Gone));
 }

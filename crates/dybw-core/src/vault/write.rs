@@ -2,14 +2,15 @@
 //! `newSecretRequest` and `updateValueRequest`. A write changes only the value source and the tool's own fields;
 //! every other field, key and unknown property passes through byte for byte (§6.3).
 
-use super::fields::{Mark, decrypt_opt, field_names, item_key};
+use super::blob::{BLOB_SECURITY_VERSION, OpenBlob, open_blob};
+use super::fields::{Mark, decrypt_opt, field_names, first_index, item_key};
 use super::namespace::{Encodings, Namespace};
 use super::scan::{
     Scan, TYPE_SECURE_NOTE, Uninspectable, ValueSource, is_blob, organization, read_only, scan, supported_type,
     too_large, trashed,
 };
 use super::{Keys, Organizations};
-use crate::crypto::{CryptoError, SymmetricKey};
+use crate::crypto::{ContentFormat, CryptoError, SymmetricKey};
 use crate::ports::Random;
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde::{Deserialize, Serialize};
@@ -23,9 +24,8 @@ const MAX_NOTES_ENC: usize = 10_000;
 const FIELD_TEXT: u64 = 0;
 const FIELD_HIDDEN: u64 = 1;
 /// `passwordHistory` keeps at most this many entries, newest first (§6.1).
-const HISTORY_MAX: usize = 5;
-/// Metadata only the server sends, dropped from every update body (§6.3). For a blob cipher this would drop the
-/// blob itself, which is why a blob cipher is never written.
+pub(super) const HISTORY_MAX: usize = 5;
+/// Metadata only the server sends, dropped from every update body (§6.3). A blob's update body sends a new `data`.
 const RESPONSE_ONLY: [&str; 12] = [
     "id",
     "revisionDate",
@@ -167,29 +167,52 @@ fn owner<'k>(cipher: &Value, keys: &'k Keys) -> Result<&'k SymmetricKey, WriteEr
     }
 }
 
-/// One write in progress: the request body and the custom fields, each raw (encrypted) entry beside its decrypted
-/// name. Entries the write does not change are kept byte for byte.
-struct Edit<'a, R: Random> {
-    ns: &'a Namespace,
+/// The two shapes a write edits: a field-level cipher's encrypted strings, or an open blob's decoded content (ADR
+/// 0021). The rules of §6 are written once, in `Edit`, over these.
+pub(crate) trait Body {
+    /// The length §6.4 compares with Bitwarden's limits; 0 for the empty text, which is stored as no value.
+    fn stored_len(&self, value: &str) -> usize;
+    /// Every field's name, in order; a field without one is `None`.
+    fn names(&self) -> Vec<Option<&str>>;
+    /// The value of field `i`; `""` for none.
+    fn value(&self, i: usize) -> Result<Zeroizing<String>, CryptoError>;
+    /// Sets the first field called `name`, keeping its kind; appends a field when there is none (§3.1).
+    fn set_field(&mut self, name: &str, value: &str, hidden: bool) -> Result<(), CryptoError>;
+    /// Removes every field whose name matches, so no later copy takes its place (ADR 0014).
+    fn remove_fields(&mut self, remove: impl Fn(&str) -> bool);
+    fn notes_text(&self) -> Result<Zeroizing<String>, CryptoError>;
+    fn set_notes(&mut self, value: &str) -> Result<(), CryptoError>;
+    fn password_text(&self) -> Result<Zeroizing<String>, CryptoError>;
+    /// Sets the login password and its revision date to `now`; the old one, when there is one, goes first into the
+    /// history, which keeps `HISTORY_MAX` entries (§6.1).
+    fn replace_password(&mut self, value: &str, now: &str) -> Result<(), CryptoError>;
+    /// The longest field value, as stored.
+    fn longest_value(&self) -> usize;
+}
+
+/// A field-level cipher being written: the request body and the custom fields, each raw (encrypted) entry beside
+/// its decrypted name. Entries the write does not change are kept byte for byte.
+struct Fields<'a, R: Random> {
     key: &'a SymmetricKey,
     rng: &'a R,
     body: Map<String, Value>,
     fields: Vec<(Value, Option<String>)>,
 }
 
-impl<'a, R: Random> Edit<'a, R> {
-    /// Starts from the cipher as returned, minus response-only metadata; the item key and unknown keys stay.
-    fn read(cipher: &Value, ns: &'a Namespace, key: &'a SymmetricKey, rng: &'a R) -> Result<Self, CryptoError> {
+/// The cipher as returned, minus response-only metadata; the item key and unknown keys stay.
+fn request_body(cipher: &Value) -> Map<String, Value> {
+    cipher
+        .as_object()
+        .map(|o| o.iter().filter(|(k, _)| !RESPONSE_ONLY.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())))
+        .map(Iterator::collect)
+        .unwrap_or_default()
+}
+
+impl<'a, R: Random> Fields<'a, R> {
+    fn read(cipher: &Value, key: &'a SymmetricKey, rng: &'a R) -> Result<Self, CryptoError> {
         let names = field_names(cipher, key)?;
         let raw = cipher.get("fields").and_then(Value::as_array).cloned().unwrap_or_default();
-        let body = cipher
-            .as_object()
-            .map(|o| {
-                o.iter().filter(|(k, _)| !RESPONSE_ONLY.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone()))
-            })
-            .map(Iterator::collect)
-            .unwrap_or_default();
-        Ok(Edit { ns, key, rng, body, fields: raw.into_iter().zip(names).collect() })
+        Ok(Fields { key, rng, body: request_body(cipher), fields: raw.into_iter().zip(names).collect() })
     }
 
     /// Encrypted under the item key; an empty text is no value (`null`), as the plugin stores it.
@@ -200,23 +223,39 @@ impl<'a, R: Random> Edit<'a, R> {
         Ok(Value::String(self.key.encrypt_str(text, self.rng)?))
     }
 
-    /// The encrypted length of `text` as `enc` stores it.
-    fn enc_len(&self, text: &str) -> usize {
-        if text.is_empty() { 0 } else { encrypted_len(text.len(), self.key) }
+    fn take_fields(&mut self) -> Value {
+        Value::Array(std::mem::take(&mut self.fields).into_iter().map(|(raw, _)| raw).collect())
     }
 
-    /// Whether the first `{ns}:location` says `notes` after trimming (§3.2, ADR 0010); absent and `null` say nothing.
-    fn notes_marked(&self) -> Result<bool, CryptoError> {
-        let name = self.ns.field("location");
-        let raw =
-            self.fields.iter().find(|(_, n)| n.as_deref() == Some(name.as_str())).and_then(|(f, _)| f.get("value"));
-        let value = decrypt_opt(raw, self.key)?;
-        Ok(Mark::classify(Some(&value), "notes") == Mark::Set)
+    /// The end of every update body: the edited fields, a `passwordHistory` that is always an array (the server
+    /// replaces the history with it), and the revision the write is based on.
+    fn finish(mut self, revision: &str) -> Map<String, Value> {
+        let fields = self.take_fields();
+        self.body.insert("fields".into(), fields);
+        if !self.body.get("passwordHistory").is_some_and(Value::is_array) {
+            self.body.insert("passwordHistory".into(), json!([]));
+        }
+        self.body.insert("lastKnownRevisionDate".into(), json!(revision));
+        self.body
+    }
+}
+
+impl<R: Random> Body for Fields<'_, R> {
+    /// The encrypted length (type 7 strings are longer than type 2 ones).
+    fn stored_len(&self, value: &str) -> usize {
+        if value.is_empty() { 0 } else { encrypted_len(value.len(), self.key) }
     }
 
-    /// Sets the first field called `name` to an encrypted value, keeping its kind; appends a field when there is
-    /// none (§3.1).
-    fn set_value(&mut self, name: &str, value: Value, hidden: bool) -> Result<(), CryptoError> {
+    fn names(&self) -> Vec<Option<&str>> {
+        self.fields.iter().map(|(_, n)| n.as_deref()).collect()
+    }
+
+    fn value(&self, i: usize) -> Result<Zeroizing<String>, CryptoError> {
+        decrypt_opt(self.fields.get(i).and_then(|(f, _)| f.get("value")), self.key)
+    }
+
+    fn set_field(&mut self, name: &str, value: &str, hidden: bool) -> Result<(), CryptoError> {
+        let value = self.enc(value)?;
         // Only an object can carry a name, so the first named entry is one.
         let existing = self
             .fields
@@ -236,76 +275,36 @@ impl<'a, R: Random> Edit<'a, R> {
         Ok(())
     }
 
-    fn set(&mut self, name: &str, text: &str, hidden: bool) -> Result<(), CryptoError> {
-        let value = self.enc(text)?;
-        self.set_value(name, value, hidden)
-    }
-
-    /// Removes every field whose name matches, so no later copy takes its place (ADR 0014).
-    fn remove_where(&mut self, remove: impl Fn(&str) -> bool) {
+    fn remove_fields(&mut self, remove: impl Fn(&str) -> bool) {
         self.fields.retain(|(_, n)| !n.as_deref().is_some_and(&remove));
     }
 
-    /// Stores `stored` (text, or base64 of bytes) where the tool owns the storage: `{ns}:password`, or the notes
-    /// when it does not fit a field and the notes are empty or already the tool's (§6.4).
-    fn write_owned_field(&mut self, stored: &str) -> Result<(), WriteError> {
-        let ns = self.ns;
-        let (password, location) = (ns.field("password"), ns.field("location"));
-        let notes_marked = self.notes_marked()?;
-        let len = self.enc_len(stored);
-        if len <= MAX_FIELD_ENC {
-            let value = self.enc(stored)?;
-            self.set_value(&password, value, true)?;
-            // The notes held an older copy of the secret (ADR 0010): clear it and its mark in the same write.
-            if notes_marked {
-                self.body.insert("notes".into(), Value::Null);
-                self.remove_where(|n| n == location);
-            }
-            return Ok(());
-        }
-        if len > MAX_NOTES_ENC {
-            return Err(WriteError::TooLong);
-        }
-        // Decrypted: notes holding "" are empty too (the plugin's empty-notes fix).
-        let notes_empty = decrypt_opt(self.body.get("notes"), self.key)?.is_empty();
-        if !notes_marked && !notes_empty {
-            return Err(WriteError::NotesTaken);
-        }
-        let value = self.enc(stored)?;
-        self.body.insert("notes".into(), value);
-        self.set(&location, "notes", false)?;
-        self.remove_where(|n| n == password);
-        Ok(())
+    fn notes_text(&self) -> Result<Zeroizing<String>, CryptoError> {
+        decrypt_opt(self.body.get("notes"), self.key)
     }
 
-    fn write_notes(&mut self, text: &str) -> Result<(), WriteError> {
-        if self.enc_len(text) > MAX_NOTES_ENC {
-            return Err(WriteError::TooLong);
-        }
-        let value = self.enc(text)?;
+    fn set_notes(&mut self, value: &str) -> Result<(), CryptoError> {
+        let value = self.enc(value)?;
         self.body.insert("notes".into(), value);
         Ok(())
     }
 
-    /// Writes the login password as the official clients do: the old one goes first into the history (at most 5)
-    /// and the revision date is set (§6.1). An identical value is not written.
-    fn write_login_password(&mut self, text: &str, now: &str) -> Result<(), WriteError> {
-        if self.enc_len(text) > MAX_PASSWORD_ENC {
-            return Err(WriteError::TooLong);
-        }
+    fn password_text(&self) -> Result<Zeroizing<String>, CryptoError> {
+        decrypt_opt(self.body.get("login").and_then(|l| l.get("password")), self.key)
+    }
+
+    /// The old password moves to the history as it is, still encrypted.
+    fn replace_password(&mut self, value: &str, now: &str) -> Result<(), CryptoError> {
         let existing = self.body.get("login").and_then(Value::as_object).cloned();
         let had_login = existing.is_some();
         let mut login = existing.unwrap_or_default();
-        if decrypt_opt(login.get("password"), self.key)?.as_str() == text {
-            return Ok(());
-        }
         if let Some(old) = login.get("password").filter(|p| p.is_string()) {
             let mut history = self.body.get("passwordHistory").and_then(Value::as_array).cloned().unwrap_or_default();
             history.insert(0, json!({ "password": old, "lastUsedDate": now }));
             history.truncate(HISTORY_MAX);
             self.body.insert("passwordHistory".into(), Value::Array(history));
         }
-        login.insert("password".into(), self.enc(text)?);
+        login.insert("password".into(), self.enc(value)?);
         login.insert("passwordRevisionDate".into(), json!(now));
         if !had_login {
             for k in ["username", "uris", "totp"] {
@@ -314,6 +313,85 @@ impl<'a, R: Random> Edit<'a, R> {
         }
         self.body.insert("login".into(), Value::Object(login));
         Ok(())
+    }
+
+    fn longest_value(&self) -> usize {
+        self.fields.iter().map(|(f, _)| f.get("value").and_then(Value::as_str).map_or(0, str::len)).max().unwrap_or(0)
+    }
+}
+
+/// One write in progress, on either shape of item: the rules of §6.
+struct Edit<'a, B: Body> {
+    ns: &'a Namespace,
+    body: B,
+}
+
+impl<B: Body> Edit<'_, B> {
+    /// Whether the first `{ns}:location` says `notes` after trimming (§3.2, ADR 0010); absent and `null` say nothing.
+    fn notes_marked(&self) -> Result<bool, CryptoError> {
+        let names = self.body.names();
+        let value = match first_index(&names, &self.ns.field("location")) {
+            Some(i) => self.body.value(i)?,
+            None => Zeroizing::default(),
+        };
+        Ok(Mark::classify(Some(&value), "notes") == Mark::Set)
+    }
+
+    fn set(&mut self, name: &str, text: &str, hidden: bool) -> Result<(), CryptoError> {
+        self.body.set_field(name, text, hidden)
+    }
+
+    fn remove_where(&mut self, remove: impl Fn(&str) -> bool) {
+        self.body.remove_fields(remove);
+    }
+
+    /// Stores `stored` (text, or base64 of bytes) where the tool owns the storage: `{ns}:password`, or the notes
+    /// when it does not fit a field and the notes are empty or already the tool's (§6.4).
+    fn write_owned_field(&mut self, stored: &str) -> Result<(), WriteError> {
+        let ns = self.ns;
+        let (password, location) = (ns.field("password"), ns.field("location"));
+        let notes_marked = self.notes_marked()?;
+        let len = self.body.stored_len(stored);
+        if len <= MAX_FIELD_ENC {
+            self.set(&password, stored, true)?;
+            // The notes held an older copy of the secret (ADR 0010): clear it and its mark in the same write.
+            if notes_marked {
+                self.body.set_notes("")?;
+                self.remove_where(|n| n == location);
+            }
+            return Ok(());
+        }
+        if len > MAX_NOTES_ENC {
+            return Err(WriteError::TooLong);
+        }
+        // Decrypted: notes holding "" are empty too (the plugin's empty-notes fix).
+        let notes_empty = self.body.notes_text()?.is_empty();
+        if !notes_marked && !notes_empty {
+            return Err(WriteError::NotesTaken);
+        }
+        self.body.set_notes(stored)?;
+        self.set(&location, "notes", false)?;
+        self.remove_where(|n| n == password);
+        Ok(())
+    }
+
+    fn write_notes(&mut self, text: &str) -> Result<(), WriteError> {
+        if self.body.stored_len(text) > MAX_NOTES_ENC {
+            return Err(WriteError::TooLong);
+        }
+        Ok(self.body.set_notes(text)?)
+    }
+
+    /// Writes the login password as the official clients do: the old one goes first into the history (at most 5)
+    /// and the revision date is set (§6.1). An identical value is not written.
+    fn write_login_password(&mut self, text: &str, now: &str) -> Result<(), WriteError> {
+        if self.body.stored_len(text) > MAX_PASSWORD_ENC {
+            return Err(WriteError::TooLong);
+        }
+        if self.body.password_text()?.as_str() == text {
+            return Ok(());
+        }
+        Ok(self.body.replace_password(text, now)?)
     }
 
     /// Writes `secret` back to `source` (§6.1, ADR 0005); with `owned`, into the tool's storage instead of a value
@@ -348,30 +426,64 @@ impl<'a, R: Random> Edit<'a, R> {
 
     /// Fails when any field value is over Bitwarden's limit, so an oversize tool field never reaches the server.
     fn check_sizes(&self) -> Result<(), WriteError> {
-        let too_long =
-            self.fields.iter().any(|(f, _)| f.get("value").and_then(Value::as_str).map_or(0, str::len) > MAX_FIELD_ENC);
-        if too_long { Err(WriteError::TooLong) } else { Ok(()) }
+        if self.body.longest_value() > MAX_FIELD_ENC { Err(WriteError::TooLong) } else { Ok(()) }
     }
 
-    fn take_fields(&mut self) -> Value {
-        Value::Array(std::mem::take(&mut self.fields).into_iter().map(|(raw, _)| raw).collect())
-    }
-
-    /// The end of every update body: the edited fields, a `passwordHistory` that is always an array (the server
-    /// replaces the history with it), and the revision the write is based on.
-    fn finish(mut self, revision: &str) -> Map<String, Value> {
-        let fields = self.take_fields();
-        self.body.insert("fields".into(), fields);
-        if !self.body.get("passwordHistory").is_some_and(Value::is_array) {
-            self.body.insert("passwordHistory".into(), json!([]));
+    /// Steps 3 and 4 of a write: the value back to its source, then the tool's own fields.
+    fn patch(&mut self, source: ValueSource, patch: &Patch, now_ms: i64) -> Result<(), WriteError> {
+        if let ValueChange::Set { secret, owned, .. } = &patch.value {
+            self.write_value(source, secret, *owned, &iso_ms(now_ms)?)?;
         }
-        self.body.insert("lastKnownRevisionDate".into(), json!(revision));
-        self.body
+        let attr = self.ns.field("attr:");
+        for name in &patch.remove {
+            if *name == attr {
+                self.remove_where(|n| n.starts_with(&attr));
+            } else {
+                self.remove_where(|n| n == name);
+            }
+        }
+        for f in &patch.set {
+            self.set(&f.name, &f.value, f.hidden)?;
+        }
+        self.check_sizes()
+    }
+
+    /// §8.2 step 1: every field of the namespace goes, and the notes when they held the tool's secret.
+    fn strip(&mut self) -> Result<(), WriteError> {
+        if self.notes_marked()? {
+            self.body.set_notes("")?;
+        }
+        let prefix = self.ns.field("");
+        self.remove_where(|n| n.starts_with(&prefix));
+        Ok(())
+    }
+
+    /// A new item's fields (§6.2): the marker, the value, then the tool's.
+    fn create(&mut self, item: &NewItem) -> Result<(), WriteError> {
+        self.set(&self.ns.field("id"), &item.id, false)?;
+        // The `Field` source never touches a login, so no date is needed.
+        self.write_value(ValueSource::Field, &item.value, false, "")?;
+        for f in &item.tool_fields {
+            self.set(&f.name, &f.value, f.hidden)?;
+        }
+        self.check_sizes()
     }
 }
 
+/// The update body of a blob cipher: its new `data` beside the cipher's own metadata and item key, with the
+/// field-level parts null, as the SDK sends it (ADR 0021).
+fn blob_body(cipher: &Value, data: String, revision: &str) -> Map<String, Value> {
+    let mut body = request_body(cipher);
+    for k in ["name", "notes", "login", "fields", "passwordHistory"] {
+        body.insert(k.into(), Value::Null);
+    }
+    body.insert("data".into(), json!(data));
+    body.insert("lastKnownRevisionDate".into(), json!(revision));
+    body
+}
+
 /// Applies `patch` to `cipher` (the server's copy, fresh or as last read) and returns the body of the update
-/// request. `now_ms` dates a replaced login password.
+/// request. `now_ms` dates a replaced login password. A blob stays a blob, sealed under a fresh content key.
 pub fn apply(
     cipher: &Value,
     patch: &Patch,
@@ -380,13 +492,9 @@ pub fn apply(
     rng: &impl Random,
     now_ms: i64,
 ) -> Result<Map<String, Value>, WriteError> {
-    // 1. Abort checks against the copy being written over (§6.5).
+    // 1. Abort checks against the copy being written over (§6.5). An organization blob scans as held.
     if trashed(cipher) {
         return Err(WriteError::Gone);
-    }
-    // A blob reads as marked, but a field-level body would wipe it: held until blobs are written (ADR 0021).
-    if is_blob(cipher) {
-        return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }
     let fresh = match scan(cipher, ns, keys, &Organizations::All) {
         Scan::Marked(m) if m.id == patch.id => m,
@@ -401,32 +509,19 @@ pub fn apply(
     {
         return Err(WriteError::SourceChanged);
     }
-
-    // 2. Everything new is encrypted under the item's own key.
-    let key = item_key(cipher, owner(cipher, keys)?)?;
-    let mut edit = Edit::read(cipher, ns, &key, rng)?;
-
-    // 3. The value goes back to its source.
-    if let ValueChange::Set { secret, owned, .. } = &patch.value {
-        edit.write_value(fresh.source, secret, *owned, &iso_ms(now_ms)?)?;
-    }
-
-    // 4. The tool's own fields.
-    let attr = ns.field("attr:");
-    for name in &patch.remove {
-        if *name == attr {
-            edit.remove_where(|n| n.starts_with(&attr));
-        } else {
-            edit.remove_where(|n| n == name);
-        }
-    }
-    for f in &patch.set {
-        edit.set(&f.name, &f.value, f.hidden)?;
-    }
-
-    edit.check_sizes()?;
     let revision = cipher.get("revisionDate").and_then(Value::as_str).unwrap_or(&patch.base_revision);
-    Ok(edit.finish(revision))
+
+    // 2. Everything new is encrypted under the item's own key; 3 and 4, the value and the tool's own fields.
+    let owner = owner(cipher, keys)?;
+    let key = item_key(cipher, owner)?;
+    if is_blob(cipher) {
+        let mut edit = Edit { ns, body: open_blob(cipher, owner).map_err(WriteError::Uninspectable)? };
+        edit.patch(fresh.source, patch, now_ms)?;
+        return Ok(blob_body(cipher, edit.body.seal(&key, rng)?, revision));
+    }
+    let mut edit = Edit { ns, body: Fields::read(cipher, &key, rng)? };
+    edit.patch(fresh.source, patch, now_ms)?;
+    Ok(edit.body.finish(revision))
 }
 
 /// Body of the update that removes every field of the tool's namespace from `cipher` (§8.2 step 1). The notes are
@@ -438,7 +533,9 @@ pub fn strip(cipher: &Value, ns: &Namespace, keys: &Keys, rng: &impl Random) -> 
     if too_large(cipher) {
         return Err(WriteError::Uninspectable(Uninspectable::TooLarge));
     }
-    if is_blob(cipher) {
+    let blob = is_blob(cipher);
+    // The SDK never seals an organization item: one is held, never opened (ADR 0021).
+    if blob && organization(cipher).is_some() {
         return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }
     if read_only(cipher) {
@@ -448,29 +545,33 @@ pub fn strip(cipher: &Value, ns: &Namespace, keys: &Keys, rng: &impl Random) -> 
     let Some(revision) = cipher.get("revisionDate").and_then(Value::as_str) else {
         return Err(WriteError::Uninspectable(Uninspectable::Value));
     };
-    let key = item_key(cipher, owner(cipher, keys)?)?;
-    let mut edit = Edit::read(cipher, ns, &key, rng)?;
-    if edit.notes_marked()? {
-        edit.body.insert("notes".into(), Value::Null);
+    let owner = owner(cipher, keys)?;
+    let key = item_key(cipher, owner)?;
+    if blob {
+        let mut edit = Edit { ns, body: open_blob(cipher, owner).map_err(WriteError::Uninspectable)? };
+        edit.strip()?;
+        return Ok(blob_body(cipher, edit.body.seal(&key, rng)?, revision));
     }
-    let prefix = ns.field("");
-    edit.remove_where(|n| n.starts_with(&prefix));
-    Ok(edit.finish(revision))
+    let mut edit = Edit { ns, body: Fields::read(cipher, &key, rng)? };
+    edit.strip()?;
+    Ok(edit.body.finish(revision))
 }
 
-/// Whether anything in `cipher` is not the tool's (§8.2). Only what the answer needs is decrypted. An item that
-/// cannot be read is an error, never `false`: it must not be trashed.
+/// Whether anything in `cipher` is not the tool's (§8.2). Only what the answer needs is decrypted, except in a
+/// blob, which opens whole. An item that cannot be read is an error, never `false`: it must not be trashed.
 pub fn has_foreign_content(cipher: &Value, ns: &Namespace, keys: &Keys) -> Result<bool, WriteError> {
     if too_large(cipher) {
         return Err(WriteError::Uninspectable(Uninspectable::TooLarge));
     }
-    if is_blob(cipher) {
+    let blob = is_blob(cipher);
+    if blob && organization(cipher).is_some() {
         return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }
     // Card, identity and SSH key data is never inspected: not bare.
     if !supported_type(cipher) {
         return Ok(true);
     }
+    // A blob's own `passwordHistory` and `login` are null: its history and passkeys are inside it.
     let non_empty_array = |v: Option<&Value>| v.and_then(Value::as_array).is_some_and(|a| !a.is_empty());
     if non_empty_array(cipher.get("attachments"))
         || non_empty_array(cipher.get("passwordHistory"))
@@ -478,8 +579,11 @@ pub fn has_foreign_content(cipher: &Value, ns: &Namespace, keys: &Keys) -> Resul
     {
         return Ok(true);
     }
-    let key = item_key(cipher, owner(cipher, keys)?)?;
     let prefix = ns.field("");
+    if blob {
+        return Ok(open_blob(cipher, &keys.user).map_err(WriteError::Uninspectable)?.has_foreign_content(&prefix));
+    }
+    let key = item_key(cipher, owner(cipher, keys)?)?;
     if field_names(cipher, &key)?.iter().any(|n| n.as_deref().is_none_or(|n| !n.starts_with(&prefix))) {
         return Ok(true);
     }
@@ -502,34 +606,47 @@ pub fn has_foreign_content(cipher: &Value, ns: &Namespace, keys: &Keys) -> Resul
 }
 
 /// Body of the create request for a new item (§6.2): a personal secure note with empty notes and the value in a
-/// hidden `{ns}:password`, or in the notes with `{ns}:location=notes` when it does not fit (§6.4).
+/// hidden `{ns}:password`, or in the notes with `{ns}:location=notes` when it does not fit (§6.4). On an account
+/// whose verified security state is at `BLOB_SECURITY_VERSION` or higher it is a blob under a fresh item key, as the
+/// SDK seals one (ADR 0021); field-level otherwise.
 pub fn new_item(
     item: &NewItem,
     ns: &Namespace,
     keys: &Keys,
     rng: &impl Random,
 ) -> Result<Map<String, Value>, WriteError> {
-    let mut edit = Edit { ns, key: &keys.user, rng, body: Map::new(), fields: Vec::new() };
-    edit.set(&ns.field("id"), &item.id, false)?;
-    // The `Field` source never touches a login, so no date is needed.
-    edit.write_value(ValueSource::Field, &item.value, false, "")?;
-    for f in &item.tool_fields {
-        edit.set(&f.name, &f.value, f.hidden)?;
-    }
-    edit.check_sizes()?;
-    let fields = edit.take_fields();
-    let name = keys.user.encrypt_str(&item.name, rng)?;
-    let mut body = edit.body;
-    body.entry("notes").or_insert(Value::Null);
+    let mut body = Map::new();
     for (k, v) in [
         ("type", json!(TYPE_SECURE_NOTE)),
         ("organizationId", Value::Null),
         ("folderId", json!(item.folder_id)),
-        ("name", json!(name)),
         ("login", Value::Null),
         ("secureNote", json!({ "type": 0 })),
         ("favorite", json!(false)),
         ("reprompt", json!(0)),
+    ] {
+        body.insert(k.into(), v);
+    }
+    if keys.security_version >= BLOB_SECURITY_VERSION {
+        let mut edit = Edit { ns, body: OpenBlob::new_note(&item.name) };
+        edit.create(item)?;
+        let item_key = SymmetricKey::generate(rng)?;
+        let data = edit.body.seal(&item_key, rng)?;
+        let key = keys.user.encrypt_as(&item_key.to_bytes(), ContentFormat::LegacyKey, rng)?;
+        for k in ["name", "notes", "fields", "passwordHistory"] {
+            body.insert(k.into(), Value::Null);
+        }
+        body.insert("key".into(), json!(key));
+        body.insert("data".into(), json!(data));
+        return Ok(body);
+    }
+    let mut edit = Edit { ns, body: Fields { key: &keys.user, rng, body: Map::new(), fields: Vec::new() } };
+    edit.create(item)?;
+    let fields = edit.body.take_fields();
+    let notes = edit.body.body.remove("notes").unwrap_or(Value::Null);
+    for (k, v) in [
+        ("name", json!(keys.user.encrypt_str(&item.name, rng)?)),
+        ("notes", notes),
         ("key", Value::Null),
         ("passwordHistory", json!([])),
         ("fields", fields),

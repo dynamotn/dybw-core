@@ -238,6 +238,12 @@
         "contentVersion": {
           "type": "string"
         },
+        "blobExtra": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^x[A-Za-z0-9]+$"
+          }
+        },
         "creationDate": {
           "type": [
             "string",
@@ -504,6 +510,12 @@
             },
             "blob": {
               "type": "boolean"
+            },
+            "blobExtra": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^x[A-Za-z0-9]+$"
+              }
             }
           },
           "additionalProperties": false,
@@ -631,6 +643,12 @@
             },
             "blob": {
               "type": "boolean"
+            },
+            "blobExtra": {
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^x[A-Za-z0-9]+$"
+              }
             }
           },
           "additionalProperties": false,

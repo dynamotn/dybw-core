@@ -53,6 +53,7 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | `format` | `"fields"` or `"blob"` | `"fields"` | `"blob"` (1.6) seals the cipher as Bitwarden's blob form, below. A blob cipher is a login (`type` 1) or a secure note (2), and always has an item key (`itemKey` is forced `true`), wrapped under the organization key when `organizationId` is set (an organization blob, which the SDK never writes, exists only to be held as uninspectable) |
 | `formatVersion` | int | `1` | Blob only: the `format_version` of `data`. A value other than 1 writes a newer format |
 | `contentVersion` | string | `"1"` | Blob only: the `version` of the sealed CBOR content. Another value writes a newer content version |
+| `blobExtra` | object | `{}` | Blob only (1.6): unknown keys of the sealed `CipherBlobV1`, added after its known keys, verbatim. Every key must match `^x[A-Za-z0-9]+$`; a write must keep them (ADR 0021) |
 | `creationDate`, `revisionDate`, `deletedDate` | ISO 8601 or `null` | `null` | |
 | `edit`, `viewPassword` | bool | `true` | Organization permissions |
 | `pascalCase` | bool | `false` | `true` emits the server keys in PascalCase |
@@ -256,6 +257,7 @@ shape, so both are covered.
 | `lastKnownRevisionDate` | string or `null` |
 | `hasItemKey` | bool |
 | `blob` | bool, optional (1.6): the body was sent as a blob, and the other keys are read from inside it |
+| `blobExtra` | object, optional (1.6): the `^x[A-Za-z0-9]+$` keys of a blob's sealed content, present only when it holds any |
 | `extra` | the unknown properties passed through: the `^x[A-Za-z0-9]+$` keys only, as in a cipher. Any other key of the request that is not in this table is ignored |
 
 A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`; since 1.6, password history dates written by the core are `"<now>"`. Only the plugin's adapter handles `<now>` today (it freezes the clock); bwss's adapter will need a fixed clock then. The

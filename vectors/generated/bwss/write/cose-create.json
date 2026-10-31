@@ -1,7 +1,8 @@
 {
   "id": "write/cose-create",
-  "spec": "1.5",
+  "spec": "1.6",
   "sections": [
+    "§4.2",
     "§6.2"
   ],
   "account": "cose-v2",
@@ -39,8 +40,9 @@
           "organizationId": null,
           "folderId": "f1",
           "lastKnownRevisionDate": null,
-          "hasItemKey": false,
-          "extra": {}
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
         }
       ]
     }

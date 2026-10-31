@@ -1,0 +1,79 @@
+{
+  "id": "write/blob/stays-field-level",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§6.2",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGGu4sk1T71YeypCW/KKu1oKbHxasuX+mplgwZvb8w+S1Gy81tlnjR3/Oo1wnkfoSxRcxYzMN9ssAccJKK6WOdwRmaF1UKrFAXKEO",
+      "notes": null,
+      "login": null,
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGAMBAtCR2Faf3/rAypao2Lwxcb2St0Hh9FgwlUEFlVKrEJfk/QGbIqSolJrAY1q+mWDbjTyeY0yWDzbKexMK3mebZqa5vIpatek8",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGLbSzlfBCa0DW1Ssax+Jr9L/nN2Xtb/uklgwXVW/UoKPlPskP6cM0yGzN7tgUH6f0zoc4Ed9f83u7WRlnZR+sQE21cRw8UwWucZO",
+          "type": 0
+        },
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGFiaE1aZ4JI6N1s+qfvz60VzojyCcAXDGlgweDbbaSQJknA4l9Y+xe0liLtQKHwA3KmWBtj4PRUvxZSjgPBQLeHgUw4BDuweMtDg",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGOdS4ibwYbpsbeTBjK/DuIHSbbq088EVolgwQz/U9Cw9iiJNs5r90x3onbjcxh/TFSZrN0RYbYISH3VDGYxd5nIpbHy0uyC/dmO1",
+          "type": 1
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": null,
+          "login": null,
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "bwss:password",
+              "value": "new-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

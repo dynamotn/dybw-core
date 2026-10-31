@@ -302,6 +302,8 @@ def blob_content(src: dict) -> dict:
         content["passwordHistory"] = [
             {"password": h["password"], "lastUsedDate": h["lastUsedDate"]} for h in history
         ]
+    # unknown keys of the sealed content (1.6), which a write must keep
+    content.update(src.get("blobExtra", {}))
     return content
 
 
@@ -365,6 +367,8 @@ def encrypt_cipher(
     """Server-shaped cipher from a plaintext one (``{ns}`` already expanded)."""
     if src.get("format", "fields") == "blob":
         return encrypt_blob_cipher(src, account, sid, ns, fresh, same_as)
+    if "blobExtra" in src:
+        raise GenError(f"cipher {src['id']!r}: blobExtra needs format blob")
     seed = base64.b64decode(account["seed"])
     owner = _owner_key(account, src.get("organizationId"))
     e = _Encryptor(seed, sid, ns, src["id"], fresh, src.get("tamper", []))

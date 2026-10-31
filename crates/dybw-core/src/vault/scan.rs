@@ -201,7 +201,7 @@ enum Item<'a> {
     Blob(&'a OpenBlob),
 }
 
-fn copied(text: Option<&str>) -> Zeroizing<String> {
+pub(super) fn copied(text: Option<&str>) -> Zeroizing<String> {
     Zeroizing::new(text.unwrap_or_default().to_owned())
 }
 

@@ -183,8 +183,19 @@ pub fn canonicalize(sent: &Sent, user: &SymmetricKey, orgs: &BTreeMap<String, Sy
         "hasItemKey": body.get("key").is_some_and(|k| !k.is_null()),
         "extra": extra,
     });
-    if let (Some(_), Some(o)) = (&blob, request.as_object_mut()) {
+    if let (Some(content), Some(o)) = (&blob, request.as_object_mut()) {
         o.insert("blob".into(), json!(true));
+        // The sealed content's unknown keys, listed only when there are any (README, canonical body).
+        let unknown: Map<String, Value> = content
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter(|(k, _)| is_extra(k))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        if !unknown.is_empty() {
+            o.insert("blobExtra".into(), Value::Object(unknown));
+        }
     }
     Ok(mark_now(request))
 }

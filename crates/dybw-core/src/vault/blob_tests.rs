@@ -10,12 +10,12 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-struct Bx {
-    rng: SeededRandom,
-    keys: Keys,
+pub(super) struct Bx {
+    pub(super) rng: SeededRandom,
+    pub(super) keys: Keys,
 }
 
-fn t(s: &str) -> Cbor {
+pub(super) fn t(s: &str) -> Cbor {
     Cbor::text(s)
 }
 
@@ -24,7 +24,7 @@ fn opt(s: Option<&str>) -> Cbor {
 }
 
 /// `CipherBlobV1` with a login `typeData`.
-fn login(fields: &[(&str, &str)], password: Option<&str>, notes: Option<&str>) -> Cbor {
+pub(super) fn login(fields: &[(&str, &str)], password: Option<&str>, notes: Option<&str>) -> Cbor {
     let fields = fields
         .iter()
         .map(|(n, v)| {
@@ -47,12 +47,12 @@ fn login(fields: &[(&str, &str)], password: Option<&str>, notes: Option<&str>) -
     ])
 }
 
-fn versioned(content: Cbor) -> Cbor {
+pub(super) fn versioned(content: Cbor) -> Cbor {
     Cbor::Map(vec![(t("version"), t("1")), (t("content"), content)])
 }
 
 impl Bx {
-    fn new() -> Bx {
+    pub(super) fn new() -> Bx {
         let rng = SeededRandom::new(21);
         let user = SymmetricKey::generate(&rng).unwrap();
         let org = SymmetricKey::generate(&rng).unwrap();
@@ -61,7 +61,7 @@ impl Bx {
     }
 
     /// A cipher whose `data` seals `sealed` (the whole CBOR value) under a fresh CEK and item key of `owner`.
-    fn sealed_with(&self, owner: &SymmetricKey, sealed: &Cbor, format_version: Value) -> Value {
+    pub(super) fn sealed_with(&self, owner: &SymmetricKey, sealed: &Cbor, format_version: Value) -> Value {
         let item = SymmetricKey::generate(&self.rng).unwrap();
         let (envelope, cek) = seal_envelope(sealed, EnvelopeNamespace::VaultItem, &self.rng).unwrap();
         let wrapped = item.encrypt(&SymmetricKey::Cose(cek).to_bytes(), &self.rng).unwrap();
@@ -75,7 +75,7 @@ impl Bx {
         })
     }
 
-    fn cipher(&self, content: Cbor) -> Value {
+    pub(super) fn cipher(&self, content: Cbor) -> Value {
         self.sealed_with(&self.keys.user, &versioned(content), json!(1))
     }
 
@@ -94,7 +94,7 @@ impl Bx {
 }
 
 /// The same cipher with one ciphertext byte of its envelope flipped: opening it fails.
-fn tampered(c: &Value) -> Value {
+pub(super) fn tampered(c: &Value) -> Value {
     let mut data: Value = serde_json::from_str(c["data"].as_str().unwrap()).unwrap();
     let mut env = B64.decode(data["envelope"].as_str().unwrap()).unwrap();
     let last = env.len() - 1;
@@ -161,7 +161,7 @@ fn marked_blob_reads_like_a_field_level_item() {
 }
 
 #[test]
-fn marked_blob_is_never_written_as_fields() {
+fn marked_blob_is_written_as_a_blob() {
     // A field-level body would drop `data` and with it the user's whole item.
     let k = Bx::new();
     let c = k.cipher(login(&[("bwss:id", "a")], Some("pw"), None));
@@ -175,8 +175,20 @@ fn marked_blob_is_never_written_as_fields() {
         remove: Vec::new(),
         value: write::ValueChange::Keep,
     };
-    let got = write::apply(&c, &patch, &Namespace::BWSS, &k.keys, &k.rng, 0);
-    assert_eq!(got, Err(write::WriteError::Uninspectable(Uninspectable::NewerFormat)));
+    let got = write::apply(&c, &patch, &Namespace::BWSS, &k.keys, &k.rng, 0).unwrap();
+    assert!(got["data"].is_string());
+    assert_eq!((&got["fields"], &got["key"]), (&Value::Null, &c["key"]));
+}
+
+#[test]
+fn a_password_needs_a_logins_type_data() {
+    // `open_blob` holds a login without one; a secure note's blob has none to write to.
+    use write::Body as _;
+    let k = Bx::new();
+    let mut c = k.cipher(Cbor::Map(vec![(t("name"), t("N")), (t("typeData"), Cbor::Null)]));
+    c["type"] = json!(2);
+    let mut open = k.open(&c).unwrap();
+    assert_eq!(open.replace_password("pw", "now"), Err(crate::crypto::CryptoError::Malformed));
 }
 
 #[test]

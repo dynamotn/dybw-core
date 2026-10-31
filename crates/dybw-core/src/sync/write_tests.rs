@@ -519,7 +519,7 @@ fn a_refetched_trashed_or_blob_copy_writes_nothing() {
     blob["data"] = json!("{\"format_version\":1}");
     for fresh in [trashed, blob] {
         let blob_copy = fresh.get("data").is_some();
-        // update: Gone for a trashed copy, held for a blob; the second PUT is never sent
+        // update: Gone for a trashed copy, held for a blob that does not open; the second PUT is never sent
         let mut r = Rig::new();
         let c = r.bare("2026-01-01T00:00:00Z", "old");
         let patch = r.patch_for(&c, b"new");
@@ -527,7 +527,7 @@ fn a_refetched_trashed_or_blob_copy_writes_nothing() {
         r.fake.reply(200, fresh.clone());
         match r.update(&c, &patch) {
             Err(SyncWriteError::Write(WriteError::Gone)) if !blob_copy => {}
-            Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::NewerFormat))) if blob_copy => {}
+            Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::Blob))) if blob_copy => {}
             other => panic!("{other:?}"),
         }
         assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
