@@ -506,6 +506,9 @@ pub fn scan_vault_with(
     let mut unknown_features = Vec::new();
     let mut present = BTreeSet::new();
     let mut unmarked = BTreeSet::new();
+    // Every marked cipher's id, `applies` or not: tells a bound cipher that moved to another id from one that
+    // still holds its own.
+    let mut marked_as: BTreeMap<String, String> = BTreeMap::new();
     for cipher in sync.get("ciphers").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
         let cipher_id = cipher.get("id").and_then(Value::as_str).unwrap_or_default().to_owned();
         // Without an id and a revision a cipher cannot be told apart: never cached.
@@ -524,6 +527,9 @@ pub fn scan_vault_with(
         } else {
             present.insert(cipher_id.clone());
         }
+        if let Scan::Marked(m) = &result {
+            marked_as.insert(cipher_id.clone(), m.id.clone());
+        }
         match result {
             Scan::Unmarked => {}
             Scan::Marked(m) if applies(&m) => marked.push(*m),
@@ -533,6 +539,13 @@ pub fn scan_vault_with(
         }
     }
     cache.0 = unmarked;
-    let (items, duplicates) = resolve_duplicates(marked, bound);
+    let (mut items, duplicates) = resolve_duplicates(marked, bound);
+    // A bound cipher that is still there and still this id's (or cannot be inspected) but did not win (held,
+    // skipped, out of scope) keeps its id held: no copy of it is taken instead (ADR 0019).
+    items.retain(|i| {
+        bound.get(&i.id).is_none_or(|a| {
+            *a == i.cipher_id || !present.contains(a) || marked_as.get(a).is_some_and(|other| *other != i.id)
+        })
+    });
     ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present }
 }

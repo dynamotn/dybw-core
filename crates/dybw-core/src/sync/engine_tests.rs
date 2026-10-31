@@ -1022,6 +1022,34 @@ fn a_bound_cipher_stays_the_winner_and_is_reported() {
 }
 
 #[test]
+fn a_bound_cipher_that_cannot_be_used_keeps_its_id_from_a_readable_copy() {
+    for how in ["unreadable", "newer-format"] {
+        let mut r = Rig::obsidian();
+        let a = r.add("dup", "mine");
+        r.ok();
+        let before = r.state.base["dup"].clone();
+        // A readable copy that §7 would pick (older), next to the bound cipher that can no longer be used.
+        r.add_spec(&Spec { created: "2024-01-01T00:00:00.000Z", ..Spec::new("dup", "forged") });
+        if how == "unreadable" {
+            let mut w = r.world();
+            w.cipher(&a)["key"] = json!("2.bad|bad|bad");
+            w.bump(&a);
+        } else {
+            require(&r, &a, "obsidian:acl");
+        }
+        r.store.put("dup", "edited");
+        let plan = r.plan();
+        assert!(plan.actions.is_empty(), "{how}");
+        let report = r.ok();
+        assert!(nothing_moved(&report) && report.errors.is_empty() && report.conflicts.is_empty(), "{how}");
+        assert_eq!(report.skipped.held, [("dup".to_owned(), a.clone())], "{how}");
+        assert_eq!(r.store.value("dup").as_deref(), Some("edited"), "{how}");
+        assert_eq!(r.state.base["dup"], before, "{how}");
+        assert_eq!(r.world().count(&format!("Put /api/ciphers/{a}")), 0);
+    }
+}
+
+#[test]
 fn neither_adopts_nor_reports_a_new_blob_item() {
     let mut r = Rig::obsidian();
     let c = r.add("fresh", "v");

@@ -189,29 +189,35 @@ enum Lookup {
 /// it); every other case is a target that is gone. With no hint, any personal cipher that cannot be read holds it.
 fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
     let mut held = false;
+    let mut hinted: Option<Box<MarkedItem>> = None;
+    let mut hint_held = false;
     let mut winner: Option<Box<MarkedItem>> = None;
     for c in ciphers.iter().filter(|c| !trashed(c)) {
         match scan(c, ns, keys, &Organizations::All) {
+            // The op's own cipher is the target, whatever §7 would pick: a forged clone cannot take it over.
+            Scan::Marked(m) if m.id == id && cipher_id == Some(server_id(c)) => hinted = Some(m),
             // With duplicates the §7 winner is the item, as in the scan.
             Scan::Marked(m) if m.id == id => {
                 if winner.as_ref().is_none_or(|w| duplicate_order(&m, w).is_lt()) {
                     winner = Some(m);
                 }
             }
-            // An item stopped for `dybw:requires` is held as well: its change waits, never dropped as gone.
-            Scan::Uninspectable(_) | Scan::Skipped(SkipReason::NewerFormat) => {
-                held |= match cipher_id {
-                    Some(cid) => server_id(c) == cid,
-                    None => organization(c).is_none(),
-                };
+            // The op's own cipher is there but cannot be used now: held, never moved to a copy.
+            Scan::Uninspectable(_) | Scan::Skipped(_) if cipher_id == Some(server_id(c)) => hint_held = true,
+            // Without a hint, an item stopped for `dybw:requires` is held like an unreadable one: its change waits,
+            // never dropped as gone.
+            Scan::Uninspectable(_) | Scan::Skipped(SkipReason::NewerFormat) if cipher_id.is_none() => {
+                held |= organization(c).is_none();
             }
             _ => {}
         }
     }
-    match winner {
-        Some(w) => Lookup::Found(w.cipher),
-        None if held => Lookup::Held,
-        None => Lookup::Missing,
+    match (hinted, winner) {
+        (Some(h), _) => Lookup::Found(h.cipher),
+        _ if hint_held => Lookup::Held,
+        (None, Some(w)) => Lookup::Found(w.cipher),
+        (None, None) if held => Lookup::Held,
+        (None, None) => Lookup::Missing,
     }
 }
 

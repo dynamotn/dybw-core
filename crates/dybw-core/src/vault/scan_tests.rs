@@ -662,6 +662,55 @@ fn a_bound_cipher_keeps_its_id_against_section_7() {
     }
 }
 
+#[test]
+fn a_bound_cipher_that_cannot_win_holds_its_id() {
+    let k = bwss();
+    let at = |cid: &str, id: &str, created: &str| {
+        let mut c = k.login(&[("bwss:id", id)], Some("pw"), None);
+        c["id"] = json!(cid);
+        c["creationDate"] = json!(created);
+        c
+    };
+    // B is readable and §7 would pick it (older). `a` is the bound cipher, in the shapes it can be present in.
+    let b = at("b", "x", "2020-01-01T00:00:00Z");
+    let a = at("a", "x", "2025-01-01T00:00:00Z");
+    let mut broken = a.clone();
+    broken["key"] = json!(BAD);
+    let required = requiring(&k, "bwss:new");
+    let mut required = required;
+    required["id"] = json!("a");
+    let scan_ids = |ciphers: Vec<&Value>, bound: &[(&str, &str)], applies: &dyn Fn(&MarkedItem) -> bool| {
+        let sync = json!({ "ciphers": ciphers });
+        let r = scan::scan_vault_with(
+            &sync,
+            &Namespace::BWSS,
+            &k.keys,
+            &Organizations::All,
+            applies,
+            &mut scan::UnmarkedCache::default(),
+            &self::bound(bound),
+        );
+        (r.items.iter().map(|i| i.cipher_id.clone()).collect::<Vec<_>>(), r.present.contains("a"))
+    };
+    let ids = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+    let all = |_: &MarkedItem| true;
+    // Unreadable, skipped for a feature, or out of scope: the id is held, B is not taken instead.
+    assert_eq!(scan_ids(vec![&broken, &b], &[("x", "a")], &all), (ids(&[]), true));
+    assert_eq!(scan_ids(vec![&required, &b], &[("x", "a")], &all), (ids(&[]), true));
+    assert_eq!(scan_ids(vec![&a, &b], &[("x", "a")], &|m| m.cipher_id != "a"), (ids(&[]), true));
+    // Readable: it wins by binding.
+    assert_eq!(scan_ids(vec![&a, &b], &[("x", "a")], &all), (ids(&["a"]), true));
+    // Gone, unmarked, moved to another id, or not bound: §7 decides.
+    assert_eq!(scan_ids(vec![&b], &[("x", "a")], &all), (ids(&["b"]), false));
+    let unmarked = k.login(&[("other", "v")], Some("pw"), None);
+    let mut unmarked = unmarked;
+    unmarked["id"] = json!("a");
+    assert_eq!(scan_ids(vec![&unmarked, &b], &[("x", "a")], &all), (ids(&["b"]), false));
+    let moved = at("a", "y", "2025-01-01T00:00:00Z");
+    assert_eq!(scan_ids(vec![&moved, &b], &[("x", "a")], &all).0, ids(&["b", "a"]));
+    assert_eq!(scan_ids(vec![&broken, &b], &[], &all), (ids(&["b"]), true));
+}
+
 fn requiring(k: &Fx, value: &str) -> Value {
     k.login(&[("bwss:id", "x"), ("dybw:requires", value)], Some("pw"), None)
 }

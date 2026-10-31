@@ -587,6 +587,57 @@ fn unsupported_write_stays_queued() {
 }
 
 #[test]
+fn a_queued_change_targets_its_own_cipher_not_an_older_clone() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    let mut clone = r.item("c2", "x", "forged");
+    clone["creationDate"] = json!("2020-01-01T00:00:00Z");
+    let mut queue = vec![r.change(&c1, Some(b"new"))];
+    r.fake.echo();
+    // Another item stopped for a feature is no concern of a change with a hint.
+    let mut stopped = r.note(REV, &[("bwss:id", "z", false), ("dybw:requires", "bwss:acl", false)]);
+    stopped["id"] = json!("c3");
+    let report = r.flush(&mut queue, &[stopped, c1.clone(), clone.clone()]);
+    assert_eq!(strs(&report.done), ["x"]);
+    assert_eq!(r.log(), ["Put /ciphers/c1"]);
+    // Without a hint §7 still picks the clone.
+    let mut queue = vec![r.change(&c1, Some(b"new"))];
+    if let Op::Patch(p) = &mut queue[0] {
+        p.cipher_id = None;
+    }
+    r.fake.echo();
+    r.flush(&mut queue, &[c1, clone]);
+    assert_eq!(r.log()[1], "Put /ciphers/c2");
+}
+
+#[test]
+fn a_queued_change_whose_cipher_cannot_be_used_is_held_not_applied_to_a_clone() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    let mut clone = r.item("c2", "x", "forged");
+    clone["creationDate"] = json!("2020-01-01T00:00:00Z");
+    let mut required =
+        r.note(REV, &[("bwss:id", "x", false), ("bwss:password", "s", true), ("dybw:requires", "bwss:acl", false)]);
+    required["id"] = json!("c1");
+    let mut broken = c1.clone();
+    broken["key"] = json!("2.bad|bad|bad");
+    for stopped in [required.clone(), broken] {
+        let mut queue = vec![r.change(&c1, Some(b"new"))];
+        let report = r.flush(&mut queue, &[stopped, clone.clone()]);
+        assert_eq!((report.kept.len(), report.done.len(), queue.len()), (1, 0, 1));
+        assert!(r.log().is_empty());
+    }
+    // Without a hint, a personal item stopped for a feature holds the change too, when no copy is readable.
+    let mut queue = vec![r.change(&c1, Some(b"new"))];
+    if let Op::Patch(p) = &mut queue[0] {
+        p.cipher_id = None;
+    }
+    let report = r.flush(&mut queue, &[required]);
+    assert_eq!((report.kept.len(), report.dropped.len(), queue.len()), (1, 0, 1));
+    assert!(r.log().is_empty());
+}
+
+#[test]
 fn a_delete_of_a_re_marked_cipher_sends_nothing() {
     let mut r = Rig::new();
     let c1 = r.item("c1", "b", "s");

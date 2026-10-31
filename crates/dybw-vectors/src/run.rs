@@ -8,6 +8,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom, block_on};
+use dybw_core::vault::fields::{field_names, field_value, first_index, item_key};
 use dybw_core::vault::write::{HistoryAnswer, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use dybw_core::vault::{
     Keys, Namespace, Organizations, SkipReason, UnmarkedCache, ValueSource, scan_vault, scan_vault_with,
@@ -151,13 +152,21 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                         (f.cipher_id.clone(), f.organization_id.clone(), f.revision_date.clone(), f.source, f.mark),
                     ),
                     Err(e) => {
-                        let (skipped_id, _) =
-                            report.skipped.iter().find(|(_, r)| *r == SkipReason::NewerFormat).ok_or(e)?;
-                        let cipher = sync.get("ciphers").and_then(Value::as_array).into_iter().flatten();
-                        let cipher =
-                            cipher.into_iter().find(|c| c.get("id").and_then(Value::as_str) == Some(skipped_id));
-                        let cipher = cipher.ok_or("the skipped cipher is not in the sync")?.clone();
-                        (cipher, (skipped_id.clone(), None, String::new(), ValueSource::Field, [0; 32]))
+                        let ciphers = sync.get("ciphers").and_then(Value::as_array).into_iter().flatten();
+                        let carries = |c: &Value| -> Option<bool> {
+                            let key = item_key(c, &keys.user).ok()?;
+                            let names = field_names(c, &key).ok()?;
+                            let at = first_index(&names, &ns.field("id"))?;
+                            Some(field_value(c, at, &key).ok()?.trim() == id)
+                        };
+                        let stopped = |c: &&Value| {
+                            let cid = c.get("id").and_then(Value::as_str).unwrap_or_default();
+                            report.skipped.iter().any(|(s, r)| s == cid && *r == SkipReason::NewerFormat)
+                        };
+                        let cipher = ciphers.filter(stopped).find(|c| carries(c) == Some(true));
+                        let cipher = cipher.ok_or(e)?.clone();
+                        let cid = cipher.get("id").and_then(Value::as_str).unwrap_or_default().to_owned();
+                        (cipher, (cid, None, String::new(), ValueSource::Field, [0; 32]))
                     }
                 };
                 let record = state.base.get(id).map(|b| b.record.clone()).unwrap_or_default();
