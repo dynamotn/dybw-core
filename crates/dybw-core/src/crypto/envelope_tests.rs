@@ -1,6 +1,9 @@
 use super::aead::seal;
 use super::cbor::{self, Cbor};
-use super::cose::{CoseAlgorithm, CoseKey, enc_structure, int, pad, parse_cose_key};
+use super::cose::{
+    ContentFormat, CoseAlgorithm, CoseKey, cose_decrypt, cose_encrypt, enc_structure, int, pad, padded_key_bytes,
+    parse_cose_key, parse_cose_key_as,
+};
 use super::envelope::*;
 use super::*;
 use crate::ports::{PortError, Random};
@@ -60,23 +63,28 @@ struct Forge {
     content_type: &'static str,
     alg: Option<i64>,
     iv_len: Option<usize>,
+    crit: bool,
 }
 
 impl Default for Forge {
     fn default() -> Self {
-        Forge { kid: None, object: 2, content: 1, content_type: CONTENT_TYPE, alg: None, iv_len: None }
+        Forge { kid: None, object: 2, content: 1, content_type: CONTENT_TYPE, alg: None, iv_len: None, crit: false }
     }
 }
 
 /// Seals `padded` (already padded plaintext) under `cek` with the header `f` describes.
 fn forge(cek: &CoseKey, padded: &[u8], f: Forge) -> Vec<u8> {
-    let protected = cbor::encode(&Cbor::Map(vec![
+    let mut header = vec![
         (int(1), int(f.alg.unwrap_or(cek.alg().number()))),
         (int(3), Cbor::text(f.content_type)),
         (int(4), Cbor::bytes(f.kid.unwrap_or_else(|| cek.id().to_vec()))),
         (int(-80002), Cbor::Uint(f.object)),
         (int(-80001), Cbor::Uint(f.content)),
-    ]));
+    ];
+    if f.crit {
+        header.push((int(2), Cbor::Array(vec![int(1)])));
+    }
+    let protected = cbor::encode(&Cbor::Map(header));
     let iv = vec![7u8; cek.alg().nonce_size()];
     let ct = seal(cek.alg(), cek.secret(), &iv, padded, &enc_structure(&protected)).unwrap();
     let iv = vec![7u8; f.iv_len.unwrap_or(iv.len())];
@@ -228,7 +236,7 @@ fn refuses_an_encrypt_only_cek() {
         (Cbor::Uint(4), Cbor::Array(vec![Cbor::Uint(3)])),
         (Cbor::Nint(0), Cbor::bytes(vec![0; 32])),
     ]));
-    let cek = parse_cose_key(&key).unwrap();
+    let cek = parse_cose_key_as(&key, true).unwrap();
     assert_eq!(open_envelope(&cek, &forged_ok(&cek), NS).unwrap_err(), CryptoError::WrongKey);
 }
 
@@ -274,4 +282,37 @@ fn envelope_huge_map_header_fails_without_allocating() {
     let plain = [0xbb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1];
     let e = forge(&cek, &plain, Forge::default());
     assert_eq!(open_envelope(&cek, &e, NS).unwrap_err(), CryptoError::Malformed);
+}
+
+#[test]
+fn refuses_a_crit_header() {
+    let cek = generated();
+    let p = pad(&cbor::encode(&content()), 64).unwrap();
+    let e = forge(&cek, &p, Forge { crit: true, ..Forge::default() });
+    assert_eq!(open_envelope(&cek, &e, NS).unwrap_err(), CryptoError::Malformed);
+}
+
+#[test]
+fn aes_gcm_is_only_for_content_keys() {
+    let cek = generated();
+    let padded = padded_key_bytes(&cek);
+    // as a user or item key
+    assert_eq!(SymmetricKey::from_bytes(&padded).unwrap_err(), CryptoError::Malformed);
+    assert_eq!(parse_cose_key(&super::cose::encode_cose_key(&cek)).unwrap_err(), CryptoError::Malformed);
+    // as an EncString type 7 key
+    let rng = SeededRandom::new(6);
+    assert_eq!(cose_encrypt(&cek, b"x", ContentFormat::OctetStream, &rng).unwrap_err(), CryptoError::WrongKey);
+    assert_eq!(cose_decrypt(&cek, "AAAA").unwrap_err(), CryptoError::WrongKey);
+}
+
+#[test]
+fn an_encoded_cek_is_65_bytes_and_a_legacy_key_is_refused() {
+    let (_, cek) = seal_envelope(&content(), NS, &SeededRandom::new(7)).unwrap();
+    let padded = padded_key_bytes(&cek);
+    // 61 bytes of COSE key with key_ops [4], then four 0x04
+    assert_eq!((padded.len(), &padded[61..]), (65, &[4u8, 4, 4, 4][..]));
+    assert_eq!(parse_cek(&padded).unwrap().id(), cek.id());
+    for len in [32, 64] {
+        assert_eq!(parse_cek(&vec![1; len]).unwrap_err(), CryptoError::Malformed);
+    }
 }

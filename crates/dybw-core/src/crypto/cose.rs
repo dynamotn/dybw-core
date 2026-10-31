@@ -11,7 +11,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 // COSE header labels (RFC 9052) and key parameters (RFC 9053).
 pub(super) const H_ALG: i64 = 1;
-const H_CRIT: i64 = 2;
+pub(super) const H_CRIT: i64 = 2;
 pub(super) const H_CONTENT_TYPE: i64 = 3;
 pub(super) const H_KID: i64 = 4;
 pub(super) const H_IV: i64 = 5;
@@ -22,6 +22,8 @@ const K_OPS: i64 = 4;
 const K_SYMMETRIC_KEY: i64 = -1;
 const KTY_SYMMETRIC: i64 = 4;
 /// Strings are padded to the next multiple of 32 bytes, to hide their exact length.
+/// A padded COSE key is at least this long.
+const KEY_MIN_LEN: usize = 65;
 const TEXT_BLOCK: usize = 32;
 
 /// A CBOR integer from a signed label or value.
@@ -85,11 +87,11 @@ impl CoseAlgorithm {
         int(self.number())
     }
 
-    pub(super) fn from_value(v: Option<&Cbor>) -> Result<Self, CryptoError> {
-        [CoseAlgorithm::XChaCha20Poly1305, CoseAlgorithm::Xaes256Gcm, CoseAlgorithm::Aes256Gcm]
-            .into_iter()
-            .find(|a| Some(&a.value()) == v)
-            .ok_or(CryptoError::Malformed)
+    /// `cek` allows plain AES-256-GCM, whose random 96-bit nonce is safe only under a key that seals once: a content
+    /// key. User keys, item keys and EncString type 7 take the two extended-nonce algorithms only.
+    pub(super) fn from_value(v: Option<&Cbor>, cek: bool) -> Result<Self, CryptoError> {
+        let all = [CoseAlgorithm::XChaCha20Poly1305, CoseAlgorithm::Xaes256Gcm, CoseAlgorithm::Aes256Gcm];
+        all.into_iter().take(if cek { 3 } else { 2 }).find(|a| Some(&a.value()) == v).ok_or(CryptoError::Malformed)
     }
 }
 
@@ -201,13 +203,18 @@ fn all_ops() -> Vec<KeyOp> {
 
 /// Reads an unpadded COSE_Key.
 pub fn parse_cose_key(bytes: &[u8]) -> Result<CoseKey, CryptoError> {
+    parse_cose_key_as(bytes, false)
+}
+
+/// Like `parse_cose_key`; `cek` also accepts an AES-256-GCM content key.
+pub(super) fn parse_cose_key_as(bytes: &[u8], cek: bool) -> Result<CoseKey, CryptoError> {
     let mut v = cbor::decode(bytes)?;
-    let key = parse_map(&v);
+    let key = parse_map(&v, cek);
     v.zeroize();
     key
 }
 
-fn parse_map(v: &Cbor) -> Result<CoseKey, CryptoError> {
+fn parse_map(v: &Cbor, cek: bool) -> Result<CoseKey, CryptoError> {
     let m = as_map(v)?;
     if get(m, K_KTY) != Some(&int(KTY_SYMMETRIC)) {
         return Err(CryptoError::Malformed);
@@ -224,7 +231,7 @@ fn parse_map(v: &Cbor) -> Result<CoseKey, CryptoError> {
     let (mut id, mut key) = ([0; 16], Zeroizing::new([0; 32]));
     bytes_into(m, K_KID, &mut id)?;
     bytes_into(m, K_SYMMETRIC_KEY, key.as_mut())?;
-    Ok(CoseKey { id, alg: CoseAlgorithm::from_value(get(m, K_ALG))?, ops, key })
+    Ok(CoseKey { id, alg: CoseAlgorithm::from_value(get(m, K_ALG), cek)?, ops, key })
 }
 
 /// The COSE_Key bytes, in coset's order: kty, kid, alg, key_ops, then the key itself.
@@ -243,11 +250,13 @@ pub fn encode_cose_key(k: &CoseKey) -> Zeroizing<Vec<u8>> {
     out
 }
 
-/// A COSE key in Bitwarden's byte format: the encoding plus one padding byte (it is always 65 bytes or more, so the
-/// padding is a single `0x01`).
+/// A COSE key in Bitwarden's byte format (the SDK's `pad_key`): the encoding padded to at least 65 bytes, so it is
+/// never mistaken for a 32 or 64-byte legacy key.
 pub(super) fn padded_key_bytes(k: &CoseKey) -> Zeroizing<Vec<u8>> {
     let mut v = encode_cose_key(k);
-    v.push(1);
+    let n = KEY_MIN_LEN.saturating_sub(v.len()).max(1);
+    let len = v.len() + n;
+    v.resize(len, n as u8);
     v
 }
 
@@ -303,6 +312,9 @@ pub fn cose_encrypt(
     rng: &impl Random,
 ) -> Result<String, CryptoError> {
     key.require(KeyOp::Encrypt)?;
+    if key.alg == CoseAlgorithm::Aes256Gcm {
+        return Err(CryptoError::WrongKey);
+    }
     let protected = protected_header(key, format);
     let padded;
     let data: &[u8] = if format == ContentFormat::Utf8 {
@@ -322,6 +334,9 @@ pub fn cose_encrypt(
 /// key id); a text payload comes back unpadded. The caller checks that the returned format is one it accepts.
 pub fn cose_decrypt(key: &CoseKey, s: &str) -> Result<(Zeroizing<Vec<u8>>, ContentFormat), CryptoError> {
     key.require(KeyOp::Decrypt)?;
+    if key.alg == CoseAlgorithm::Aes256Gcm {
+        return Err(CryptoError::WrongKey);
+    }
     let bytes = B64.decode(s).map_err(|_| CryptoError::Malformed)?;
     let Cbor::Array(parts) = cbor::decode(&bytes)? else { return Err(CryptoError::Malformed) };
     let [Cbor::Bytes(protected), unprotected, Cbor::Bytes(ct)] = parts.as_slice() else {
@@ -332,7 +347,7 @@ pub fn cose_decrypt(key: &CoseKey, s: &str) -> Result<(Zeroizing<Vec<u8>>, Conte
     if get(header, H_CRIT).is_some() {
         return Err(CryptoError::Malformed);
     }
-    if CoseAlgorithm::from_value(get(header, H_ALG))? != key.alg {
+    if CoseAlgorithm::from_value(get(header, H_ALG), false)? != key.alg {
         return Err(CryptoError::WrongKey);
     }
     if get(header, H_KID) != Some(&Cbor::bytes(key.id.to_vec())) {

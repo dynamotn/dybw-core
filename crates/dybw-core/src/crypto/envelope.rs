@@ -6,8 +6,8 @@ use super::CryptoError;
 use super::aead::{open, seal};
 use super::cbor::{self, Cbor};
 use super::cose::{
-    CoseAlgorithm, CoseKey, H_ALG, H_CONTENT_TYPE, H_IV, H_KID, KeyOp, as_map, enc_structure, get, int, pad,
-    parse_cose_key, unpad,
+    CoseAlgorithm, CoseKey, H_ALG, H_CONTENT_TYPE, H_CRIT, H_IV, H_KID, KeyOp, as_map, enc_structure, get, int, pad,
+    parse_cose_key_as, unpad,
 };
 use crate::ports::Random;
 use zeroize::Zeroizing;
@@ -26,10 +26,13 @@ pub enum EnvelopeNamespace {
     VaultItem = 1,
 }
 
-/// A content key as the SDK stores it (in `wrapped_cek`): a COSE key followed by padding of any length, which the last
-/// byte counts, so it cannot go through `SymmetricKey::from_bytes`, whose length rule is for item and user keys.
+/// A content key as the SDK stores it (in `wrapped_cek`): the same bytes as any COSE key (padded to at least 65, so a
+/// 32 or 64-byte legacy key is refused), except that AES-256-GCM is allowed.
 pub fn parse_cek(bytes: &[u8]) -> Result<CoseKey, CryptoError> {
-    parse_cose_key(&unpad(bytes)?)
+    if matches!(bytes.len(), 32 | 64) {
+        return Err(CryptoError::Malformed);
+    }
+    parse_cose_key_as(&unpad(bytes)?, true)
 }
 
 /// Opens an envelope with its CEK. The header must name this key and namespace; anything else is refused before
@@ -42,6 +45,9 @@ pub fn open_envelope(cek: &CoseKey, envelope: &[u8], ns: EnvelopeNamespace) -> R
     };
     let header = cbor::decode(protected)?;
     let header = as_map(&header)?;
+    if get(header, H_CRIT).is_some() {
+        return Err(CryptoError::Malformed);
+    }
     if get(header, H_KID) != Some(&Cbor::bytes(cek.id().to_vec())) {
         return Err(CryptoError::WrongKey);
     }
@@ -51,7 +57,7 @@ pub fn open_envelope(cek: &CoseKey, envelope: &[u8], ns: EnvelopeNamespace) -> R
     {
         return Err(CryptoError::Malformed);
     }
-    if CoseAlgorithm::from_value(get(header, H_ALG))? != cek.alg() {
+    if CoseAlgorithm::from_value(get(header, H_ALG), true)? != cek.alg() {
         return Err(CryptoError::WrongKey);
     }
     let iv = match get(as_map(unprotected)?, H_IV) {
@@ -78,7 +84,8 @@ pub fn seal_envelope(
     ]));
     let mut iv = vec![0u8; cek.alg().nonce_size()];
     rng.fill(&mut iv)?;
-    let mut encoded = Zeroizing::new(Vec::new());
+    // sized up front: a growing buffer would leave unwiped copies of the plaintext behind
+    let mut encoded = Zeroizing::new(Vec::with_capacity(cbor::encoded_len(content)));
     cbor::encode_into(content, &mut encoded);
     let ct = seal(cek.alg(), cek.secret(), &iv, &pad(&encoded, PADDING)?, &enc_structure(&protected))?;
     let unprotected = Cbor::Map(vec![(int(H_IV), Cbor::bytes(iv))]);

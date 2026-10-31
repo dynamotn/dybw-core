@@ -192,6 +192,25 @@ pub(super) fn encode_into(value: &Cbor, out: &mut Vec<u8>) {
     }
 }
 
+/// The length `encode` gives, so a caller holding secrets can size its buffer once.
+pub(super) fn encoded_len(value: &Cbor) -> usize {
+    let head = |n: u64| match n {
+        0..=23 => 1,
+        24..=0xff => 2,
+        0x100..=0xffff => 3,
+        0x1_0000..=0xffff_ffff => 5,
+        _ => 9,
+    };
+    match value {
+        Cbor::Uint(n) | Cbor::Nint(n) => head(*n),
+        Cbor::Bytes(b) => head(b.len() as u64) + b.len(),
+        Cbor::Text(t) => head(t.len() as u64) + t.len(),
+        Cbor::Array(a) => head(a.len() as u64) + a.iter().map(encoded_len).sum::<usize>(),
+        Cbor::Map(m) => head(m.len() as u64) + m.iter().map(|(k, v)| encoded_len(k) + encoded_len(v)).sum::<usize>(),
+        Cbor::Bool(_) | Cbor::Null => 1,
+    }
+}
+
 fn head(out: &mut Vec<u8>, major: u8, n: u64) {
     let m = major << 5;
     if n < 24 {
@@ -216,6 +235,18 @@ mod tests {
     use super::*;
 
     /// Compile-level: building the variants from `Zeroizing` fails to compile if they hold anything else.
+    #[test]
+    fn encoded_len_matches_encode() {
+        let items = [0, 23, 24, 255, 256, 65535, 65536, u64::from(u32::MAX), u64::from(u32::MAX) + 1];
+        let mut all: Vec<Cbor> = items.iter().flat_map(|n| [Cbor::Uint(*n), Cbor::Nint(*n)]).collect();
+        all.extend([Cbor::bytes(vec![1; 30]), Cbor::text("tiếng"), Cbor::Bool(true), Cbor::Null]);
+        all.push(Cbor::Array(all.clone()));
+        all.push(Cbor::Map(vec![(Cbor::text("k"), Cbor::Array(all.clone()))]));
+        for v in all {
+            assert_eq!(encoded_len(&v), encode(&v).len());
+        }
+    }
+
     #[test]
     fn decoded_text_is_zeroizing() {
         assert_eq!(decode(&[0x61, b'a']).unwrap(), Cbor::Text(Zeroizing::new("a".to_owned())));
