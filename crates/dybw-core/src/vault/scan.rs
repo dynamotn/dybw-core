@@ -51,6 +51,8 @@ pub enum SkipReason {
     ReservedId,
     ViewPasswordHidden,
     InvalidBase64,
+    /// A feature of `dybw:requires` the tool does not implement (ADR 0020): the item is held, never used or cleared.
+    NewerFormat,
 }
 
 impl SkipReason {
@@ -64,6 +66,7 @@ impl SkipReason {
             SkipReason::ReservedId => "reserved-id",
             SkipReason::ViewPasswordHidden => "view-password-hidden",
             SkipReason::InvalidBase64 => "invalid-base64",
+            SkipReason::NewerFormat => "newer-format",
         }
     }
 }
@@ -143,6 +146,8 @@ pub struct Duplicate {
     pub kept: String,
     /// Sorted cipher ids.
     pub left: Vec<String>,
+    /// `kept` is the cipher the device's base binds to the id, though §7 would pick another (ADR 0019).
+    pub bound_kept: bool,
 }
 
 #[derive(Debug)]
@@ -152,6 +157,8 @@ pub struct ScanReport {
     pub skipped: Vec<(String, SkipReason)>,
     pub uninspectable: Vec<(String, Uninspectable)>,
     pub duplicates: Vec<Duplicate>,
+    /// Cipher id and the sorted `dybw:requires` names the tool does not implement; those items are in `skipped`.
+    pub unknown_features: Vec<(String, Vec<String>)>,
     /// Marked (skipped and duplicate losers included) or uninspectable cipher ids: a readable cipher without its
     /// marker counts as deleted (§8.1), an uninspectable one is held (§4).
     pub present: BTreeSet<String>,
@@ -229,6 +236,17 @@ impl Item<'_> {
 }
 
 pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> Scan {
+    scan_noting(cipher, ns, keys, allowed, &mut Vec::new())
+}
+
+/// `scan`, also noting the unknown `dybw:requires` names of an item skipped for them.
+fn scan_noting(
+    cipher: &Value,
+    ns: &Namespace,
+    keys: &Keys,
+    allowed: &Organizations,
+    unknown: &mut Vec<String>,
+) -> Scan {
     if trashed(cipher) {
         return Scan::Unmarked;
     }
@@ -246,7 +264,7 @@ pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations
             Ok(blob) => blob,
             Err(u) => return Scan::Uninspectable(u),
         };
-        return discover(cipher, ns, keys, &Item::Blob(&blob), &blob.field_names(), None);
+        return discover(cipher, ns, keys, &Item::Blob(&blob), &blob.field_names(), None, unknown);
     }
     let owner = match org {
         None => &keys.user,
@@ -265,7 +283,7 @@ pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations
     let Ok(names) = field_names(cipher, &key) else { return Scan::Uninspectable(Uninspectable::FieldNames) };
     let names: Vec<Option<&str>> = names.iter().map(Option::as_deref).collect();
     let org = org.map(|o| o.as_str().unwrap_or_default().to_owned());
-    discover(cipher, ns, keys, &Item::Fields(cipher, &key), &names, org)
+    discover(cipher, ns, keys, &Item::Fields(cipher, &key), &names, org, unknown)
 }
 
 /// Steps 3 and 4 of §4 on the field names: the marker, then the item.
@@ -276,6 +294,7 @@ fn discover(
     item: &Item,
     names: &[Option<&str>],
     org: Option<String>,
+    unknown: &mut Vec<String>,
 ) -> Scan {
     let Some(id_index) = first_index(names, &ns.field("id")) else { return Scan::Unmarked };
     let Ok(id) = item.value(id_index) else { return Scan::Uninspectable(Uninspectable::Marker) };
@@ -283,7 +302,30 @@ fn discover(
     if id.is_empty() {
         return Scan::Unmarked;
     }
+    // Before any other value is read (ADR 0020).
+    match unknown_features(ns, item, names) {
+        Ok(found) if found.is_empty() => {}
+        Ok(found) => {
+            *unknown = found;
+            return Scan::Skipped(SkipReason::NewerFormat);
+        }
+        Err(_) => return Scan::Uninspectable(Uninspectable::Value),
+    }
     read_marked(cipher, ns, item, keys, names, id, org).unwrap_or(Scan::Uninspectable(Uninspectable::Value))
+}
+
+/// The considered names of the first `dybw:requires` field that the namespace does not implement, sorted (ADR 0020):
+/// one per line, trimmed; only `{ns}:` and `dybw:` names count.
+fn unknown_features(ns: &Namespace, item: &Item, names: &[Option<&str>]) -> Result<Vec<String>, CryptoError> {
+    let Some(index) = first_index(names, "dybw:requires") else { return Ok(Vec::new()) };
+    let text = item.value(index)?;
+    let own = ns.field("");
+    let found: BTreeSet<&str> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| (l.starts_with(&own) || l.starts_with("dybw:")) && !ns.features.contains(l))
+        .collect();
+    Ok(found.into_iter().map(str::to_owned).collect())
 }
 
 fn read_marked(
@@ -398,24 +440,37 @@ pub(crate) fn duplicate_order(a: &MarkedItem, b: &MarkedItem) -> std::cmp::Order
 }
 
 /// Picks one item per id (§7): a personal item over an organization one, then a dated one over an undated one,
-/// then the oldest, then the lowest cipher id, so every device chooses alike. Winners and duplicates by id.
-pub(crate) fn resolve_duplicates(mut items: Vec<MarkedItem>) -> (Vec<MarkedItem>, Vec<Duplicate>) {
+/// then the oldest, then the lowest cipher id, so every device chooses alike. A cipher `bound` to its id (the base's
+/// binding, id to cipher id) that is among the items stays the winner instead (ADR 0019). Winners and duplicates by id.
+pub(crate) fn resolve_duplicates(
+    mut items: Vec<MarkedItem>,
+    bound: &BTreeMap<String, String>,
+) -> (Vec<MarkedItem>, Vec<Duplicate>) {
     items.sort_by(|a, b| a.id.cmp(&b.id).then_with(|| duplicate_order(a, b)));
     let mut winners: Vec<MarkedItem> = Vec::new();
     let mut duplicates: Vec<Duplicate> = Vec::new();
-    for item in items {
-        match winners.last() {
-            Some(kept) if kept.id == item.id => match duplicates.last_mut() {
-                Some(d) if d.id == item.id => d.left.push(item.cipher_id),
-                _ => {
-                    duplicates.push(Duplicate { id: item.id, kept: kept.cipher_id.clone(), left: vec![item.cipher_id] })
-                }
-            },
-            _ => winners.push(item),
+    let mut items = items.into_iter().peekable();
+    while let Some(mut winner) = items.next() {
+        let mut rest: Vec<MarkedItem> = Vec::new();
+        while let Some(copy) = items.next_if(|i| i.id == winner.id) {
+            rest.push(copy);
         }
-    }
-    for d in &mut duplicates {
-        d.left.sort();
+        let held = bound.get(&winner.id).and_then(|b| rest.iter().position(|i| i.cipher_id == *b));
+        if let Some(at) = held {
+            let kept = rest.swap_remove(at);
+            rest.push(std::mem::replace(&mut winner, kept));
+        }
+        if !rest.is_empty() {
+            let mut left: Vec<String> = rest.into_iter().map(|i| i.cipher_id).collect();
+            left.sort();
+            duplicates.push(Duplicate {
+                id: winner.id.clone(),
+                kept: winner.cipher_id.clone(),
+                left,
+                bound_kept: held.is_some(),
+            });
+        }
+        winners.push(winner);
     }
     (winners, duplicates)
 }
@@ -429,12 +484,13 @@ pub struct UnmarkedCache(BTreeSet<(String, String)>);
 
 /// Scans every cipher of a `/sync` response.
 pub fn scan_vault(sync: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> ScanReport {
-    scan_vault_with(sync, ns, keys, allowed, &|_| true, &mut UnmarkedCache::default())
+    scan_vault_with(sync, ns, keys, allowed, &|_| true, &mut UnmarkedCache::default(), &BTreeMap::new())
 }
 
 /// `scan_vault` keeping only the marked items `applies` takes, before §7 picks one per id (the plugin filters by
 /// scope first). Items left out still count as `present`. A cipher in `cache` is unmarked without being opened;
-/// afterwards `cache` holds exactly the ciphers of this response that are unmarked.
+/// afterwards `cache` holds exactly the ciphers of this response that are unmarked. `bound` is the device's base,
+/// `{ns}:id` to cipher id: a bound cipher still marked and readable keeps its id against §7 (ADR 0019).
 pub fn scan_vault_with(
     sync: &Value,
     ns: &Namespace,
@@ -442,10 +498,12 @@ pub fn scan_vault_with(
     allowed: &Organizations,
     applies: &dyn Fn(&MarkedItem) -> bool,
     cache: &mut UnmarkedCache,
+    bound: &BTreeMap<String, String>,
 ) -> ScanReport {
     let mut marked = Vec::new();
     let mut skipped = Vec::new();
     let mut uninspectable = Vec::new();
+    let mut unknown_features = Vec::new();
     let mut present = BTreeSet::new();
     let mut unmarked = BTreeSet::new();
     for cipher in sync.get("ciphers").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
@@ -453,10 +511,14 @@ pub fn scan_vault_with(
         // Without an id and a revision a cipher cannot be told apart: never cached.
         let revision = cipher.get("revisionDate").and_then(Value::as_str).filter(|r| !r.is_empty());
         let seen = revision.filter(|_| !cipher_id.is_empty()).map(|r| (cipher_id.clone(), r.to_owned()));
+        let mut unknown = Vec::new();
         let result = match &seen {
             Some(seen) if cache.0.contains(seen) => Scan::Unmarked,
-            _ => scan(cipher, ns, keys, allowed),
+            _ => scan_noting(cipher, ns, keys, allowed, &mut unknown),
         };
+        if !unknown.is_empty() {
+            unknown_features.push((cipher_id.clone(), unknown));
+        }
         if matches!(result, Scan::Unmarked) {
             unmarked.extend(seen);
         } else {
@@ -471,6 +533,6 @@ pub fn scan_vault_with(
         }
     }
     cache.0 = unmarked;
-    let (items, duplicates) = resolve_duplicates(marked);
-    ScanReport { items, skipped, uninspectable, duplicates, present }
+    let (items, duplicates) = resolve_duplicates(marked, bound);
+    ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present }
 }

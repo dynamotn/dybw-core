@@ -897,7 +897,8 @@
                   "enum": [
                     "too-long",
                     "notes-hold-user-text",
-                    "value-source-changed"
+                    "value-source-changed",
+                    "unsupported"
                   ]
                 }
               },

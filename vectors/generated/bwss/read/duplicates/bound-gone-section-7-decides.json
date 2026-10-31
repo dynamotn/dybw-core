@@ -1,0 +1,109 @@
+{
+  "id": "read/duplicates/bound-gone-section-7-decides",
+  "spec": "1.6",
+  "sections": [
+    "§7"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c9",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "bound-pw"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.vt8h6UguajS19/lEixRubQ==|0gq76/S90daIx9ghw2+n2g==|+z8/7i30vHr3fGeiHxJlrZQZQDBQqbGK99v6JCbs9Yg=",
+      "notes": null,
+      "login": {
+        "username": "2.XUFhpMDOr1iB3VJQpnBp2Q==|Iy0u7gVRPbmqXGqFblRAWg==|ccyxiGwzFp3ZuKXm3Lg8JRWC+uR4byNo6K6s/EvnEGs=",
+        "password": "2.lXUyJHPCI4ZkKXGmvEgLGw==|iVonDXbD6A+pK37gqGDc5w==|mi3c28YQR3DKKdRKta3iMe3N4e+zIZCDv1wruBc5JHc=",
+        "uris": [
+          {
+            "uri": "2.TCvFdEVOlKfTdoclNZAGWA==|mjngVZJM5x1NFebFcoEZU3pynSKQ2adRLmFqKnMnVc4=|9FVhIIrmRVloC1pgSYiC7sZRCIlloIG/aPw/Yv4ZnKo=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.b5SZVSQA8HPu1nyerj7JsA==|8VeY7F/upGxNGJozjbhxYg==|hh4fPAbI0pPmeepgd6jgAHV7qlrPjskZQ42GOwyfwtE=",
+          "value": "2.Hr8fNIYyWpYWNhswFw+Tag==|9CEgNO+l0WBSXjBI6xzKrQ==|bc7y4n/ID4Oy0hX91PuXPin4UnU4jsNvxqqsZoYxFdg=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.gdqv2ZCJIhmEl818lzofcA==|7w3Ktx1xkm4415zo0HcbKA==|f7BGpRw9HCyzB9OWOCM/Rk02H7BbkELBM6KTKCeZ/4I=",
+      "notes": null,
+      "login": {
+        "username": "2.+zlwnz3OInhX2rRUqPYdSQ==|aM5fu6nvJTgW7fE4OJtPQg==|35kSNTNC+C/AHnLEd9IVpn2r4KiAvwyWZgBJaidfwhE=",
+        "password": "2.T5v5TuxXmzgCn210t4zYWQ==|hixl0bbBqhBDBWAPvPoXTA==|22sTI9aUb3y0dHSkHyOioSt1Eo5dHNRs51K+NHVgaCs=",
+        "uris": [
+          {
+            "uri": "2.gIiPExsQDUFAVDW776oWYA==|9o3hS0OQ/tM2Dpy/hfM+B3hChZ5Ju3ewXKYpCQbql0I=|lbL/+t8M26gKneDLhlqOC+uw32cXLpQ4BRqJxtD/gQk=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.SkWNBhY7rn8jhx7dipzuqQ==|ezOlyudvpowQfXhpQfnM1g==|JmrZGPpn0TuJQ8GLmYmSP/0mIoUamaejIR88VF4sSCA=",
+          "value": "2.t7pUhaljHlGZ7SVm571eBg==|PLZSt2kL4O1VS63lXXlKIA==|EKYpIorP1oKJaOWPUfz2IXY51v44BHxCw3DkHUzrMBk=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c2",
+          "id": "alpha",
+          "value": "older-pw",
+          "source": "login-password"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": [],
+      "duplicates": [
+        {
+          "id": "alpha",
+          "kept": "c2",
+          "left": [
+            "c1"
+          ]
+        }
+      ]
+    }
+  }
+}

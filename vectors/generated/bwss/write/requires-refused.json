@@ -1,0 +1,60 @@
+{
+  "id": "write/requires-refused",
+  "spec": "1.6",
+  "sections": [
+    "§4.1",
+    "§6.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.pUUFB4ph0rU7+PpHqf1YGA==|96PIz95vkvSYV4Wmm1tycQ==|1ftFkUBctY9zO3aTI3anch1FXr2kKhuLvgkqo1zRlaM=",
+      "notes": null,
+      "login": {
+        "username": "2.jd528kMpBUpY3Dw9RPQv9g==|7uQPGkQKvFOUIsMS41N6ng==|w/RKAZpBgtG3JKyVkW2y2ZCHGHuMuw3t+5rUon5OmSE=",
+        "password": "2.uTP0dF216/lLeAGGaLXlRg==|sd5r9/8c5PE79vU/G0ZZlA==|Fg3ujRrEApMxtX1iABzSgu6KukSFR6CNw7ZdohP9yqs=",
+        "uris": [
+          {
+            "uri": "2.mvztvOwAyaOASDbXo9ryvg==|TJ3OQ7i6ohdzhOYqr6IUNJIa5O7wBbGvN8NgGSjy1lA=|0m1qYSIPUfPLCQhcOeOKOVmBmxohK7v9PTZPIGaZq3A=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.GR7kh211ptQWK6hi/seZBA==|TLTS0QGLbhM57mkISQ5p8A==|MKUF9xI634eAl7rq0jKqwD95O0ZdvCqM7h6X3kaleho=",
+          "value": "2.1UHKQW6S8+/2nHS6efWuwQ==|UpQwMCdXqIZ/0+SHOw0TJA==|budYZR7SD9dXjbK5s119KbNKEgx98Q4gHC/tej/a2CA=",
+          "type": 0
+        },
+        {
+          "name": "2.2n0jA3WfEh7BpWY+im3ihg==|bRJuXj73fa2kb6m9zHWMMA==|WkCd8KSNnEC334ToN++U1cq0Yl+d+iaIot1YeaVMd28=",
+          "value": "2.jucyKZ4zJB9Tzr/Cmizb0Q==|VfnGG8f4bSkvlJ16PP8zPg==|BeT7NFcqEgq6BN72bOgUhSBVtqDnh2XY4WtMc9mYlLw=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "error": "unsupported"
+    }
+  }
+}

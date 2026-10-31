@@ -569,6 +569,24 @@ fn errors_that_may_pass_keep_the_op() {
 }
 
 #[test]
+fn unsupported_write_stays_queued() {
+    assert!(matches!(classify(SyncWriteError::Write(WriteError::Unsupported)), Step::Keep(_)));
+    // An item stopped by `dybw:requires` is held like an unreadable one: the change waits, nothing is sent.
+    let mut r = Rig::new();
+    let mut c1 = r
+        .note(REV, &[("bwss:id", "x", false), ("bwss:password", "s", true), ("dybw:requires", "bwss:acl-host", false)]);
+    c1["id"] = json!("c1");
+    let mut queue = vec![r.change(&r.item("c1", "x", "s"), Some(b"new")), delete_of("c1", "x")];
+    let report = r.flush(&mut queue, &[c1.clone()]);
+    assert_eq!((report.kept.len(), report.dropped.len(), queue.len()), (1, 0, 2));
+    assert!(r.log().is_empty());
+    queue.remove(0);
+    let report = r.flush(&mut queue, &[c1]);
+    assert_eq!((report.kept.len(), report.dropped.len(), report.done.len(), queue.len()), (1, 0, 0, 1));
+    assert!(r.log().is_empty());
+}
+
+#[test]
 fn a_delete_of_a_re_marked_cipher_sends_nothing() {
     let mut r = Rig::new();
     let c1 = r.item("c1", "b", "s");

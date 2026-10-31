@@ -330,6 +330,7 @@ fn what_is_skipped_or_uninspectable() {
         SkipReason::ReservedId,
         SkipReason::ViewPasswordHidden,
         SkipReason::InvalidBase64,
+        SkipReason::NewerFormat,
     ]
     .map(|r| r.code());
     assert_eq!(
@@ -342,7 +343,8 @@ fn what_is_skipped_or_uninspectable() {
             "invalid-id",
             "reserved-id",
             "view-password-hidden",
-            "invalid-base64"
+            "invalid-base64",
+            "newer-format"
         ]
     );
 }
@@ -469,7 +471,12 @@ fn permutations<T: Copy>(items: &[T]) -> Vec<Vec<T>> {
 }
 
 fn dup(id: &str, kept: &str, left: &[&str]) -> Duplicate {
-    Duplicate { id: id.into(), kept: kept.into(), left: left.iter().map(|s| (*s).to_owned()).collect() }
+    Duplicate {
+        id: id.into(),
+        kept: kept.into(),
+        left: left.iter().map(|s| (*s).to_owned()).collect(),
+        bound_kept: false,
+    }
 }
 
 #[test]
@@ -482,12 +489,12 @@ fn duplicates_resolve_the_same_way_in_any_order() {
         ("x", "d", false, None),
     ];
     for perm in permutations(&all) {
-        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect());
+        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect(), &BTreeMap::new());
         assert_eq!(win.iter().map(|w| w.cipher_id.as_str()).collect::<Vec<_>>(), ["c"]);
         assert_eq!(lost, vec![dup("x", "c", &["a", "b", "d"])]);
     }
     for perm in permutations(&[("x", "q", false, Some(7)), ("x", "p", false, Some(7))]) {
-        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect());
+        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect(), &BTreeMap::new());
         assert_eq!(win[0].cipher_id, "p");
         assert_eq!(lost, vec![dup("x", "p", &["q"])]);
     }
@@ -495,7 +502,8 @@ fn duplicates_resolve_the_same_way_in_any_order() {
 
 #[test]
 fn distinct_ids_all_win_and_losers_are_sorted_by_id() {
-    let (win, lost) = resolve_duplicates(vec![m(("a", "c1", false, None)), m(("b", "c2", true, Some(1)))]);
+    let (win, lost) =
+        resolve_duplicates(vec![m(("a", "c1", false, None)), m(("b", "c2", true, Some(1)))], &BTreeMap::new());
     assert_eq!(win.len(), 2);
     assert!(lost.is_empty());
     let all = [
@@ -508,7 +516,7 @@ fn distinct_ids_all_win_and_losers_are_sorted_by_id() {
         ("c", "c1", false, None),
     ];
     for perm in permutations(&all) {
-        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect());
+        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect(), &BTreeMap::new());
         let ids: Vec<_> = win.iter().map(|w| (w.id.as_str(), w.cipher_id.as_str())).collect();
         assert_eq!(ids, [("c", "c1"), ("m", "m1"), ("solo", "s"), ("z", "z1")]);
         assert_eq!(lost, vec![dup("c", "c1", &["c3"]), dup("m", "m1", &["m2"]), dup("z", "z1", &["z2"])]);
@@ -623,4 +631,101 @@ fn cipher_over_1_mib_is_held() {
 fn cipher_of_exactly_1_mib_is_read() {
     let k = bwss();
     assert!(matches!(k.scan(&sized(&k, scan::MAX_CIPHER)), Scan::Marked(_)));
+}
+
+fn bound(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+    pairs.iter().map(|(i, c)| ((*i).to_owned(), (*c).to_owned())).collect()
+}
+
+#[test]
+fn a_bound_cipher_keeps_its_id_against_section_7() {
+    let all = [
+        ("x", "a", false, Some(1)),
+        ("x", "b", false, Some(2)),
+        ("x", "c", false, Some(3)),
+        ("y", "p", false, Some(1)),
+        ("y", "q", false, Some(2)),
+    ];
+    // x is bound to the §7 loser c; y to p, which §7 picks anyway, so that is not a binding that decided.
+    for perm in permutations(&all) {
+        let (win, lost) = resolve_duplicates(perm.into_iter().map(m).collect(), &bound(&[("x", "c"), ("y", "p")]));
+        assert_eq!(win.iter().map(|w| w.cipher_id.as_str()).collect::<Vec<_>>(), ["c", "p"]);
+        let kept_by_binding = Duplicate { bound_kept: true, ..dup("x", "c", &["a", "b"]) };
+        assert_eq!(lost, vec![kept_by_binding, dup("y", "p", &["q"])]);
+    }
+    // A binding to a cipher that is not among the items (gone, unmarked, unreadable, out of scope), or to another
+    // id's cipher, changes nothing.
+    for gone in [bound(&[("x", "gone")]), bound(&[("x", "p")]), bound(&[("z", "c")])] {
+        let (win, lost) = resolve_duplicates(all.map(m).into(), &gone);
+        assert_eq!(win.iter().map(|w| w.cipher_id.as_str()).collect::<Vec<_>>(), ["a", "p"]);
+        assert_eq!(lost, vec![dup("x", "a", &["b", "c"]), dup("y", "p", &["q"])]);
+    }
+}
+
+fn requiring(k: &Fx, value: &str) -> Value {
+    k.login(&[("bwss:id", "x"), ("dybw:requires", value)], Some("pw"), None)
+}
+
+#[test]
+fn requires_is_read_only_after_the_marker() {
+    let k = bwss();
+    // Unmarked: the value is never decrypted, so garbage in it is not even noticed.
+    let mut c = k.login(&[("other", "v"), ("dybw:requires", "x")], Some("pw"), None);
+    c["fields"][1]["value"] = json!(BAD);
+    assert!(matches!(k.scan(&c), Scan::Unmarked));
+    // Marked: a value that cannot be read leaves the item uninspectable, like any other value.
+    let mut c = requiring(&k, "x");
+    c["fields"][1]["value"] = json!(BAD);
+    assert_eq!(held(k.scan(&c)), Uninspectable::Value);
+}
+
+#[test]
+fn unknown_required_features_skip_the_item() {
+    let k = bwss();
+    let none: &[&str] = &[];
+    for (value, unknown) in [
+        ("bwss:acl-host", &["bwss:acl-host"][..]),
+        ("dybw:future", &["dybw:future"]),
+        // Sorted, trimmed, once each, CRLF and blank lines tolerated.
+        (" bwss:b \r\nbwss:a\n\n\tdybw:c\nbwss:a\r\n", &["bwss:a", "bwss:b", "dybw:c"]),
+        ("bwss:", &["bwss:"]),
+        // Only the tool's own namespace and `dybw` are considered.
+        ("obsidian:scope\nother:x\nbwss-x:y\nDYBW:z", none),
+        ("", none),
+        ("\n \r\n\t\n", none),
+    ] {
+        let sync = json!({ "ciphers": [requiring(&k, value)] });
+        let r = scan::scan_vault(&sync, &Namespace::BWSS, &k.keys, &Organizations::None);
+        if unknown.is_empty() {
+            assert_eq!(r.items.len(), 1, "{value:?}");
+            assert!(r.skipped.is_empty() && r.unknown_features.is_empty(), "{value:?}");
+        } else {
+            // Held: no item, but present, so a synced copy is never cleared.
+            let names: Vec<String> = unknown.iter().map(|n| (*n).to_owned()).collect();
+            assert!(r.items.is_empty(), "{value:?}");
+            assert_eq!(r.skipped, [("c1".to_owned(), SkipReason::NewerFormat)], "{value:?}");
+            assert_eq!(r.unknown_features, [("c1".to_owned(), names)], "{value:?}");
+            assert!(r.present.contains("c1"));
+        }
+    }
+    assert_eq!(SkipReason::NewerFormat.code(), "newer-format");
+    // A name the namespace implements is known, own or `dybw`.
+    let ns = Namespace { features: &["bwss:known", "dybw:ok"], ..Namespace::BWSS };
+    assert!(matches!(k.scan_ns(&requiring(&k, "bwss:known\ndybw:ok"), &ns), Scan::Marked(_)));
+    assert_eq!(skipped(k.scan_ns(&requiring(&k, "bwss:known\nbwss:new"), &ns)), SkipReason::NewerFormat);
+    // The first field of the name counts, and only the exact name.
+    let c = k.login(
+        &[
+            ("bwss:id", "x"),
+            ("dybw:requires", "other:x"),
+            ("dybw:requires", "bwss:new"),
+            ("bwss:dybw:requires", "bwss:new"),
+        ],
+        Some("pw"),
+        None,
+    );
+    assert!(matches!(k.scan(&c), Scan::Marked(_)));
+    let c =
+        k.login(&[("bwss:id", "x"), ("dybw:requires ", "bwss:new"), ("DYBW:requires", "bwss:new")], Some("pw"), None);
+    assert!(matches!(k.scan(&c), Scan::Marked(_)));
 }

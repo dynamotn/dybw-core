@@ -1,0 +1,63 @@
+{
+  "id": "read/requires/blank-lines-ignored",
+  "spec": "1.6",
+  "sections": [
+    "§4.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.iMMCbSJG9l4NCYMl0yinvQ==|2Wwow+nKniqYxHi42gOsUQ==|qwBggP3NzWBQwwEdfbqfi144xflGkJGG96PfSUKsGJ4=",
+      "notes": null,
+      "login": {
+        "username": "2.XDOykOXu0RJIbrFmH9KLLw==|NKg3YYqH9vOQP3eQjGFEfQ==|g7veonAesZUG0BXJzC8bhZZMvL945qdFG1tTOswPE9k=",
+        "password": "2.BGhqAcI8WaZlUMEvmqOQ1A==|D4gQdQc0b0SLRsRxebx94Q==|yHrsyuAoTtFPLe9c8omCX8SqKNdseGe7s3dovm0EcME=",
+        "uris": [
+          {
+            "uri": "2.YxVr/5rjxEqA/a9dwmPjJg==|wOoRCi6yoQDDLCjcpP6KgVrmgeYHwNHdwv3+oC5joGI=|cAx6zYsSKy5p+3WiDAMAsQeEg54TpL9XX4qwPe4p4k8=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.gutwtJ9zFqZT0KXnqNOCAA==|FwxgF9nB9IqU24gia7mhkg==|ZAEa93OCcPkyqyTW8RPCM37Ak4h4yOXvw8lrmTcfTo8=",
+          "value": "2.wMZyw6QTZdQEK84UZLgCZg==|RFtshd6zVr+o6C7V5LJLwg==|9+ckH3TF7hTISFY0EGG2P0GCgCG74W3i3lEnsHfcXls=",
+          "type": 0
+        },
+        {
+          "name": "2.E61MHmwgtpnh07fMKwyrow==|eddOMbpdO1mdG7Wt4BD4Qg==|HCTTw+CXf9H4pVo+Yy1uczQHMv4ideZayeajG8Efbj4=",
+          "value": "2.QESI8vAkI/c37kRFO+aZwQ==|ch8rPM4L5MVz9Jbz76LGsXEgATF9Vq8FL93/350D/HU=|dXunFkqongNjwB22yHNDrrVA6nYJBo5qYCOaS0nibh0=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "login-pw",
+          "source": "login-password"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

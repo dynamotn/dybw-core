@@ -25,13 +25,26 @@ pub struct Namespace {
     /// Checks the trimmed, non-blank `{ns}:id`.
     pub id_rule: fn(&str) -> Result<(), IdProblem>,
     pub marks: MarkScheme,
+    /// The `dybw:requires` names the tool implements (ADR 0020), each with its namespace: `bwss:acl-host`,
+    /// `dybw:...`. None is registered yet.
+    pub features: &'static [&'static str],
 }
 
 impl Namespace {
-    pub const BWSS: Namespace =
-        Namespace { name: "bwss", encodings: Encodings::Base64, id_rule: bwss_id, marks: MarkScheme::Bwss };
-    pub const OBSIDIAN: Namespace =
-        Namespace { name: "obsidian", encodings: Encodings::None, id_rule: obsidian_id, marks: MarkScheme::Obsidian };
+    pub const BWSS: Namespace = Namespace {
+        name: "bwss",
+        encodings: Encodings::Base64,
+        id_rule: bwss_id,
+        marks: MarkScheme::Bwss,
+        features: &[],
+    };
+    pub const OBSIDIAN: Namespace = Namespace {
+        name: "obsidian",
+        encodings: Encodings::None,
+        id_rule: obsidian_id,
+        marks: MarkScheme::Obsidian,
+        features: &[],
+    };
 
     /// The tool field `{ns}:{name}`.
     pub fn field(&self, name: &str) -> String {

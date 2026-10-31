@@ -89,7 +89,7 @@ impl Bx {
 
     fn scan_all(&self, ciphers: &[&Value], cache: &mut UnmarkedCache) -> ScanReport {
         let sync = json!({ "ciphers": ciphers });
-        scan_vault_with(&sync, &Namespace::BWSS, &self.keys, &Organizations::All, &|_| true, cache)
+        scan_vault_with(&sync, &Namespace::BWSS, &self.keys, &Organizations::All, &|_| true, cache, &BTreeMap::new())
     }
 }
 
@@ -457,4 +457,17 @@ fn blob_that_fails_any_check_is_held() {
     assert_eq!((open.field_names(), open.field_value(0), open.field_value(1)), (vec![None], None, None));
     assert_eq!((open.notes(), open.login_password()), (None, None));
     assert_eq!(format!("{open:?}"), "OpenBlob(<redacted>)");
+}
+
+#[test]
+fn a_blob_requiring_an_unknown_feature_is_skipped() {
+    let k = Bx::new();
+    let c = k.cipher(login(&[("bwss:id", "x"), ("dybw:requires", "bwss:acl-host")], Some("pw"), None));
+    assert_eq!(skipped(k.scan(&c)), SkipReason::NewerFormat);
+    let r = k.scan_all(&[&c], &mut UnmarkedCache::default());
+    assert_eq!(r.unknown_features, [("b1".to_owned(), vec!["bwss:acl-host".to_owned()])]);
+    assert!(r.present.contains("b1"));
+    // An unmarked blob is not asked.
+    let c = k.cipher(login(&[("dybw:requires", "bwss:acl-host")], Some("pw"), None));
+    assert!(matches!(k.scan(&c), Scan::Unmarked));
 }

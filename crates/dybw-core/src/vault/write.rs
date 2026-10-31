@@ -6,8 +6,8 @@ use super::blob::{BLOB_SECURITY_VERSION, OpenBlob, open_blob};
 use super::fields::{Mark, decrypt_opt, field_names, first_index, item_key};
 use super::namespace::{Encodings, Namespace};
 use super::scan::{
-    Scan, TYPE_SECURE_NOTE, Uninspectable, ValueSource, is_blob, organization, read_only, scan, supported_type,
-    too_large, trashed,
+    Scan, SkipReason, TYPE_SECURE_NOTE, Uninspectable, ValueSource, is_blob, organization, read_only, scan,
+    supported_type, too_large, trashed,
 };
 use super::{Keys, Organizations};
 use crate::crypto::{ContentFormat, CryptoError, Marker, SymmetricKey};
@@ -177,6 +177,10 @@ pub enum WriteError {
     /// Nothing was written: the user must answer first (ADR 0016). Like `Uninspectable`, the change is kept.
     #[error("the write needs the user's answer: {}", .0.code())]
     Ask(HistoryQuestion),
+    /// The item requires a feature this tool does not implement (`dybw:requires`, ADR 0020): never written. Like
+    /// `Uninspectable`, the change is kept.
+    #[error("the item requires a feature this tool does not implement")]
+    Unsupported,
 }
 
 impl WriteError {
@@ -186,6 +190,7 @@ impl WriteError {
             WriteError::TooLong => Some("too-long"),
             WriteError::NotesTaken => Some("notes-hold-user-text"),
             WriteError::SourceChanged => Some("value-source-changed"),
+            WriteError::Unsupported => Some("unsupported"),
             _ => None,
         }
     }
@@ -619,6 +624,7 @@ pub fn apply(
     let fresh = match scan(cipher, ns, keys, &Organizations::All) {
         Scan::Marked(m) if m.id == patch.id => m,
         Scan::Uninspectable(why) => return Err(WriteError::Uninspectable(why)),
+        Scan::Skipped(SkipReason::NewerFormat) => return Err(WriteError::Unsupported),
         Scan::Marked(_) | Scan::Unmarked | Scan::Skipped(_) => return Err(WriteError::Unmarked),
     };
     if fresh.read_only {

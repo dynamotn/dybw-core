@@ -163,7 +163,7 @@ pub struct Skipped {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Duplicate {
     pub id: String,
     pub kept: String,

@@ -4,7 +4,7 @@
 use super::write::{DeleteOutcome, SyncWriteError, create, delete, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
-use crate::vault::scan::{MarkedItem, Scan, ValueSource, duplicate_order, organization, scan, trashed};
+use crate::vault::scan::{MarkedItem, Scan, SkipReason, ValueSource, duplicate_order, organization, scan, trashed};
 use crate::vault::write::{
     FieldSet, HistoryQuestion, NewItem, Patch, ValueChange, WriteError, WriteRecord, record_write,
 };
@@ -159,9 +159,9 @@ fn waits(e: &ApiError) -> bool {
 pub(super) fn classify(e: SyncWriteError) -> Step {
     match e {
         // May pass (a copy that cannot be read now, bwss `Wait`): the change must not be lost.
-        SyncWriteError::Write(e @ (WriteError::Uninspectable(_) | WriteError::Crypto(_) | WriteError::BadClock)) => {
-            Step::Keep(e.to_string())
-        }
+        SyncWriteError::Write(
+            e @ (WriteError::Uninspectable(_) | WriteError::Unsupported | WriteError::Crypto(_) | WriteError::BadClock),
+        ) => Step::Keep(e.to_string()),
         SyncWriteError::Write(WriteError::SourceChanged) => Step::DropValue,
         // Nothing was written: the change waits for the user's answer, never dropped.
         SyncWriteError::Write(WriteError::Ask(q)) => Step::Ask(q),
@@ -198,7 +198,8 @@ fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Opt
                     winner = Some(m);
                 }
             }
-            Scan::Uninspectable(_) => {
+            // An item stopped for `dybw:requires` is held as well: its change waits, never dropped as gone.
+            Scan::Uninspectable(_) | Scan::Skipped(SkipReason::NewerFormat) => {
                 held |= match cipher_id {
                     Some(cid) => server_id(c) == cid,
                     None => organization(c).is_none(),

@@ -1,0 +1,63 @@
+{
+  "id": "read/requires/blank-lines-ignored",
+  "spec": "1.6",
+  "sections": [
+    "§4.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.gbjez8SSM3dosGVRSM0ImQ==|TwKsBNNxgtobFrEKVLva/Q==|UDsNtjKy3B6qusH7hyennwuTb+rQ3D73WHag9aHxbgU=",
+      "notes": null,
+      "login": {
+        "username": "2.Ci6DV2TFJYyh/hl/knmf6Q==|jupNxooyiqSrMvREZyMFNw==|RNSu8K6Fj+75oLjkn6mBREu2QGUFmK3JLWrN2fISCgM=",
+        "password": "2.sRwkneveTtvvqWq7Gqh/Jg==|biqrgYVQSvbcLz1isU+OUw==|6qDRQCy4PyBuXyQeiGErC81kAJta7m0umOobQhcBeZE=",
+        "uris": [
+          {
+            "uri": "2.vFM6HwxPtqyCZeEH6UA+iQ==|OMkzlettKnoRTG4FKYv6qfj+zurd3UIL/UsLxSruguY=|GEU0lxrZaHRgDVZmaJpn7nXHSxsXyMOPZY0vg4sHWZQ=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.DnvTSNQ3/pPVVUJP4yQDdw==|QvRifL+JnASMbN9jocHkSQ==|BBLv1rfwtNBwBvrDXh3jkYHVdxQGKeEY+xD1H+ub6Rg=",
+          "value": "2.e1iVajgBXUto2f385guEPw==|oAC90LWk6vc1tJwf71U3ng==|rSqOvk+tXPqLO+2/zMLGaekC81UMrSvFtmtWQdGOS4k=",
+          "type": 0
+        },
+        {
+          "name": "2.T+FxcSQargBLFtip2wznDQ==|9qaYiBE+29fyzap05Tw+0A==|29sn6nECrgj8WdsSZVNB7kuQDV89/Tekylpm8SpGiNw=",
+          "value": "2.XC85MC5bRYod3kwwuseDIg==|eDi3Yra9PvihVcg9VxJnjDHvdiS0bTYNGwd6r1W9F+I=|aDN25ymJyjdEyEG+zugUScSxzLIxgTRqzSaAnVv+ZQg=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "login-pw",
+          "source": "login-password"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

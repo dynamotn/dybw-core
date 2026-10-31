@@ -956,6 +956,71 @@ fn keeps_a_synced_secret_whose_item_can_no_longer_be_used() {
     assert_eq!(report.skipped.held, [("k".to_owned(), c)]);
 }
 
+fn require(r: &Rig, cipher: &str, features: &str) {
+    let field =
+        json!({ "type": 0, "name": r.enc(&r.keys.user, "dybw:requires"), "value": r.enc(&r.keys.user, features) });
+    let mut w = r.world();
+    w.cipher(cipher)["fields"].as_array_mut().unwrap().push(field);
+    w.bump(cipher);
+}
+
+#[test]
+fn an_item_that_requires_an_unknown_feature_is_held_not_cleared() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.add("other", "o");
+    r.ok();
+    require(&r, &c, "obsidian:acl\nbwss:ignored");
+    r.store.put("k", "mine");
+    let report = r.ok();
+    assert!(report.cleared.is_empty() && report.pulled.is_empty() && report.pushed.is_empty());
+    assert_eq!(report.skipped.skipped, [(c.clone(), SkipReason::NewerFormat)]);
+    assert_eq!(report.skipped.unknown_features, [(c.clone(), vec!["obsidian:acl".to_owned()])]);
+    assert_eq!(report.skipped.held, [("k".to_owned(), c.clone())]);
+    assert!(report.errors.is_empty() && report.conflicts.is_empty());
+    assert_eq!((r.store.value("k").as_deref(), r.state.base["k"].cipher_id.as_str()), (Some("mine"), c.as_str()));
+    assert_eq!(r.world().count(&format!("Put /api/ciphers/{c}")), 0);
+}
+
+#[test]
+fn an_item_that_starts_requiring_a_feature_during_the_push_is_not_written() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v1");
+    r.ok();
+    r.store.put("k", "mine");
+    let field = json!({ "type": 0, "name": r.enc(&r.keys.user, "dybw:requires"), "value": r.enc(&r.keys.user, "obsidian:acl") });
+    let done = Rc::new(Cell::new(false));
+    let flag = done.clone();
+    r.on_update(move |to, w| {
+        if !flag.replace(true) {
+            w.cipher(to)["fields"].as_array_mut().unwrap().push(field.clone());
+            w.bump(to);
+        }
+    });
+    let report = r.ok();
+    // The write refused, another pass planned afresh and found the item held.
+    assert_eq!((report.passes, report.pushed.is_empty(), report.errors.is_empty()), (2, true, true));
+    assert_eq!(report.skipped.held, [("k".to_owned(), c.clone())]);
+    // Only the rejected first write was sent.
+    assert_eq!(r.world().count(&format!("Put /api/ciphers/{c}")), 1);
+    assert_eq!(r.store.value("k").as_deref(), Some("mine"));
+}
+
+#[test]
+fn a_bound_cipher_stays_the_winner_and_is_reported() {
+    let mut r = Rig::obsidian();
+    let bound = r.add("dup", "new");
+    r.ok();
+    // §7 would now pick the older copy.
+    let older = r.add_spec(&Spec { created: "2024-01-01T00:00:00.000Z", ..Spec::new("dup", "old") });
+    let report = r.ok();
+    assert!(nothing_moved(&report) && report.errors.is_empty());
+    assert_eq!(r.store.value("dup").as_deref(), Some("new"));
+    let d = &report.skipped.duplicates[0];
+    assert_eq!((d.kept.as_str(), d.left.as_slice(), d.bound_kept), (bound.as_str(), [older].as_slice(), true));
+    assert_eq!(r.state.base["dup"].cipher_id, bound);
+}
+
 #[test]
 fn neither_adopts_nor_reports_a_new_blob_item() {
     let mut r = Rig::obsidian();

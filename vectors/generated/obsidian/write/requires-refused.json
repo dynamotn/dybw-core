@@ -1,0 +1,60 @@
+{
+  "id": "write/requires-refused",
+  "spec": "1.6",
+  "sections": [
+    "§4.1",
+    "§6.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.vKsRBIuD+j+rI07RNWY6Cw==|+zBM+qKAWKLQs29x1Cwkzw==|+6W5D9ljBW58lxcYzZnHJq8T1XsxqaQBAC413FxRJ9E=",
+      "notes": null,
+      "login": {
+        "username": "2.bQTFpbRn7rmXa8rgQoXAgQ==|uaFEM+XCWJ5ggReGHmsPWw==|lAjGjpp4g6UV8GHMypxk8XjDKKRuxeXvDDt8d5QCBW8=",
+        "password": "2.LxuXs+ilvWrN756VazOCDg==|d7An4hBSqZ70VkG5CEOtOA==|jZDAbraUXdsnE/1l5i5jNOlaO5ZDf16JyPZbQTjBoro=",
+        "uris": [
+          {
+            "uri": "2.tHfYXjO/yZ9YauUdFy/fmQ==|y9SZ0EJ8IFr2fKcNBpbIajECR2uXkZFA65QsTZAl+kY=|zAoB+nkGuBUsf2MTMk6/NKy7P7Jnz1rghksirDEFlzw=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.1VFJnskO7sdauqM2hrtiYg==|NxvTArKiDB7pwQXdv9BHog==|9fj+vccvl4ai5pzAlU4S38A9C0sa5Ujv5NMiu8XjetI=",
+          "value": "2.x3PkODAiwQtgq6xywmSyZw==|k4lUY1HLpTqTWPFtsEeReA==|q2CKjoB8PZMWJf9EwXNWnjdfZRxuxEdXpo0llneB8ec=",
+          "type": 0
+        },
+        {
+          "name": "2.yx2YBdlefBLT6wr2AJXJFQ==|Pvx8tyD+B9/Qgjzh1+ayow==|Od5en4AE2qZavN+IUlC0LpSuCRfRVvD/QXavZ/RpVqs=",
+          "value": "2.4aJLqJJw5HiLhzOnfq7z9g==|SLI3BZeAE21Dd5okT3K0gwOG5HE3A4YedSXienPr5G4=|adoykVn5aD87n/HA1xBgWEq0AU2e0T+wqRuZhSu+2P0=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new-secret"
+  },
+  "expect": {
+    "write": {
+      "error": "unsupported"
+    }
+  }
+}

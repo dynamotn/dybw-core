@@ -9,7 +9,9 @@ use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom, block_on};
 use dybw_core::vault::write::{HistoryAnswer, NewItem, Patch, ValueChange, WriteError, WriteRecord};
-use dybw_core::vault::{Keys, Namespace, Organizations, UnmarkedCache, scan_vault};
+use dybw_core::vault::{
+    Keys, Namespace, Organizations, SkipReason, UnmarkedCache, ValueSource, scan_vault, scan_vault_with,
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -66,7 +68,10 @@ pub fn read(dir: &Path, s: &Scenario) -> Result<(), String> {
         api.sync().await.map_err(|e| e.to_string())
     })?;
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
-    let report = scan_vault(&sync, ns, &keys, &allowed);
+    // The device's bindings, when the vector has one (ADR 0019).
+    let bound: BTreeMap<String, String> =
+        s.device.iter().flat_map(|d| &d.base).map(|(id, e)| (id.clone(), e.cipher.clone())).collect();
+    let report = scan_vault_with(&sync, ns, &keys, &allowed, &|_| true, &mut UnmarkedCache::default(), &bound);
 
     let mut items = report.items.iter().collect::<Vec<_>>();
     items.sort_by(|a, b| a.id.cmp(&b.id));
@@ -92,14 +97,14 @@ pub fn read(dir: &Path, s: &Scenario) -> Result<(), String> {
     let mut want_held: Vec<&str> = want.uninspectable.iter().map(String::as_str).collect();
     want_held.sort_unstable();
     compare("uninspectable", held, want_held)?;
-    let dups: Vec<(&str, &str, &[String])> =
-        report.duplicates.iter().map(|d| (d.id.as_str(), d.kept.as_str(), d.left.as_slice())).collect();
-    let want_dups: Vec<(&str, &str, &[String])> = want
+    let dups: Vec<(&str, &str, &[String], bool)> =
+        report.duplicates.iter().map(|d| (d.id.as_str(), d.kept.as_str(), d.left.as_slice(), d.bound_kept)).collect();
+    let want_dups: Vec<(&str, &str, &[String], bool)> = want
         .duplicates
         .as_deref()
         .unwrap_or_default()
         .iter()
-        .map(|d| (d.id.as_str(), d.kept.as_str(), d.left.as_slice()))
+        .map(|d| (d.id.as_str(), d.kept.as_str(), d.left.as_slice(), d.bound_kept))
         .collect();
     compare("duplicates", dups, want_dups)
 }
@@ -138,19 +143,35 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
         *server.fresh.borrow_mut() = op.fresh().cloned();
         Ok::<_, String>(match op {
             Operation::SetValue { id, value, answer, .. } => {
-                let found = item(id)?;
+                // An item skipped for `dybw:requires` is not among the items: the write is tried on its cipher, as
+                // an app holding a stale copy would (the vector's one `newer-format` cipher).
+                let (cipher, found) = match item(id) {
+                    Ok(f) => (
+                        f.cipher.clone(),
+                        (f.cipher_id.clone(), f.organization_id.clone(), f.revision_date.clone(), f.source, f.mark),
+                    ),
+                    Err(e) => {
+                        let (skipped_id, _) =
+                            report.skipped.iter().find(|(_, r)| *r == SkipReason::NewerFormat).ok_or(e)?;
+                        let cipher = sync.get("ciphers").and_then(Value::as_array).into_iter().flatten();
+                        let cipher =
+                            cipher.into_iter().find(|c| c.get("id").and_then(Value::as_str) == Some(skipped_id));
+                        let cipher = cipher.ok_or("the skipped cipher is not in the sync")?.clone();
+                        (cipher, (skipped_id.clone(), None, String::new(), ValueSource::Field, [0; 32]))
+                    }
+                };
                 let record = state.base.get(id).map(|b| b.record.clone()).unwrap_or_default();
                 let patch = Patch {
-                    id: found.id.clone(),
-                    cipher_id: Some(found.cipher_id.clone()),
-                    organization_id: found.organization_id.clone(),
-                    base_revision: found.revision_date.clone(),
+                    id: id.clone(),
+                    cipher_id: Some(found.0),
+                    organization_id: found.1,
+                    base_revision: found.2,
                     set: Vec::new(),
                     remove: Vec::new(),
                     value: ValueChange::Set {
-                        source: found.source,
+                        source: found.3,
                         secret: op_value(value)?,
-                        base_mark: found.mark,
+                        base_mark: found.4,
                         owned: false,
                     },
                     answer: None,
@@ -161,10 +182,10 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                     Answer::KeepSeparate => Some(HistoryAnswer::KeepSeparate),
                     Answer::Unanswered => None,
                 };
-                match (sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &found.cipher, &patch).await, given) {
+                match (sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &cipher, &patch).await, given) {
                     (Err(SyncWriteError::Write(WriteError::Ask(q))), Some(a)) => {
                         let patch = Patch { answer: Some((q, a)), ..patch };
-                        sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &found.cipher, &patch).await
+                        sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &cipher, &patch).await
                     }
                     (sent, _) => sent,
                 }

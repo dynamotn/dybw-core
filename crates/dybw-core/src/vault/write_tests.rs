@@ -658,6 +658,11 @@ fn retry_checks_abort_on_the_fresh_copy() {
     fresh["type"] = json!(3);
     assert_eq!(k.apply(&fresh, &k.keep(&c, B), B), Err(WriteError::Unmarked));
 
+    // a feature this tool lacks (`dybw:requires`): never written to, and the change is kept (ADR 0020)
+    let fresh = k.login(&[("bwss:id", "x", false), ("dybw:requires", "bwss:acl-host", false)], Some("pw"), None);
+    assert_eq!(k.apply(&fresh, &k.keep(&c, B), B), Err(WriteError::Unsupported));
+    assert_eq!(WriteError::Unsupported.code(), Some("unsupported"));
+
     // only a foreign field changed: the write goes through and keeps it
     let mut fresh = c.clone();
     fresh["fields"][1]["value"] = k.e("o2");

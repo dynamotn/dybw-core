@@ -107,6 +107,9 @@ pub struct Conflict {
 pub struct PassReport {
     pub skipped: Vec<(String, SkipReason)>,
     pub duplicates: Vec<Duplicate>,
+    /// Cipher id and the `dybw:requires` names this tool does not implement, for the items in `skipped` as
+    /// `NewerFormat` (ADR 0020): held, never read, written or cleared.
+    pub unknown_features: Vec<(String, Vec<String>)>,
     /// `(id, cipher id)` of synced secrets whose item is still there but can no longer be used: kept as is.
     pub held: Vec<(String, String)>,
     /// `(id, cipher id)` of synced secrets whose item came back with a revision date below the base's (ADR 0019):
@@ -161,12 +164,14 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
 ) -> Result<PassPlan, SyncError> {
     let sync = ctx.client.sync().await?;
     // Reserved ids are refused by the namespace's id rule, so the scan already skips them.
-    let ScanReport { items, skipped, uninspectable, duplicates, present } =
-        scan_vault_with(&sync, ctx.ns, ctx.keys, ctx.allowed, ctx.applies, ctx.unmarked);
+    // The device's bindings, whole: a rolled-back one still keeps its cipher against §7 (ADR 0019).
+    let bound: BTreeMap<String, String> = state.base.iter().map(|(id, e)| (id.clone(), e.cipher_id.clone())).collect();
+    let ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present } =
+        scan_vault_with(&sync, ctx.ns, ctx.keys, ctx.allowed, ctx.applies, ctx.unmarked, &bound);
     // Only a value that fails after the id was read is reported, as the plugin's `readVault`; every other
     // uninspectable cipher (blob, item key, organization key) is silently held.
     let unreadable = uninspectable.into_iter().filter(|(_, u)| *u == Uninspectable::Value).map(|(c, _)| c).collect();
-    let mut report = PassReport { skipped, duplicates, unreadable, ..PassReport::default() };
+    let mut report = PassReport { skipped, duplicates, unknown_features, unreadable, ..PassReport::default() };
     let items: BTreeMap<String, MarkedItem> = items.into_iter().map(|i| (i.id.clone(), i)).collect();
 
     // A synced secret whose item is still there but cannot be used here any more (newer format, renamed to an
@@ -451,7 +456,11 @@ async fn apply<H: Http, C: Clock, R: Random>(
                     SyncWriteError::StillChanging
                     | SyncWriteError::OwnerChanged
                     | SyncWriteError::Write(
-                        WriteError::Gone | WriteError::Unmarked | WriteError::Uninspectable(_) | WriteError::ReadOnly,
+                        WriteError::Gone
+                        | WriteError::Unmarked
+                        | WriteError::Uninspectable(_)
+                        | WriteError::Unsupported
+                        | WriteError::ReadOnly,
                     ),
                 ) => return Ok(true),
                 // The value itself changed meanwhile: never overwritten silently (§6.5).

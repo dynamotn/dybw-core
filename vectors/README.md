@@ -145,8 +145,10 @@ change to `fresh`.
     `boundKept` (bool, default `false`): the kept cipher is the one a device
     binding chose (ADR 0019), not the default pick.
 - `write`: either `{ "requests": [CanonicalRequest] }` or
-  `{ "error": "too-long" | "notes-hold-user-text" | "value-source-changed" }`.
-  1.6 adds a third form, `{ "question": "first-write-back" |
+  `{ "error": "too-long" | "notes-hold-user-text" | "value-source-changed" |
+  "unsupported" }`; `unsupported` (1.6) is a write refused because the item
+  requires a feature the tool does not implement (`dybw:requires`, ADR 0020),
+  so nothing is sent. 1.6 adds a third form, `{ "question": "first-write-back" |
   "evicts-foreign-history" }`: nothing was sent, and the tool must ask.
 - `plan`: `[{ kind, id }]` sorted by `id`, with `kind` one of `pull`, `push`,
   `adopt`, `clear-local`, `forget`, `create`; or
