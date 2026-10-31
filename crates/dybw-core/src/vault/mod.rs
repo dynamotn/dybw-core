@@ -40,6 +40,8 @@ pub struct Keys {
     pub user: SymmetricKey,
     pub orgs: BTreeMap<String, SymmetricKey>,
     pub marker: Marker,
+    /// The signed security state's version; 0 for a legacy user key (ADR 0019).
+    pub security_version: u64,
 }
 
 #[cfg(test)]

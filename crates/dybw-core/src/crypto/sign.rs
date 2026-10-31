@@ -107,8 +107,7 @@ impl VerifyingKey {
         })
     }
 
-    /// Ed25519 in its strict form, ML-DSA-44 with the empty context, as the SDK verifies. A failure is `BadMac`, the
-    /// crate's error for data that does not authenticate.
+    /// Ed25519 in its strict form, ML-DSA-44 with the empty context, as the SDK verifies. A failure is `BadSignature`.
     pub(super) fn verify_raw(&self, signature: &[u8], data: &[u8]) -> Result<(), CryptoError> {
         let ok = match &self.key {
             RawVerifyingKey::Ed25519(k) => {
@@ -118,7 +117,7 @@ impl VerifyingKey {
                 ml_dsa::Signature::<MlDsa44>::try_from(signature).is_ok_and(|s| k.verify(data, &s).is_ok())
             }
         };
-        ok.then_some(()).ok_or(CryptoError::BadMac)
+        ok.then_some(()).ok_or(CryptoError::BadSignature)
     }
 }
 

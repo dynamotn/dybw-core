@@ -4,7 +4,7 @@
   "sections": [
     "§6.2"
   ],
-  "account": "cose",
+  "account": "cose-v2",
   "namespace": "bwss",
   "generator": "dybw-vectors-gen 1",
   "ciphers": [],

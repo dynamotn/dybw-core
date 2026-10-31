@@ -26,7 +26,7 @@ impl ScenarioKeys {
     /// Moves the keys into the core's `Keys`, with the namespace's value marker; nothing is cloned.
     pub fn into_keys(self, ns: &Namespace) -> Keys {
         let marker = Marker::new(&self.user, ns.marks);
-        Keys { user: self.user, orgs: self.orgs, marker }
+        Keys { user: self.user, orgs: self.orgs, marker, security_version: self.security_version }
     }
 }
 

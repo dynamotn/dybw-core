@@ -219,7 +219,12 @@ impl Rig {
         let org = SymmetricKey::generate(&rng).unwrap();
         let org_key = SymmetricKey::from_bytes(&org.to_bytes()).unwrap();
         let scheme = if ns.name == "bwss" { MarkScheme::Bwss } else { MarkScheme::Obsidian };
-        let keys = Keys { marker: Marker::new(&user, scheme), user, orgs: BTreeMap::from([(ORG.to_owned(), org)]) };
+        let keys = Keys {
+            marker: Marker::new(&user, scheme),
+            user,
+            orgs: BTreeMap::from([(ORG.to_owned(), org)]),
+            security_version: 0,
+        };
         let server = Server::default();
         let device = DeviceInfo {
             identifier: "d".into(),

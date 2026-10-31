@@ -3,11 +3,11 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of, resolve_server_urls};
 use dybw_core::crypto::{
-    AwsLcRsa, CoseAlgorithm, CryptoError, KdfParams, NativeArgon2, SymmetricKey, derive_master_key,
-    hash_master_password, unwrap_signing_key, verify_security_state,
+    AwsLcRsa, CryptoError, KdfParams, NativeArgon2, SymmetricKey, derive_master_key, hash_master_password,
+    unwrap_signing_key, verify_security_state,
 };
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
-use dybw_core::profile::{KdfPin, KdfSource, ProfileError, UnlockWarning, Unlocked, accept_kdf, unlock};
+use dybw_core::profile::{KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf, unlock};
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
 use dybw_vectors::canonical::{NOW, canonicalize, drop_tool_defined};
@@ -304,33 +304,167 @@ fn unlock_org() {
     assert!(unlocked.keys.orgs.is_empty() && unlocked.org_problems.is_empty());
 }
 
-/// Both SDK accounts (sdk-internal 3d16437): a COSE user key (XAES-256-GCM, then XChaCha20-Poly1305) wrapped as a
-/// type 2 string under the stretched master key, and a type 7 private key under that user key.
+/// Both SDK accounts (sdk-internal 3d16437) hold a COSE user key (XAES-256-GCM, then XChaCha20-Poly1305) wrapped as
+/// a type 2 string under the stretched master key, but a sync without a signed security state is refused (ADR 0019).
 #[test]
-fn unlock_cose() {
+fn cose_account_without_state_is_refused() {
     let cose = cose_accounts();
     let (email, password) = (cose["email"].as_str().unwrap(), cose["password"].as_str().unwrap());
     let prelogin = json!({ "kdf": 0, "kdfIterations": cose["pbkdf2Iterations"] });
-    let accounts = cose["accounts"].as_array().unwrap();
-    let names: Vec<&str> = accounts.iter().map(|a| a["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["xaes-256-gcm", "xchacha20-poly1305"]);
-    let mut ids = Vec::new();
-    for acc in accounts {
+    for acc in cose["accounts"].as_array().unwrap() {
         let profile = json!({
             "id": "vectors-user", "email": email, "key": acc["protectedUserKey"],
             "privateKey": acc["privateKey"]["wrapped"], "organizations": [],
         });
-        let unlocked =
-            run_unlock(profile.clone(), prelogin.clone(), email, password, &Organizations::All).result.unwrap();
-        assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&acc["userKey"]), "{}", acc["name"]);
-        let wrapped = acc["privateKey"]["wrapped"].as_str().unwrap();
-        assert_eq!(unlocked.keys.user.decrypt_pkcs8(wrapped).unwrap().to_vec(), b64(&acc["privateKey"]["pkcs8"]));
-        // A COSE user key keeps its id across unlocks too.
-        let again = run_unlock(profile, prelogin.clone(), email, password, &Organizations::All).result.unwrap();
-        ids.push(unlocked.user_key_id());
-        assert_eq!(again.user_key_id(), unlocked.user_key_id());
+        let storage = MemStorage::default();
+        let out = run_full(
+            profile,
+            prelogin.clone(),
+            email,
+            password,
+            &Organizations::All,
+            Value::Null,
+            &storage,
+            &NativeArgon2,
+        );
+        let Err(err) = out.result else { panic!("{}: unlocked without a security state", acc["name"]) };
+        assert!(matches!(err, ProfileError::SecurityState(SecurityFault::Missing)), "{err:?}");
+        assert_eq!(err.to_string(), "security state is missing from the sync data");
+        // Nothing is saved after a refusal: no version and no KDF pin.
+        assert!(block_on(storage.load("security-version")).unwrap().is_none());
+        assert!(block_on(storage.load("kdf-pin")).unwrap().is_none());
     }
-    assert_ne!(ids.first(), ids.last());
+    // The `cose` account has none either.
+    let keys = account_keys(&vectors_dir().unwrap(), "cose", false);
+    let acc = account("cose");
+    let out = run_unlock(
+        keys.profile,
+        keys.prelogin,
+        acc["email"].as_str().unwrap(),
+        acc["password"].as_str().unwrap(),
+        &Organizations::None,
+    );
+    assert!(matches!(out.result, Err(ProfileError::SecurityState(SecurityFault::Missing))));
+}
+
+/// Unlocks `cose-v2` after `edit` changed its sync profile, on `storage`.
+fn unlock_v2(storage: &MemStorage, edit: impl FnOnce(&mut Value)) -> Result<Unlocked, ProfileError> {
+    let keys = account_keys(&vectors_dir().unwrap(), "cose-v2", false);
+    let acc = account("cose-v2");
+    let mut profile = keys.profile;
+    edit(&mut profile);
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    run_full(profile, keys.prelogin, email, password, &Organizations::None, Value::Null, storage, &NativeArgon2).result
+}
+
+fn stored_version(storage: &MemStorage) -> Option<Vec<u8>> {
+    block_on(storage.load("security-version")).unwrap()
+}
+
+#[test]
+fn cose_v2_unlocks_with_version_2() {
+    let storage = MemStorage::default();
+    let unlocked = unlock_v2(&storage, |_| {}).unwrap();
+    assert_eq!((unlocked.security_version, unlocked.keys.security_version), (2, 2));
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"2"[..]));
+    assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&account("cose-v2")["userKey"]));
+    // The same version again, and a lower saved one raised to it.
+    assert_eq!(unlock_v2(&storage, |_| {}).unwrap().security_version, 2);
+    block_on(storage.save("security-version", b"1")).unwrap();
+    assert_eq!(unlock_v2(&storage, |_| {}).unwrap().security_version, 2);
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"2"[..]));
+}
+
+#[test]
+fn lower_version_is_refused() {
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"3")).unwrap();
+    let Err(err) = unlock_v2(&storage, |_| {}) else { panic!("a lower version unlocked") };
+    assert!(matches!(err, ProfileError::SecurityDowngrade { seen: 3, offered: 2 }), "{err:?}");
+    // Nothing changed: the saved version stays and no KDF pin was written.
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"3"[..]));
+    assert!(block_on(storage.load("kdf-pin")).unwrap().is_none());
+}
+
+#[test]
+fn legacy_key_after_v2_is_refused() {
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"2")).unwrap();
+    let acc = pbkdf2_account();
+    let Err(err) = acc.unlock(Value::Null, &storage).result else { panic!("a legacy key unlocked after v2") };
+    assert!(matches!(err, ProfileError::SecurityDowngrade { seen: 2, offered: 0 }), "{err:?}");
+    // Without a saved version a legacy key unlocks with version 0 and saves nothing.
+    let storage = MemStorage::default();
+    let unlocked = acc.unlock(Value::Null, &storage).result.unwrap();
+    assert_eq!((unlocked.security_version, unlocked.keys.security_version), (0, 0));
+    assert_eq!(stored_version(&storage), None);
+}
+
+/// A state whose signature does not verify, an unreadable signing key and a missing half are all refused as
+/// `SecurityState`, and none of them is a wrong password.
+#[test]
+fn forged_state_is_refused() {
+    let flip_signature = |profile: &mut Value| {
+        let state = profile["accountKeys"]["securityState"]["securityState"].as_str().unwrap();
+        let mut bytes = B64.decode(state).unwrap();
+        *bytes.last_mut().unwrap() ^= 1;
+        profile["accountKeys"]["securityState"]["securityState"] = json!(B64.encode(bytes));
+    };
+    type Edit = Box<dyn Fn(&mut Value)>;
+    let cases: Vec<(&str, SecurityFault, Edit)> = vec![
+        ("bad signature", SecurityFault::Invalid, Box::new(flip_signature)),
+        (
+            "state not base64",
+            SecurityFault::Invalid,
+            Box::new(|p| p["accountKeys"]["securityState"]["securityState"] = json!("!")),
+        ),
+        (
+            "signing key not decryptable",
+            SecurityFault::Invalid,
+            Box::new(|p| p["accountKeys"]["signatureKeyPair"]["wrappedSigningKey"] = json!("2.x|y|z")),
+        ),
+        (
+            "no signing key",
+            SecurityFault::Missing,
+            Box::new(|p| p["accountKeys"]["signatureKeyPair"].as_object_mut().unwrap().clear()),
+        ),
+        (
+            "no state",
+            SecurityFault::Missing,
+            Box::new(|p| _ = p["accountKeys"].as_object_mut().unwrap().remove("securityState")),
+        ),
+    ];
+    for (what, fault, edit) in cases {
+        let storage = MemStorage::default();
+        let Err(err) = unlock_v2(&storage, |p| edit(p)) else { panic!("{what}: unlocked") };
+        assert!(matches!(err, ProfileError::SecurityState(f) if f == fault), "{what}: {err:?}");
+        assert_eq!(stored_version(&storage), None, "{what}");
+    }
+}
+
+/// The server's `verifyingKey` and `securityVersion` are never read.
+#[test]
+fn server_verifying_key_is_ignored() {
+    let storage = MemStorage::default();
+    let unlocked = unlock_v2(&storage, |p| {
+        p["accountKeys"]["signatureKeyPair"]["verifyingKey"] = json!("AAAA");
+        p["accountKeys"]["securityState"]["securityVersion"] = json!(9);
+    })
+    .unwrap();
+    assert_eq!(unlocked.security_version, 2);
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"2"[..]));
+}
+
+/// A damaged saved version is refused, not reset to 0.
+#[test]
+fn unreadable_saved_version_is_refused() {
+    for damaged in [&b"two"[..], b"", b"-1", &[0xff, 0xfe][..], b"99999999999999999999999"] {
+        let storage = MemStorage::default();
+        block_on(storage.save("security-version", damaged)).unwrap();
+        let Err(err) = unlock_v2(&storage, |_| {}) else { panic!("{damaged:?}: unlocked") };
+        assert!(matches!(err, ProfileError::SecurityState(SecurityFault::StoredUnreadable)), "{err:?}");
+        assert_eq!(stored_version(&storage).as_deref(), Some(damaged));
+    }
 }
 
 #[test]
@@ -411,12 +545,16 @@ fn user_key_id_is_stable_and_changes_on_rotation() {
         block_on(derive_master_key(password, email, KdfParams::Pbkdf2 { iterations: 600_000 }, &NativeArgon2)).unwrap();
     let stretched = SymmetricKey::stretch(&master);
     let rng = SeededRandom::new(15);
-    let rotated =
-        [SymmetricKey::generate(&rng).unwrap(), SymmetricKey::generate_cose(CoseAlgorithm::Xaes256Gcm, &rng).unwrap()];
+    // The COSE key is the `cose-v2` account's, with its signed state (a COSE key needs one).
+    let v2 = account_keys(&vectors_dir().unwrap(), "cose-v2", false);
+    let rotated = [(SymmetricKey::generate(&rng).unwrap(), None), (v2.user, Some(v2.profile["accountKeys"].clone()))];
     let mut ids = vec![id];
-    for new in rotated {
+    for (new, state) in rotated {
         let keys = account_keys(&vectors_dir().unwrap(), "pbkdf2", false);
         let mut profile = keys.profile;
+        if let Some(state) = state {
+            profile["accountKeys"] = state;
+        }
         profile["key"] = json!(stretched.encrypt(&new.to_bytes(), &rng).unwrap());
         let unlocked = run_unlock(profile, keys.prelogin, email, password, &Organizations::None).result.unwrap();
         assert_eq!(unlocked.keys.user.to_bytes(), new.to_bytes());

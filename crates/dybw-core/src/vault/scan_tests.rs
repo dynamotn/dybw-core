@@ -21,7 +21,7 @@ impl Fx {
         let user = SymmetricKey::generate(&rng).unwrap();
         let org = SymmetricKey::generate(&rng).unwrap();
         let marker = Marker::new(&user, scheme);
-        Fx { rng, keys: Keys { user, orgs: BTreeMap::from([("org1".to_owned(), org)]), marker } }
+        Fx { rng, keys: Keys { user, orgs: BTreeMap::from([("org1".to_owned(), org)]), marker, security_version: 0 } }
     }
     fn enc(&self, s: &str) -> Value {
         json!(self.keys.user.encrypt_str(s, &self.rng).unwrap())

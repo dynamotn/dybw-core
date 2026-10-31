@@ -32,6 +32,9 @@ pub enum CryptoError {
     Malformed,
     #[error("MAC verification failed (wrong key or tampered data)")]
     BadMac,
+    /// A signature that does not verify; never a sign of a wrong password.
+    #[error("signature verification failed")]
+    BadSignature,
     #[error("decryption failed")]
     Decrypt,
     #[error("KDF failed or parameters out of range: {0}")]

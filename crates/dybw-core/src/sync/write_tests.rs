@@ -67,7 +67,8 @@ impl Rig {
         let rng = SeededRandom::new(11);
         let user = SymmetricKey::generate(&rng).unwrap();
         let other = SymmetricKey::generate(&rng).unwrap();
-        let keys = Keys { marker: Marker::new(&user, MarkScheme::Bwss), user, orgs: BTreeMap::new() };
+        let keys =
+            Keys { marker: Marker::new(&user, MarkScheme::Bwss), user, orgs: BTreeMap::new(), security_version: 0 };
         let fake = Fake::default();
         let device = DeviceInfo {
             identifier: "d".into(),

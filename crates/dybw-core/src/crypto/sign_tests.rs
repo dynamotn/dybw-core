@@ -152,8 +152,8 @@ fn verifies_mldsa44_signature() {
     let message = v["mldsa44"]["message"].as_str().unwrap().as_bytes();
     derived.verify_raw(&signature, message).unwrap();
     recorded.verify_raw(&signature, message).unwrap();
-    assert_eq!(derived.verify_raw(&signature, b"Test messagf").unwrap_err(), CryptoError::BadMac);
-    assert_eq!(derived.verify_raw(&signature[1..], message).unwrap_err(), CryptoError::BadMac);
+    assert_eq!(derived.verify_raw(&signature, b"Test messagf").unwrap_err(), CryptoError::BadSignature);
+    assert_eq!(derived.verify_raw(&signature[1..], message).unwrap_err(), CryptoError::BadSignature);
 }
 
 #[test]
@@ -238,14 +238,14 @@ fn refuses_bad_signature() {
         let mut tampered = signed.clone();
         *tampered.last_mut().unwrap() ^= 1;
         let vk = key(alg).verifying_key();
-        assert_eq!(verify_sign1(&vk, &tampered, 2).unwrap_err(), CryptoError::BadMac, "{alg}");
+        assert_eq!(verify_sign1(&vk, &tampered, 2).unwrap_err(), CryptoError::BadSignature, "{alg}");
         // another key with the same id
         let other = SigningKey::from_cose(&signing_cose_with(alg, [6; 32])).unwrap();
-        assert_eq!(verify_security_state(&other, &B64.encode(&signed)).unwrap_err(), CryptoError::BadMac);
+        assert_eq!(verify_security_state(&other, &B64.encode(&signed)).unwrap_err(), CryptoError::BadSignature);
     }
     // a signature of the wrong length
     let vk = key(-8).verifying_key();
-    assert_eq!(vk.verify_raw(&[0; 63], b"x").unwrap_err(), CryptoError::BadMac);
+    assert_eq!(vk.verify_raw(&[0; 63], b"x").unwrap_err(), CryptoError::BadSignature);
 }
 
 #[test]

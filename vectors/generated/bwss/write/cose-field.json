@@ -6,7 +6,7 @@
     "§6.1",
     "§6.3"
   ],
-  "account": "cose",
+  "account": "cose-v2",
   "namespace": "bwss",
   "generator": "dybw-vectors-gen 1",
   "ciphers": [
@@ -15,14 +15,14 @@
       "type": 1,
       "folderId": null,
       "organizationId": null,
-      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGGc0FMYs2exlBjzom9RVfwDOtU8TiKriuFgwaWp425xNAry4c3um8jqDtr9vaDM4/NsUBP/J3cxTJVUt0n4KqseUJKuAP/jC8ZKi",
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGLJ83DRKAqKJFNgAYxoWK5FR4+93EO28bVgwWzDnAdM2Pky3rZP99IQ4x1lWeaVGj7JGEaePYY9RuBEtMZDTX5VlkoNb/FDeAqI/",
       "notes": null,
       "login": {
-        "username": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGJ9IIlhekHiBkmcKZtEvM5VrQIdhu1ykdFgwWHUFDXyohzX0ZOfRrsI+q0gB+CFMFYQszDqVy6Tgcdt0whLR8CSkfgbsHCHy8iJJ",
-        "password": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGG3TplxR7n74eLTXpiuhyZRAUOrypnopPVgwAvM05arF0lUnFmbF8KkzqsoSw4yoT29mwHtsXBfVjdaFpDn0yfY30O0V9U1sXAPa",
+        "username": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGAzAAMty5MDDldQJbeuQM7NndafTGGMOnVgwpOIJFhKYR665zRxV/JJjXti3n/3tNn2PKxuYus0D0BnXbxsy1eTkhEOkvBa5X3ek",
+        "password": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGHct4kpN6LWwMCrof2+ZWuvUW+1xG5Mt/Fgw6W0TZq7SSVmuHRnaTKrMIa8qs13b8s0qG2ATdpLUyaCZVnz+YZkvS4/vvoxHK5fU",
         "uris": [
           {
-            "uri": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGP7Wk1j+uMQgKNehbGx7liqUNYWVojXkl1gwPxxVL7wEkr1tkJMbyIMdIgjeloOwyW+/ZBliV0SVY4aEC3o02CHsBqS0/YCxzjwf",
+            "uri": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGLoNDZ2aacAJKsAWDKBtvHy6jRqRJVGN4lgwKji445JR5BUBiIsHyCQHQr3ejNxLMchL/sRPVsJ2k7eWG3NEmrDJeMIrpwScOuL1",
             "match": null
           }
         ],
@@ -30,13 +30,13 @@
       },
       "fields": [
         {
-          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGHwXFGyJTTHD3s2Q6lGX12zsmJRI6LMFeVgw8NvouD35nzoU0vmN7NIoVL+AdYQxRLnIMu7X4am6BdWSQb2IkcNibjqaqXd/+JzI",
-          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGAspYohGOWu4KXRNY0wJPn16qJzmRR0I3VgwKf5puPO9MBSY2bX0YhzjdX4jsNcy5P5PE00ZPoJqXYJWlUCkna6zA3gouCDAMHZe",
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGBl2NRc+KZdn/JvjzuSgnDLfcY+k74fV61gwWe9Anclrc0WV9qhCt4/7vScqCsaAVyvgEjK8LfwcWSA6e1j09LVegSacsh6nqBIA",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGEpbeTkw0/fVURibULafqyqGN1Hf2eVH8FgwLAGWxyjHF2W1arHU//Jthxo7rA2ACv4+tvoP8Lfy60KulDMvnD+2DyyLwg/Kzc4A",
           "type": 0
         },
         {
-          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGBQGsEN05hc4zwPP4HC08jwnSxX1GMJPylgwRfDjf7PUuF2WM4DpU5ywpZ/6kqnHiu96BQZ+e+EMYuET5Y1aS+XFMSlNSVp5GXQR",
-          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGC6fdYGcnheitkAXBFq4mwGSK6dzwy10e1gwFwRg6fKh4x8miOUyVP0VflDiTd8JBKes0knimvdlOfjwptqlvS8Ilg73nTiJZx5h",
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGF261lnqLWQ3+BsJlfA5br1ilinVqZUyDlgwQ5v3yWcBXBfBD6oF2uFi6Aco50gTSGndUmZBbA6VK+qEhTFmDA5rNZnimYqALUdF",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFBR2KeWcXIhKg1SAAGlrdCioQVYGBmsg8Nbxyca44vNro4KxzQIOsCJf8TX/VgwB0nxjBMdiLNtS2Ycso/UdAV4fJihSMJAT+Na+F0cSub63a64rif2wcHpR5saucmO",
           "type": 1
         }
       ],

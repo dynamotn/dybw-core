@@ -2,7 +2,9 @@
 //! Port of bwss `BitwardenBackend::unlock` and the plugin's `unlockUserKey` and `unlockOrganizationKeys`.
 
 use crate::api::{ApiError, ApiKey, Client};
-use crate::crypto::{CryptoError, KdfParams, Marker, SymmetricKey, derive_master_key};
+use crate::crypto::{
+    CryptoError, KdfParams, Marker, SymmetricKey, derive_master_key, unwrap_signing_key, verify_security_state,
+};
 use crate::ports::{Clock, Http, KdfRunner, PortError, Random, RsaOaep, Storage};
 use crate::vault::{Keys, Namespace, OrgProblem, Organizations, unlock_organizations};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD as B64};
@@ -16,6 +18,9 @@ const USER_KEY_ID_LABEL: &[u8] = b"dybw user-key-id v1";
 
 /// The storage key of the KDF pin (ADR 0017).
 const KDF_PIN: &str = "kdf-pin";
+/// The storage key of the highest security state version seen, decimal text (ADR 0019).
+const SECURITY_VERSION: &str = "security-version";
+
 /// The names of the KDF's two sources in messages (ADR 0022).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KdfSource {
@@ -98,6 +103,24 @@ pub enum ProfileError {
     /// No well-formed `masterPasswordUnlock` and no `profile.key` (ADR 0022).
     #[error("incomplete unlock data: no well-formed KDF, salt and key in the sync unlock data, and no profile key")]
     IncompleteUnlockData,
+    /// The signed security state offers a version below the highest this device saw (ADR 0019); a legacy user key
+    /// offers 0.
+    #[error("the security state is older than the one this device saw (seen version {seen}, offered {offered})")]
+    SecurityDowngrade { seen: u64, offered: u64 },
+    /// A COSE user key needs a valid signed security state, and the version saved on this device must be readable.
+    #[error("security state {0}")]
+    SecurityState(SecurityFault),
+}
+
+/// What is wrong with the security state, for [`ProfileError::SecurityState`]; never the bytes themselves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum SecurityFault {
+    #[error("is missing from the sync data")]
+    Missing,
+    #[error("is invalid (the signing key or the signature does not verify)")]
+    Invalid,
+    #[error("version saved on this device is unreadable")]
+    StoredUnreadable,
 }
 
 /// Something the user should know about a successful unlock.
@@ -113,6 +136,8 @@ pub struct Unlocked {
     pub sync: Value,
     pub org_problems: Vec<OrgProblem>,
     pub warnings: Vec<UnlockWarning>,
+    /// The verified security state version (0 for a legacy user key); also in `keys`.
+    pub security_version: u64,
 }
 
 impl Unlocked {
@@ -184,6 +209,30 @@ async fn save_pin(storage: &impl Storage, params: KdfParams, origin: &str) -> Re
     Ok(storage.save(KDF_PIN, &raw).await?)
 }
 
+/// The version of the signed security state in `/sync`, verified with the key derived from the wrapped signing key
+/// (the server's `verifyingKey` and `securityVersion` are never read). A legacy user key has none: version 0.
+/// Every failure here is `SecurityState`, never a wrong password.
+fn security_version(sync: &Value, user: &SymmetricKey) -> Result<u64, ProfileError> {
+    if !matches!(user, SymmetricKey::Cose(_)) {
+        return Ok(0);
+    }
+    let text = |p: &str| sync.pointer(&format!("/profile/accountKeys/{p}")).and_then(Value::as_str);
+    let (Some(wrapped), Some(state)) =
+        (text("signatureKeyPair/wrappedSigningKey"), text("securityState/securityState"))
+    else {
+        return Err(ProfileError::SecurityState(SecurityFault::Missing));
+    };
+    let invalid = |_| ProfileError::SecurityState(SecurityFault::Invalid);
+    verify_security_state(&unwrap_signing_key(user, wrapped).map_err(invalid)?, state).map_err(invalid)
+}
+
+/// The highest version this device saw: 0 when none is saved. Damaged text is refused, not reset to 0.
+async fn load_security_version(storage: &impl Storage) -> Result<u64, ProfileError> {
+    let Some(raw) = storage.load(SECURITY_VERSION).await? else { return Ok(0) };
+    let parsed = String::from_utf8(raw).ok().and_then(|t| t.parse().ok());
+    parsed.ok_or(ProfileError::SecurityState(SecurityFault::StoredUnreadable))
+}
+
 /// The user's confirmation, on this device, of a weaker KDF (ADR 0017): the pin becomes `params` for `origin`.
 pub async fn accept_kdf(storage: &impl Storage, params: KdfParams, origin: &str) -> Result<(), ProfileError> {
     params.validate()?;
@@ -195,6 +244,8 @@ pub async fn accept_kdf(storage: &impl Storage, params: KdfParams, origin: &str)
 /// and salt are all well formed, else `profile.key` with the email as salt and the KDF from prelogin (called only
 /// then); neither gives `IncompleteUnlockData`. The KDF's bounds, then ADR 0017's pin, are checked before it runs;
 /// the pin is written only once the user key opened: a new one (none, or for another origin), or a stronger one.
+/// After the user key opens, a COSE key needs a valid signed security state (ADR 0019); a version below the saved
+/// one stops the unlock, and a higher one is saved with the pin, once every check passed.
 /// Below the floors the unlock succeeds with a warning, and the pin is still written.
 /// The key is a type 2 string under the stretched master key holding a legacy or a COSE user key (XAES-256-GCM or
 /// XChaCha20-Poly1305); a type 7 one is refused with `WrongKey`, as the SDK does
@@ -237,6 +288,14 @@ pub async fn unlock<H: Http, C: Clock>(
         e => ProfileError::Crypto(e),
     })?;
     drop(stretched);
+    let version = security_version(&sync, &user)?;
+    let seen = load_security_version(storage).await?;
+    if version < seen {
+        return Err(ProfileError::SecurityDowngrade { seen, offered: version });
+    }
+    if version > seen {
+        storage.save(SECURITY_VERSION, version.to_string().as_bytes()).await?;
+    }
     if pinned != Some(params) {
         save_pin(storage, params, &key.origin).await?;
     }
@@ -245,7 +304,13 @@ pub async fn unlock<H: Http, C: Clock>(
     let profile = sync.get("profile").unwrap_or(&Value::Null);
     let (orgs, org_problems) = unlock_organizations(profile, &user, rsa, allowed).await;
     let marker = Marker::new(&user, ns.marks);
-    Ok(Unlocked { keys: Keys { user, orgs, marker }, sync, org_problems, warnings })
+    Ok(Unlocked {
+        keys: Keys { user, orgs, marker, security_version: version },
+        sync,
+        org_problems,
+        warnings,
+        security_version: version,
+    })
 }
 
 #[cfg(all(test, feature = "testing"))]
@@ -278,10 +343,11 @@ mod tests {
         let user = key_of(&cose["accounts"][1]["userKey"]);
         let marker = Marker::new(&user, MarkScheme::Bwss);
         let unlocked = Unlocked {
-            keys: Keys { user, orgs: Default::default(), marker },
+            keys: Keys { user, orgs: Default::default(), marker, security_version: 0 },
             sync: json!({}),
             org_problems: vec![],
             warnings: vec![],
+            security_version: 0,
         };
         assert_eq!(unlocked.user_key_id(), "LcCjTBwGGk7PzPpGKFuqFw");
     }
