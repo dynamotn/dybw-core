@@ -276,7 +276,7 @@ def rsa_oaep_wrap(key: bytes, public_der: bytes, sha1: bool, seed: bytes | None 
 # --- EncString type 7: COSE_Encrypt0 under a COSE_Key -------------------------
 #
 # A user key on the newer encryption is a COSE_Key (XAES-256-GCM, as in the SDK's V2 user key), stored as its CBOR
-# plus one padding byte 0x01. Only what the vectors need: definite lengths, integers, byte and text strings,
+# plus padding up to 65 bytes (the SDK's ``pad_key``). Only what the vectors need: definite lengths, integers, byte and text strings,
 # arrays and maps.
 
 ALG_XCHACHA = -70000
@@ -290,6 +290,7 @@ FORMATS = {
 }
 ENVELOPE_FORMAT = "application/x.bitwarden.cbor-padded"
 ENVELOPE_MIN_LEN = 64
+KEY_MIN_LEN = 65  # the SDK's ``pad_key``: a COSE key is padded to at least 65 bytes
 LABEL_CONTENT_NAMESPACE = -80001  # 1 = VaultItem
 LABEL_SAFE_OBJECT_NAMESPACE = -80002  # 2 = DataEnvelope
 LABEL_SIGNING_NAMESPACE = -80000  # 2 = SecurityState
@@ -356,7 +357,7 @@ def cbor_decode(data: bytes):
 def cose_key(seed: bytes, alg: int = ALG_XAES) -> bytes:
     """The padded COSE_Key a COSE account stores as its ``userKey``."""
     key = {1: 4, 2: derive(seed, 16, "cose", "kid"), 3: alg, 4: KEY_OPS, -1: derive(seed, 32, "cose", "key")}
-    return cbor_encode(key) + b"\x01"
+    return pad(cbor_encode(key), KEY_MIN_LEN)
 
 
 def pad(plain: bytes, min_len: int) -> bytes:
@@ -373,9 +374,7 @@ def unpad(plain: bytes) -> bytes:
 
 
 def _cose_parts(key: bytes) -> dict:
-    if key[-1] != 1:
-        raise ValueError("a COSE key ends with one padding byte")
-    return cbor_decode(key[:-1])
+    return cbor_decode(unpad(key))
 
 
 def cose_alg(key: bytes) -> int:
@@ -488,7 +487,7 @@ def dec_any(s: str, key: bytes) -> bytes:
 
 def cek_key(kid: bytes, secret: bytes, alg: int = ALG_AES_GCM) -> bytes:
     """A content-encryption key as the SDK stores it: a padded COSE_Key that may only decrypt (``key_ops`` [4])."""
-    return cbor_encode({1: 4, 2: kid, 3: alg, 4: [4], -1: secret}) + b"\x01"
+    return pad(cbor_encode({1: 4, 2: kid, 3: alg, 4: [4], -1: secret}), KEY_MIN_LEN)
 
 
 def data_envelope(content_cbor: bytes, cek: bytes, nonce: bytes) -> bytes:
