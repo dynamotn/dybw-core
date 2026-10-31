@@ -236,17 +236,35 @@ fn blob_type_follows_cipher_type() {
     c["type"] = json!(2);
     let m = marked(k.scan(&c));
     assert_eq!((m.source, m.value.as_slice()), (ValueSource::NoteBody, &b"note body"[..]));
-    // A login whose blob holds another type has no login password.
-    let mut odd = content();
-    let Cbor::Map(entries) = &mut odd else { unreachable!() };
-    entries[2].1 = Cbor::Map(vec![(t("type"), t("secureNote")), (t("password"), t("hidden"))]);
-    let m = marked(k.scan(&k.cipher(odd)));
-    assert_eq!((m.source, m.value.as_slice()), (ValueSource::LoginPassword, &b""[..]));
-    // No `typeData` at all reads the same.
-    let mut bare = content();
-    let Cbor::Map(entries) = &mut bare else { unreachable!() };
-    entries.remove(2);
-    assert_eq!(marked(k.scan(&k.cipher(bare))).value.as_slice(), b"");
+    // A login whose blob holds another type, no type, or no `typeData` is held: reading its password as empty
+    // could later overwrite the local secret.
+    let with_type_data = |type_data: Option<Cbor>| {
+        let mut odd = content();
+        let Cbor::Map(entries) = &mut odd else { unreachable!() };
+        match type_data {
+            Some(td) => entries[2].1 = td,
+            None => _ = entries.remove(2),
+        }
+        k.cipher(odd)
+    };
+    let odd = [
+        Some(Cbor::Map(vec![(t("type"), t("secureNote")), (t("password"), t("hidden"))])),
+        Some(Cbor::Map(vec![(t("password"), t("hidden"))])),
+        Some(Cbor::Null),
+        None,
+    ];
+    for type_data in odd {
+        assert_eq!(held(k.scan(&with_type_data(type_data))), Uninspectable::Blob);
+    }
+    // A `typeData.type` that is not a text is malformed, whatever the cipher's type.
+    let mut c = with_type_data(Some(Cbor::Map(vec![(t("type"), Cbor::Uint(1)), (t("password"), t("pw"))])));
+    assert_eq!(held(k.scan(&c)), Uninspectable::Blob);
+    c["type"] = json!(2);
+    assert_eq!(held(k.scan(&c)), Uninspectable::Blob);
+    // A secure note does not need a login's `typeData`.
+    let mut c = with_type_data(None);
+    c["type"] = json!(2);
+    assert_eq!(marked(k.scan(&c)).value.as_slice(), b"note body");
 }
 
 #[test]
@@ -308,6 +326,34 @@ fn changed_revision_is_opened_again() {
     trashed["deletedDate"] = json!("2026-01-03T00:00:00Z");
     k.scan_all(&[&trashed], &mut cache);
     assert_eq!(serde_json::to_value(&cache).unwrap(), json!([["b1", "2026-01-02T03:04:05Z"]]));
+}
+
+#[test]
+fn ciphers_without_id_or_revision_are_never_cached() {
+    let k = Bx::new();
+    let unmarked = k.cipher(login(&[("other", "x")], Some("pw"), None));
+    let without = |key: &str, c: &Value| {
+        let mut c = c.clone();
+        c.as_object_mut().unwrap().remove(key);
+        c
+    };
+    for key in ["id", "revisionDate"] {
+        let mut cache = UnmarkedCache::default();
+        let first = without(key, &unmarked);
+        assert!(k.scan_all(&[&first], &mut cache).uninspectable.is_empty());
+        assert_eq!(cache, UnmarkedCache::default(), "{key}");
+        // The second still gets scanned: a tampered one is held, not unmarked.
+        let second = without(key, &tampered(&unmarked));
+        assert_eq!(k.scan_all(&[&first, &second], &mut cache).uninspectable.len(), 1, "{key}");
+    }
+    // An empty id or revision counts as missing.
+    let mut cache = UnmarkedCache::default();
+    for (key, empty) in [("id", json!("")), ("revisionDate", json!(""))] {
+        let mut c = unmarked.clone();
+        c[key] = empty;
+        k.scan_all(&[&c], &mut cache);
+        assert_eq!(cache, UnmarkedCache::default(), "{key}");
+    }
 }
 
 #[test]
@@ -384,10 +430,16 @@ fn blob_that_fails_any_check_is_held() {
         shaped("fields", field(Cbor::Null, Cbor::Null)),
         shaped("fields", Cbor::Array(vec![Cbor::Map(vec![])])),
     ];
+    // (as secure notes: a login's blob must hold a login's `typeData`)
+    let note = |content: Cbor| {
+        let mut c = k.cipher(content);
+        c["type"] = json!(2);
+        c
+    };
     for content in sparse {
-        assert!(matches!(k.scan(&k.cipher(content)), Scan::Unmarked));
+        assert!(matches!(k.scan(&note(content)), Scan::Unmarked));
     }
-    let open = k.open(&k.cipher(shaped("fields", field(Cbor::Null, Cbor::Null)))).unwrap();
+    let open = k.open(&note(shaped("fields", field(Cbor::Null, Cbor::Null)))).unwrap();
     assert_eq!((open.field_names(), open.field_value(0), open.field_value(1)), (vec![None], None, None));
     assert_eq!((open.notes(), open.login_password()), (None, None));
     assert_eq!(format!("{open:?}"), "OpenBlob(<redacted>)");

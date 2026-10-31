@@ -4,12 +4,13 @@
 use super::engine::{apply_pass, normalize_scope, scope_of};
 use super::*;
 use crate::api::{ApiKey, Client, DeviceInfo, resolve_server_urls};
-use crate::crypto::{MarkScheme, Marker, SymmetricKey};
+use crate::crypto::{Cbor, EnvelopeNamespace, MarkScheme, Marker, SymmetricKey, seal_envelope};
 use crate::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
 use crate::testing::{FixedClock, SeededRandom, block_on};
 use crate::vault::scan::{MarkedItem, Scan, SkipReason, scan};
 use crate::vault::write::WriteError;
 use crate::vault::{Keys, Namespace, Organizations, UnmarkedCache};
+use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -308,6 +309,35 @@ impl Rig {
         let c = self.world().cipher(cipher_id).clone();
         let Scan::Marked(m) = scan(&c, self.ns, &self.keys, &Organizations::All) else { panic!("not marked") };
         String::from_utf8(m.value.to_vec()).unwrap()
+    }
+
+    /// Another client rewrites the item as a blob (ADR 0021) holding `{ns}:id` = `id` and `{ns}:password` = `value`.
+    fn make_blob(&self, cipher_id: &str, id: &str, value: &str) {
+        let field = |name: String, value: &str| {
+            Cbor::Map(vec![(Cbor::text("name"), Cbor::text(name)), (Cbor::text("value"), Cbor::text(value))])
+        };
+        let content = Cbor::Map(vec![
+            (Cbor::text("name"), Cbor::text("Blob item")),
+            (Cbor::text("typeData"), Cbor::Map(vec![(Cbor::text("type"), Cbor::text("login"))])),
+            (
+                Cbor::text("fields"),
+                Cbor::Array(vec![field(self.ns.field("id"), id), field(self.ns.field("password"), value)]),
+            ),
+        ]);
+        let sealed = Cbor::Map(vec![(Cbor::text("version"), Cbor::text("1")), (Cbor::text("content"), content)]);
+        let item = SymmetricKey::generate(&self.rng).unwrap();
+        let (envelope, cek) = seal_envelope(&sealed, EnvelopeNamespace::VaultItem, &self.rng).unwrap();
+        let wrapped_cek = item.encrypt(&SymmetricKey::Cose(cek).to_bytes(), &self.rng).unwrap();
+        let data = json!({ "format_version": 1, "wrapped_cek": wrapped_cek, "envelope": B64.encode(envelope) });
+        let key = self.keys.user.encrypt(&item.to_bytes(), &self.rng).unwrap();
+        let mut w = self.world();
+        let c = w.cipher(cipher_id);
+        c["key"] = json!(key);
+        c["data"] = json!(data.to_string());
+        for part in ["name", "notes", "login", "fields"] {
+            c[part] = Value::Null;
+        }
+        w.bump(cipher_id);
     }
 
     /// Another client edits the value.
@@ -1210,6 +1240,18 @@ fn a_conflict_label_falls_back_to_the_id_when_the_name_cannot_be_read() {
     r.edit_remote(&c, "remote");
     let name = r.world().cipher(&c)["name"].clone();
     r.world().cipher(&c)["name"] = tamper(&name);
+    assert_eq!(r.ok().conflicts, [conflict("k", ConflictKind::BothChanged, None)]);
+}
+
+#[test]
+fn a_conflict_on_a_blob_item_is_labelled_by_its_id() {
+    // A blob's outer `name` is null: the label falls back to the id, never "".
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v1");
+    r.make_blob(&c, "k", "v1");
+    r.ok();
+    r.store.put("k", "local");
+    r.make_blob(&c, "k", "remote");
     assert_eq!(r.ok().conflicts, [conflict("k", ConflictKind::BothChanged, None)]);
 }
 

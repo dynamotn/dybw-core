@@ -421,7 +421,8 @@ pub(crate) fn resolve_duplicates(mut items: Vec<MarkedItem>) -> (Vec<MarkedItem>
 }
 
 /// The ciphers the last scan found unmarked, by `(cipher id, revisionDate)` (data model §4, §4.2): an unchanged one
-/// is not decrypted again, not even its field names. Device state (§10): ids and dates only.
+/// is not decrypted again, not even its field names. Device state (§10): ids and dates only. It is per namespace and
+/// per account: never share one across them, since a cipher unmarked for one may be marked for another.
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct UnmarkedCache(BTreeSet<(String, String)>);
@@ -449,11 +450,15 @@ pub fn scan_vault_with(
     let mut unmarked = BTreeSet::new();
     for cipher in sync.get("ciphers").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
         let cipher_id = cipher.get("id").and_then(Value::as_str).unwrap_or_default().to_owned();
-        let revision = cipher.get("revisionDate").and_then(Value::as_str).unwrap_or_default().to_owned();
-        let seen = (cipher_id.clone(), revision);
-        let result = if cache.0.contains(&seen) { Scan::Unmarked } else { scan(cipher, ns, keys, allowed) };
+        // Without an id and a revision a cipher cannot be told apart: never cached.
+        let revision = cipher.get("revisionDate").and_then(Value::as_str).filter(|r| !r.is_empty());
+        let seen = revision.filter(|_| !cipher_id.is_empty()).map(|r| (cipher_id.clone(), r.to_owned()));
+        let result = match &seen {
+            Some(seen) if cache.0.contains(seen) => Scan::Unmarked,
+            _ => scan(cipher, ns, keys, allowed),
+        };
         if matches!(result, Scan::Unmarked) {
-            unmarked.insert(seen);
+            unmarked.extend(seen);
         } else {
             present.insert(cipher_id.clone());
         }

@@ -2,7 +2,7 @@
 //! the core's own zeroizing CBOR, read through the same rules as a field-level item, and dropped with the scan.
 
 use super::fields::item_key;
-use super::scan::Uninspectable;
+use super::scan::{TYPE_LOGIN, Uninspectable};
 use crate::crypto::{Cbor, EnvelopeNamespace, SymmetricKey, open_envelope, parse_cek};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::Value;
@@ -59,14 +59,15 @@ fn well_formed(content: &Cbor) -> bool {
     };
     let type_data = match get(content, "typeData") {
         None | Some(Cbor::Null) => true,
-        Some(t @ Cbor::Map(_)) => text_or_null(get(t, "password")),
+        Some(t @ Cbor::Map(_)) => text_or_null(get(t, "type")) && text_or_null(get(t, "password")),
         Some(_) => false,
     };
     matches!(content, Cbor::Map(_)) && fields && type_data && text_or_null(get(content, "notes"))
 }
 
 /// Opens a personal blob with its owner's key: the item key, then the content key, then the envelope (ADR 0021).
-/// A `format_version` or content `version` other than 1 is `NewerFormat`; any other failure is `Blob`.
+/// A `format_version` or content `version` other than 1 is `NewerFormat`; any other failure is `Blob`, and so is a
+/// login cipher whose `typeData` is not a login's (its password would read as empty, then be written over).
 pub(crate) fn open_blob(cipher: &Value, owner: &SymmetricKey) -> Result<OpenBlob, Uninspectable> {
     let data: Value = cipher
         .get("data")
@@ -76,6 +77,7 @@ pub(crate) fn open_blob(cipher: &Value, owner: &SymmetricKey) -> Result<OpenBlob
     if data.get("format_version").and_then(Value::as_u64) != Some(1) {
         return Err(Uninspectable::NewerFormat);
     }
+    let login = cipher.get("type").and_then(Value::as_u64) == Some(TYPE_LOGIN);
     let part = |name: &str| data.get(name).and_then(Value::as_str).ok_or(Uninspectable::Blob);
     let key = item_key(cipher, owner).map_err(|_| Uninspectable::Blob)?;
     let cek = key.decrypt(part("wrapped_cek")?).and_then(|bytes| parse_cek(&bytes)).map_err(|_| Uninspectable::Blob)?;
@@ -89,7 +91,9 @@ pub(crate) fn open_blob(cipher: &Value, owner: &SymmetricKey) -> Result<OpenBlob
         .into_iter()
         .find(|(k, _)| text(Some(k)) == Some("content"))
         .map(|(_, content)| content)
-        .filter(well_formed)
+        .filter(|c| {
+            well_formed(c) && (!login || text(get(c, "typeData").and_then(|t| get(t, "type"))) == Some("login"))
+        })
         .map(OpenBlob)
         .ok_or(Uninspectable::Blob)
 }
@@ -119,11 +123,10 @@ impl OpenBlob {
         text(get(&self.0, "notes"))
     }
 
-    /// `typeData.password` of a login's blob.
+    /// `typeData.password`; `open_blob` made sure a login's `typeData` is a login's.
     pub(crate) fn login_password(&self) -> Option<&str> {
         #[cfg(test)]
         note_read("login password".into());
-        let type_data = get(&self.0, "typeData")?;
-        text(get(type_data, "password")).filter(|_| text(get(type_data, "type")) == Some("login"))
+        text(get(&self.0, "typeData").and_then(|t| get(t, "password")))
     }
 }

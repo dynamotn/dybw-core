@@ -495,12 +495,13 @@ fn conflict(keys: &Keys, sync: &Value, id: &str, kind: ConflictKind, rec: Option
     Conflict { id: id.to_owned(), kind, organization, organization_name, label }
 }
 
-/// The item's decrypted name; the scan read the item with the same keys, so only the name itself can fail.
+/// The item's decrypted name, when not blank (a blob's outer `name` is null); the scan read the item with the same
+/// keys, so only the name itself can fail.
 fn item_name(keys: &Keys, item: &MarkedItem) -> Option<String> {
     let owner = match &item.organization_id {
         Some(org) => keys.orgs.get(org)?,
         None => &keys.user,
     };
     let key = item_key(&item.cipher, owner).ok()?;
-    decrypt_opt(item.cipher.get("name"), &key).ok().map(|n| n.as_str().to_owned())
+    decrypt_opt(item.cipher.get("name"), &key).ok().filter(|n| !n.trim().is_empty()).map(|n| n.as_str().to_owned())
 }
