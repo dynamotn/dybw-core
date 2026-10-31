@@ -4,21 +4,41 @@
 
 use super::CryptoError;
 use std::collections::HashSet;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 const MAX_DEPTH: usize = 16;
 
 /// Integer and text keys are kept apart, as CBOR does: `Uint(1)` is not `Text("1")`. `Nint(n)` is `-1 - n`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cbor {
     Uint(u64),
     Nint(u64),
-    Bytes(Vec<u8>),
-    Text(String),
+    Bytes(Zeroizing<Vec<u8>>),
+    Text(Zeroizing<String>),
     Array(Vec<Cbor>),
     Map(Vec<(Cbor, Cbor)>),
     Bool(bool),
     Null,
+}
+
+impl Cbor {
+    pub fn bytes(b: impl Into<Vec<u8>>) -> Self {
+        Cbor::Bytes(Zeroizing::new(b.into()))
+    }
+
+    pub fn text(t: impl Into<String>) -> Self {
+        Cbor::Text(Zeroizing::new(t.into()))
+    }
+
+    /// What makes a map key unique: integers and texts only (labels, never secrets).
+    fn identity(&self) -> Option<Vec<u8>> {
+        match self {
+            Cbor::Uint(n) => Some([&[0][..], &n.to_be_bytes()].concat()),
+            Cbor::Nint(n) => Some([&[1][..], &n.to_be_bytes()].concat()),
+            Cbor::Text(t) => Some([&[2][..], t.as_bytes()].concat()),
+            _ => None,
+        }
+    }
 }
 
 impl Zeroize for Cbor {
@@ -100,11 +120,11 @@ fn read(r: &mut Reader, depth: usize) -> Result<Cbor, CryptoError> {
         1 => Cbor::Nint(r.argument(info)?),
         2 => {
             let n = r.length(info)?;
-            Cbor::Bytes(r.take(n)?.to_vec())
+            Cbor::bytes(r.take(n)?)
         }
         3 => {
             let n = r.length(info)?;
-            Cbor::Text(std::str::from_utf8(r.take(n)?).map_err(|_| CryptoError::Malformed)?.to_owned())
+            Cbor::text(std::str::from_utf8(r.take(n)?).map_err(|_| CryptoError::Malformed)?)
         }
         4 => {
             let n = r.count(info)?;
@@ -119,7 +139,7 @@ fn read(r: &mut Reader, depth: usize) -> Result<Cbor, CryptoError> {
             let (mut out, mut seen) = (Vec::new(), HashSet::new());
             for _ in 0..n {
                 let key = read(r, depth + 1)?;
-                if !matches!(key, Cbor::Uint(_) | Cbor::Nint(_) | Cbor::Text(_)) || !seen.insert(key.clone()) {
+                if !key.identity().is_some_and(|id| seen.insert(id)) {
                     return Err(CryptoError::Malformed);
                 }
                 out.push((key, read(r, depth + 1)?));
@@ -187,5 +207,18 @@ fn head(out: &mut Vec<u8>, major: u8, n: u64) {
     } else {
         out.push(m | 27);
         out.extend(n.to_be_bytes());
+    }
+}
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "tests")]
+mod tests {
+    use super::*;
+
+    /// Compile-level: building the variants from `Zeroizing` fails to compile if they hold anything else.
+    #[test]
+    fn decoded_text_is_zeroizing() {
+        assert_eq!(decode(&[0x61, b'a']).unwrap(), Cbor::Text(Zeroizing::new("a".to_owned())));
+        assert_eq!(decode(&[0x41, 1]).unwrap(), Cbor::Bytes(Zeroizing::new(vec![1])));
     }
 }

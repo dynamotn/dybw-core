@@ -5,12 +5,15 @@ mod aead;
 mod cbor;
 mod cose;
 mod enc_string;
+mod envelope;
 mod kdf;
 mod key;
 mod mark;
 mod rsa;
 
-pub use cose::{ContentFormat, CoseAlgorithm};
+pub use cbor::Cbor;
+pub use cose::{ContentFormat, CoseAlgorithm, CoseKey};
+pub use envelope::{EnvelopeNamespace, open_envelope, parse_cek, seal_envelope};
 #[cfg(feature = "native")]
 pub use kdf::NativeArgon2;
 pub use kdf::{KdfParams, MasterKey, derive_master_key, hash_master_password};
@@ -56,3 +59,7 @@ mod cose_tests;
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod rsa_mark_tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod envelope_tests;

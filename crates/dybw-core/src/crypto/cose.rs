@@ -2,7 +2,7 @@
 //! messages, which are EncString type 7.
 
 use super::CryptoError;
-use super::aead::{xaes256gcm_decrypt, xaes256gcm_encrypt, xchacha20poly1305_decrypt, xchacha20poly1305_encrypt};
+use super::aead::{open, seal};
 use super::cbor::{self, Cbor};
 use crate::ports::Random;
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
@@ -10,23 +10,22 @@ use std::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 // COSE header labels (RFC 9052) and key parameters (RFC 9053).
-const H_ALG: i64 = 1;
+pub(super) const H_ALG: i64 = 1;
 const H_CRIT: i64 = 2;
-const H_CONTENT_TYPE: i64 = 3;
-const H_KID: i64 = 4;
-const H_IV: i64 = 5;
+pub(super) const H_CONTENT_TYPE: i64 = 3;
+pub(super) const H_KID: i64 = 4;
+pub(super) const H_IV: i64 = 5;
 const K_KTY: i64 = 1;
 const K_KID: i64 = 2;
 const K_ALG: i64 = 3;
 const K_OPS: i64 = 4;
 const K_SYMMETRIC_KEY: i64 = -1;
 const KTY_SYMMETRIC: i64 = 4;
-const NONCE_SIZE: usize = 24;
 /// Strings are padded to the next multiple of 32 bytes, to hide their exact length.
 const TEXT_BLOCK: usize = 32;
 
 /// A CBOR integer from a signed label or value.
-fn int(n: i64) -> Cbor {
+pub(super) fn int(n: i64) -> Cbor {
     match u64::try_from(n) {
         Ok(u) => Cbor::Uint(u),
         Err(_) => Cbor::Nint(n.unsigned_abs() - 1),
@@ -34,12 +33,12 @@ fn int(n: i64) -> Cbor {
 }
 
 /// The value under `label` in a CBOR map.
-fn get(map: &[(Cbor, Cbor)], label: i64) -> Option<&Cbor> {
+pub(super) fn get(map: &[(Cbor, Cbor)], label: i64) -> Option<&Cbor> {
     let label = int(label);
     map.iter().find(|(k, _)| *k == label).map(|(_, v)| v)
 }
 
-fn as_map(v: &Cbor) -> Result<&[(Cbor, Cbor)], CryptoError> {
+pub(super) fn as_map(v: &Cbor) -> Result<&[(Cbor, Cbor)], CryptoError> {
     match v {
         Cbor::Map(m) => Ok(m),
         _ => Err(CryptoError::Malformed),
@@ -59,6 +58,8 @@ fn bytes_into(map: &[(Cbor, Cbor)], label: i64, out: &mut [u8]) -> Result<(), Cr
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoseAlgorithm {
+    /// Plain AES-256-GCM (COSE 3, 12-byte nonce): only for a DataEnvelope's content key, never for an EncString.
+    Aes256Gcm,
     Xaes256Gcm,
     XChaCha20Poly1305,
 }
@@ -67,17 +68,25 @@ impl CoseAlgorithm {
     /// Private-use COSE algorithm values from the SDK.
     pub(super) fn number(self) -> i64 {
         match self {
+            CoseAlgorithm::Aes256Gcm => 3,
             CoseAlgorithm::XChaCha20Poly1305 => -70000,
             CoseAlgorithm::Xaes256Gcm => -70010,
         }
     }
 
-    fn value(self) -> Cbor {
+    pub(super) fn nonce_size(self) -> usize {
+        match self {
+            CoseAlgorithm::Aes256Gcm => 12,
+            CoseAlgorithm::Xaes256Gcm | CoseAlgorithm::XChaCha20Poly1305 => 24,
+        }
+    }
+
+    pub(super) fn value(self) -> Cbor {
         int(self.number())
     }
 
-    fn from_value(v: Option<&Cbor>) -> Result<Self, CryptoError> {
-        [CoseAlgorithm::XChaCha20Poly1305, CoseAlgorithm::Xaes256Gcm]
+    pub(super) fn from_value(v: Option<&Cbor>) -> Result<Self, CryptoError> {
+        [CoseAlgorithm::XChaCha20Poly1305, CoseAlgorithm::Xaes256Gcm, CoseAlgorithm::Aes256Gcm]
             .into_iter()
             .find(|a| Some(&a.value()) == v)
             .ok_or(CryptoError::Malformed)
@@ -85,7 +94,7 @@ impl CoseAlgorithm {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum KeyOp {
+pub(super) enum KeyOp {
     Encrypt = 3,
     Decrypt = 4,
     WrapKey = 5,
@@ -122,8 +131,8 @@ impl ContentFormat {
 
     fn value(self) -> Cbor {
         match self {
-            ContentFormat::Utf8 => Cbor::Text("application/x.bitwarden.utf8-padded".into()),
-            ContentFormat::LegacyKey => Cbor::Text("application/x.bitwarden.legacy-key".into()),
+            ContentFormat::Utf8 => Cbor::text("application/x.bitwarden.utf8-padded"),
+            ContentFormat::LegacyKey => Cbor::text("application/x.bitwarden.legacy-key"),
             ContentFormat::CoseKey => int(101), // CoAP content format application/cose-key
             ContentFormat::Pkcs8 => int(284),   // application/pkcs8
             ContentFormat::OctetStream => int(42),
@@ -170,7 +179,18 @@ impl CoseKey {
         &self.key
     }
 
-    fn require(&self, op: KeyOp) -> Result<(), CryptoError> {
+    /// Whether the key may only decrypt, as an SDK content key is stored.
+    pub fn decrypt_only(&self) -> bool {
+        self.ops == [KeyOp::Decrypt]
+    }
+
+    /// The same key, narrowed to decrypting.
+    pub(super) fn into_decrypt_only(mut self) -> Self {
+        self.ops = vec![KeyOp::Decrypt];
+        self
+    }
+
+    pub(super) fn require(&self, op: KeyOp) -> Result<(), CryptoError> {
         self.ops.contains(&op).then_some(()).ok_or(CryptoError::WrongKey)
     }
 }
@@ -211,10 +231,10 @@ fn parse_map(v: &Cbor) -> Result<CoseKey, CryptoError> {
 pub fn encode_cose_key(k: &CoseKey) -> Zeroizing<Vec<u8>> {
     let mut map = Cbor::Map(vec![
         (int(K_KTY), int(KTY_SYMMETRIC)),
-        (int(K_KID), Cbor::Bytes(k.id.to_vec())),
+        (int(K_KID), Cbor::bytes(k.id.to_vec())),
         (int(K_ALG), k.alg.value()),
         (int(K_OPS), Cbor::Array(k.ops.iter().map(|op| int(*op as i64)).collect())),
-        (int(K_SYMMETRIC_KEY), Cbor::Bytes(k.key.to_vec())),
+        (int(K_SYMMETRIC_KEY), Cbor::bytes(k.key.to_vec())),
     ]);
     // A COSE_Key is under 128 bytes, so the buffer never grows and leaves no unwiped copy behind.
     let mut out = Zeroizing::new(Vec::with_capacity(128));
@@ -250,19 +270,15 @@ pub fn unpad(bytes: &[u8]) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
     Ok(Zeroizing::new(bytes.split_at(bytes.len() - n).0.to_vec()))
 }
 
-fn enc_structure(protected: &[u8]) -> Vec<u8> {
-    cbor::encode(&Cbor::Array(vec![
-        Cbor::Text("Encrypt0".into()),
-        Cbor::Bytes(protected.to_vec()),
-        Cbor::Bytes(vec![]),
-    ]))
+pub(super) fn enc_structure(protected: &[u8]) -> Vec<u8> {
+    cbor::encode(&Cbor::Array(vec![Cbor::text("Encrypt0"), Cbor::bytes(protected.to_vec()), Cbor::bytes(vec![])]))
 }
 
 fn protected_header(key: &CoseKey, format: ContentFormat) -> Vec<u8> {
     cbor::encode(&Cbor::Map(vec![
         (int(H_ALG), key.alg.value()),
         (int(H_CONTENT_TYPE), format.value()),
-        (int(H_KID), Cbor::Bytes(key.id.to_vec())),
+        (int(H_KID), Cbor::bytes(key.id.to_vec())),
     ]))
 }
 
@@ -270,11 +286,11 @@ fn protected_header(key: &CoseKey, format: ContentFormat) -> Vec<u8> {
 /// is padded to its block, and both AEADs add a 16-byte tag.
 pub fn cose_text_len(key: &CoseKey, len: usize) -> usize {
     let ct = TEXT_BLOCK * (1 + len / TEXT_BLOCK) + 16;
-    let unprotected = Cbor::Map(vec![(int(H_IV), Cbor::Bytes(vec![0; NONCE_SIZE]))]);
+    let unprotected = Cbor::Map(vec![(int(H_IV), Cbor::bytes(vec![0; key.alg.nonce_size()]))]);
     let message = Cbor::Array(vec![
-        Cbor::Bytes(protected_header(key, ContentFormat::Utf8)),
+        Cbor::bytes(protected_header(key, ContentFormat::Utf8)),
         unprotected,
-        Cbor::Bytes(vec![0; ct]),
+        Cbor::bytes(vec![0; ct]),
     ]);
     cbor::encode(&message).len()
 }
@@ -295,15 +311,11 @@ pub fn cose_encrypt(
     } else {
         plain
     };
-    let mut nonce = [0u8; NONCE_SIZE];
+    let mut nonce = vec![0u8; key.alg.nonce_size()];
     rng.fill(&mut nonce)?;
-    let aad = enc_structure(&protected);
-    let ct = match key.alg {
-        CoseAlgorithm::Xaes256Gcm => xaes256gcm_encrypt(&key.key, &nonce, data, &aad)?,
-        CoseAlgorithm::XChaCha20Poly1305 => xchacha20poly1305_encrypt(&key.key, &nonce, data, &aad)?,
-    };
-    let unprotected = Cbor::Map(vec![(int(H_IV), Cbor::Bytes(nonce.to_vec()))]);
-    Ok(B64.encode(cbor::encode(&Cbor::Array(vec![Cbor::Bytes(protected), unprotected, Cbor::Bytes(ct)]))))
+    let ct = seal(key.alg, &key.key, &nonce, data, &enc_structure(&protected))?;
+    let unprotected = Cbor::Map(vec![(int(H_IV), Cbor::bytes(nonce.to_vec()))]);
+    Ok(B64.encode(cbor::encode(&Cbor::Array(vec![Cbor::bytes(protected), unprotected, Cbor::bytes(ct)]))))
 }
 
 /// Authenticates and decrypts the base64 body of an EncString type 7. The message must name this key (algorithm and
@@ -323,19 +335,17 @@ pub fn cose_decrypt(key: &CoseKey, s: &str) -> Result<(Zeroizing<Vec<u8>>, Conte
     if CoseAlgorithm::from_value(get(header, H_ALG))? != key.alg {
         return Err(CryptoError::WrongKey);
     }
-    if get(header, H_KID) != Some(&Cbor::Bytes(key.id.to_vec())) {
+    if get(header, H_KID) != Some(&Cbor::bytes(key.id.to_vec())) {
         return Err(CryptoError::WrongKey);
     }
     let format = get(header, H_CONTENT_TYPE)
         .and_then(|v| ContentFormat::ALL.into_iter().find(|f| f.value() == *v))
         .ok_or(CryptoError::Malformed)?;
-    let mut nonce = [0u8; NONCE_SIZE];
-    bytes_into(as_map(unprotected)?, H_IV, &mut nonce)?;
-    let aad = enc_structure(protected);
-    let plain = match key.alg {
-        CoseAlgorithm::Xaes256Gcm => xaes256gcm_decrypt(&key.key, &nonce, ct, &aad)?,
-        CoseAlgorithm::XChaCha20Poly1305 => xchacha20poly1305_decrypt(&key.key, &nonce, ct, &aad)?,
+    let nonce = match get(as_map(unprotected)?, H_IV) {
+        Some(Cbor::Bytes(n)) if n.len() == key.alg.nonce_size() => n,
+        _ => return Err(CryptoError::Malformed),
     };
+    let plain = open(key.alg, &key.key, nonce, ct, &enc_structure(protected))?;
     if format == ContentFormat::Utf8 {
         return Ok((unpad(&plain)?, format));
     }

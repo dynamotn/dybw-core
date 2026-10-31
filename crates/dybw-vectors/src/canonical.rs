@@ -1,10 +1,8 @@
 //! Port of the plugin's `test/vectors/canonical.ts`: the decrypted body a tool sent, in the vectors' canonical shape.
 
 use crate::server::Sent;
-use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Nonce};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
-use dybw_core::crypto::SymmetricKey;
+use dybw_core::crypto::{Cbor, EnvelopeNamespace, SymmetricKey, open_envelope, parse_cek};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 
@@ -28,62 +26,33 @@ fn is_extra(key: &str) -> bool {
     key.strip_prefix('x').is_some_and(|rest| !rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric()))
 }
 
-/// Reads one CBOR item (definite lengths, no tags or floats) as JSON: a byte string is its base64 text and a map key
-/// of any kind is its text, which is all a COSE header and a blob need.
-fn cbor_item(b: &mut &[u8], depth: u8) -> Result<Value, String> {
-    fn take<'a>(b: &mut &'a [u8], n: usize) -> Result<&'a [u8], String> {
-        let (head, rest) = b.split_at_checked(n).ok_or("truncated CBOR")?;
-        *b = rest;
-        Ok(head)
-    }
-    let depth = depth.checked_sub(1).ok_or("CBOR nested too deep")?;
-    let &[first] = take(b, 1)? else { return Err("truncated CBOR".into()) };
-    let (major, info) = (first >> 5, first & 31);
-    let n = match info {
-        0..=23 => u64::from(info),
-        24..=27 => take(b, 1 << (info - 24))?.iter().fold(0u64, |acc, x| acc << 8 | u64::from(*x)),
-        _ => return Err("unsupported CBOR item".into()),
-    };
-    let len = usize::try_from(n).map_err(|_| "CBOR length")?;
-    Ok(match major {
-        0 => json!(n),
-        1 => json!(-1 - i64::try_from(n).map_err(|_| "CBOR integer")?),
-        2 => json!(B64.encode(take(b, len)?)),
-        3 => json!(std::str::from_utf8(take(b, len)?).map_err(|_| "CBOR text")?),
-        4 | 5 if len > b.len() => return Err("truncated CBOR".into()),
-        4 => Value::Array((0..len).map(|_| cbor_item(b, depth)).collect::<Result<_, _>>()?),
-        5 => {
+/// A decoded CBOR item as JSON: a byte string is its base64 text and a map key is its text, which is all a blob needs.
+fn cbor_json(c: &Cbor) -> Result<Value, String> {
+    Ok(match c {
+        Cbor::Uint(n) => json!(n),
+        Cbor::Nint(n) => json!(-1 - i64::try_from(*n).map_err(|_| "CBOR integer")?),
+        Cbor::Bytes(b) => json!(B64.encode(b.as_slice())),
+        Cbor::Text(t) => json!(t.as_str()),
+        Cbor::Bool(b) => json!(b),
+        Cbor::Null => Value::Null,
+        Cbor::Array(a) => Value::Array(a.iter().map(cbor_json).collect::<Result<_, _>>()?),
+        Cbor::Map(m) => {
             let mut map = Map::new();
-            for _ in 0..len {
-                let key = match cbor_item(b, depth)? {
+            for (k, v) in m {
+                let key = match cbor_json(k)? {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                     _ => return Err("CBOR map key".into()),
                 };
-                map.insert(key, cbor_item(b, depth)?);
+                map.insert(key, cbor_json(v)?);
             }
             Value::Object(map)
         }
-        7 if n == 20 || n == 21 => json!(n == 21),
-        7 if n == 22 => Value::Null,
-        _ => return Err("unsupported CBOR item".into()),
     })
 }
 
-fn cbor(bytes: &[u8]) -> Result<Value, String> {
-    let mut rest = bytes;
-    let value = cbor_item(&mut rest, 16)?;
-    if rest.is_empty() { Ok(value) } else { Err("trailing CBOR bytes".into()) }
-}
-
-fn b64_of(v: Option<&Value>, what: &str) -> Result<Vec<u8>, String> {
-    let text = v.and_then(Value::as_str).ok_or_else(|| format!("blob {what} is missing"))?;
-    B64.decode(text).map_err(|_| format!("blob {what} is not base64"))
-}
-
 /// Opens a blob: `data` is the JSON text of the sealed blob, and `key` the item key the content key is wrapped under.
-/// Returns the sealed content (`CipherBlobV1`). Only an AES-256-GCM content key is read here.
-// shortcut: Task 3's `open_envelope` in the core replaces this, with every algorithm and the key-op checks.
+/// Returns the sealed content (`CipherBlobV1`).
 fn open_blob(data: &str, key: &SymmetricKey) -> Result<Value, String> {
     let sealed: Value = serde_json::from_str(data).map_err(|_| "blob data is not JSON")?;
     if sealed.get("format_version") != Some(&json!(1)) {
@@ -91,40 +60,12 @@ fn open_blob(data: &str, key: &SymmetricKey) -> Result<Value, String> {
     }
     let wrapped = sealed.get("wrapped_cek").and_then(Value::as_str).ok_or("blob wrapped_cek is missing")?;
     let cek = key.decrypt(wrapped).map_err(|e| format!("blob wrapped_cek: {e}"))?;
-    let cek = cek.split_last().filter(|(pad, _)| **pad == 1).ok_or("blob content key is not a padded COSE key")?.1;
-    let cek = cbor(cek)?;
-    let secret = b64_of(cek.get("-1"), "content key")?;
-    if cek.get("3") != Some(&json!(3)) {
-        return Err("blob content key is not AES-256-GCM".into());
-    }
-
-    let envelope = b64_of(sealed.get("envelope"), "envelope")?;
-    let Value::Array(parts) = cbor(&envelope)? else { return Err("blob envelope is not a COSE_Encrypt0".into()) };
-    let [protected, unprotected, ct] = parts.as_slice() else {
-        return Err("blob envelope is not a COSE_Encrypt0".into());
-    };
-    let protected = b64_of(Some(protected), "protected header")?;
-    let header = cbor(&protected)?;
-    if header.get("1") != cek.get("3") || header.get("4") != cek.get("2") {
-        return Err("blob envelope names another key".into());
-    }
-    if header.get("-80002") != Some(&json!(2)) {
-        return Err("blob envelope is not a DataEnvelope".into());
-    }
-    let nonce = b64_of(unprotected.get("5"), "nonce")?;
-    // Enc_structure ["Encrypt0", protected, h'']; a protected header is short, so its length is one byte
-    let len = u8::try_from(protected.len()).map_err(|_| "blob header is too long")?;
-    let head = if len < 24 { vec![0x40 | len] } else { vec![0x58, len] };
-    let aad = [&[0x83, 0x68][..], b"Encrypt0", &head, &protected, &[0x40]].concat();
-    let cipher = Aes256Gcm::new_from_slice(&secret).map_err(|_| "blob content key length")?;
-    let nonce: [u8; 12] = nonce.try_into().map_err(|_| "blob nonce length")?;
-    let mut plain = cipher
-        .decrypt(&Nonce::from(nonce), Payload { msg: &b64_of(Some(ct), "ciphertext")?, aad: &aad })
-        .map_err(|_| "blob envelope does not decrypt")?;
-    let pad = usize::from(plain.last().copied().unwrap_or(0));
-    let content_len = plain.len().checked_sub(pad).filter(|_| pad > 0).ok_or("blob padding")?;
-    plain.truncate(content_len);
-    let content = cbor(&plain)?;
+    let cek = parse_cek(&cek).map_err(|e| format!("blob content key: {e}"))?;
+    let text = sealed.get("envelope").and_then(Value::as_str).ok_or("blob envelope is missing")?;
+    let envelope = B64.decode(text).map_err(|_| "blob envelope is not base64")?;
+    let opened =
+        open_envelope(&cek, &envelope, EnvelopeNamespace::VaultItem).map_err(|e| format!("blob envelope: {e}"))?;
+    let content = cbor_json(&opened)?;
     if content.get("version") != Some(&json!("1")) {
         return Err("blob content version is not 1".into());
     }

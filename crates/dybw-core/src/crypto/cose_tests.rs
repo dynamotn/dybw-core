@@ -28,9 +28,9 @@ fn cose_vectors() -> Value {
 fn key_map(len: usize, ops: Option<Vec<u64>>) -> Vec<(Cbor, Cbor)> {
     let mut m = vec![
         (Cbor::Uint(1), Cbor::Uint(4)),
-        (Cbor::Uint(2), Cbor::Bytes(vec![0; 16])),
+        (Cbor::Uint(2), Cbor::bytes(vec![0; 16])),
         (Cbor::Uint(3), Cbor::Nint(70009)),
-        (Cbor::Nint(0), Cbor::Bytes(vec![0; len])),
+        (Cbor::Nint(0), Cbor::bytes(vec![0; len])),
     ];
     if let Some(ops) = ops {
         m.insert(3, (Cbor::Uint(4), Cbor::Array(ops.into_iter().map(Cbor::Uint).collect())));
@@ -172,19 +172,19 @@ fn cbor_round_trip_shortest() {
         Cbor::Uint(u64::MAX),
         Cbor::Nint(0),
         Cbor::Nint(u64::MAX),
-        Cbor::Bytes(vec![1; 30]),
-        Cbor::Text("tiếng".into()),
+        Cbor::bytes(vec![1; 30]),
+        Cbor::text("tiếng"),
         Cbor::Bool(true),
         Cbor::Bool(false),
         Cbor::Null,
-        Cbor::Map(vec![(Cbor::Uint(1), Cbor::Text("1".into())), (Cbor::Text("1".into()), Cbor::Uint(1))]),
+        Cbor::Map(vec![(Cbor::Uint(1), Cbor::text("1")), (Cbor::text("1"), Cbor::Uint(1))]),
     ]);
     let enc = cbor::encode(&v);
     assert_eq!(cbor::decode(&enc).unwrap(), v);
     let mut wiped = v.clone();
     zeroize::Zeroize::zeroize(&mut wiped);
     let Cbor::Array(items) = wiped else { unreachable!() };
-    assert_eq!((&items[12], &items[13]), (&Cbor::Bytes(vec![]), &Cbor::Text(String::new())));
+    assert_eq!((&items[12], &items[13]), (&Cbor::bytes(vec![]), &Cbor::text("")));
     assert_eq!(cbor::encode(&Cbor::Uint(24)), [0x18, 24]);
     assert_eq!(cbor::encode(&Cbor::Uint(256)), [0x19, 1, 0]);
 }
@@ -261,18 +261,18 @@ fn cose_decrypt_refuses_wrong_key_and_shape() {
     assert_eq!(CoseKey::generate(CoseAlgorithm::Xaes256Gcm, &Fails).unwrap_err(), CryptoError::Port("rng down".into()));
     // Hand-built messages.
     let prot = |m: Vec<(Cbor, Cbor)>| cbor::encode(&Cbor::Map(m));
-    let msg = |p: Vec<u8>, un: Cbor, ct: Cbor| B64.encode(cbor::encode(&Cbor::Array(vec![Cbor::Bytes(p), un, ct])));
+    let msg = |p: Vec<u8>, un: Cbor, ct: Cbor| B64.encode(cbor::encode(&Cbor::Array(vec![Cbor::bytes(p), un, ct])));
     let hdr = |extra: Vec<(Cbor, Cbor)>| {
         let mut m = vec![
             (Cbor::Uint(1), Cbor::Nint(70009)),
-            (Cbor::Uint(3), Cbor::Text("application/x.bitwarden.utf8-padded".into())),
-            (Cbor::Uint(4), Cbor::Bytes(a.id().to_vec())),
+            (Cbor::Uint(3), Cbor::text("application/x.bitwarden.utf8-padded")),
+            (Cbor::Uint(4), Cbor::bytes(a.id().to_vec())),
         ];
         m.extend(extra);
         m
     };
-    let iv = Cbor::Map(vec![(Cbor::Uint(5), Cbor::Bytes(vec![0; 24]))]);
-    let ct = Cbor::Bytes(vec![0; 20]);
+    let iv = Cbor::Map(vec![(Cbor::Uint(5), Cbor::bytes(vec![0; 24]))]);
+    let ct = Cbor::bytes(vec![0; 20]);
     // Valid shape, wrong tag: reaches the AEAD.
     assert_eq!(cose_decrypt(&a, &msg(prot(hdr(vec![])), iv.clone(), ct.clone())).unwrap_err(), CryptoError::BadMac);
     // Critical header.
@@ -282,7 +282,7 @@ fn cose_decrypt_refuses_wrong_key_and_shape() {
     let mut no_ct = hdr(vec![]);
     no_ct.remove(1);
     let mut odd_ct = hdr(vec![]);
-    odd_ct[1].1 = Cbor::Text("x".into());
+    odd_ct[1].1 = Cbor::text("x");
     for m in [
         msg(vec![], iv.clone(), ct.clone()),
         msg(prot(no_ct), iv.clone(), ct.clone()),
@@ -294,12 +294,12 @@ fn cose_decrypt_refuses_wrong_key_and_shape() {
     let mut no_kid = hdr(vec![]);
     no_kid.remove(2);
     let mut kid_len = hdr(vec![]);
-    kid_len[2].1 = Cbor::Bytes(vec![1; 15]);
+    kid_len[2].1 = Cbor::bytes(vec![1; 15]);
     for m in [msg(prot(no_kid), iv.clone(), ct.clone()), msg(prot(kid_len), iv.clone(), ct.clone())] {
         assert_eq!(cose_decrypt(&a, &m).unwrap_err(), CryptoError::WrongKey);
     }
     // Bad nonce, unprotected header or ciphertext type.
-    let short_iv = Cbor::Map(vec![(Cbor::Uint(5), Cbor::Bytes(vec![0; 12]))]);
+    let short_iv = Cbor::Map(vec![(Cbor::Uint(5), Cbor::bytes(vec![0; 12]))]);
     for (un, ct) in [(short_iv, ct.clone()), (Cbor::Uint(1), ct.clone()), (iv.clone(), Cbor::Uint(1))] {
         assert_eq!(cose_decrypt(&a, &msg(prot(hdr(vec![])), un, ct)).unwrap_err(), CryptoError::Malformed);
     }
