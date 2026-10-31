@@ -532,13 +532,13 @@ fn a_refetched_trashed_or_blob_copy_writes_nothing() {
         }
         assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);
 
-        // delete: a trashed copy has left the keyring; a blob copy is held
+        // delete: a trashed copy has left the keyring; a blob copy that does not open is held
         let mut r = Rig::new();
         r.fake.out_of_date();
         r.fake.reply(200, fresh);
         match r.delete(&c) {
             Ok(DeleteOutcome::Nothing) if !blob_copy => {}
-            Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::NewerFormat))) if blob_copy => {}
+            Err(SyncWriteError::Write(WriteError::Uninspectable(Uninspectable::Blob))) if blob_copy => {}
             other => panic!("{other:?}"),
         }
         assert_eq!(r.log(), ["Put /ciphers/c1", "Get /ciphers/c1"]);

@@ -205,22 +205,28 @@ fn blank_marker_reads_nothing_else() {
 fn blob_ciphers_are_held_not_unmarked() {
     // The SDK gate (sdk-internal 3d16437, bitwarden-vault/src/cipher/blob/sealed.rs from_opaque_string).
     let k = bwss();
+    // A personal blob is opened (blob_tests); one that does not open is held, never unmarked.
     let blob = r#"{"format_version":1,"wrapped_cek":"2.x|y|z","envelope":"AAAA"}"#;
     let mut c = k.login(&[("bwss:id", "x")], Some("pw"), None);
     c["data"] = json!(blob);
     for field in ["name", "notes", "login", "fields"] {
         c[field] = Value::Null;
     }
-    assert_eq!(held(k.scan(&c)), Uninspectable::NewerFormat);
+    assert_eq!(held(k.scan(&c)), Uninspectable::Blob);
     // In the trash it is still just the trash.
     c["deletedDate"] = json!("2026-01-01T00:00:00Z");
     assert!(matches!(k.scan(&c), Scan::Unmarked));
-    // The gate is the key alone: a bare or odd `format_version` is held too, before any key unwrap.
-    for data in [r#"{"format_version":1}"#, r#"{"format_version":2,"x":1}"#, r#"{"format_version":null}"#] {
+    // The gate is the key alone: a bare or odd `format_version` is held too; any version but 1 before any key unwrap.
+    let cases = [
+        (r#"{"format_version":1}"#, Uninspectable::Blob),
+        (r#"{"format_version":2,"x":1}"#, Uninspectable::NewerFormat),
+        (r#"{"format_version":null}"#, Uninspectable::NewerFormat),
+    ];
+    for (data, why) in cases {
         let mut c = k.login(&[("bwss:id", "x")], Some("pw"), None);
         c["data"] = json!(data);
         c["key"] = json!(BAD);
-        assert_eq!(held(k.scan(&c)), Uninspectable::NewerFormat, "{data}");
+        assert_eq!(held(k.scan(&c)), why, "{data}");
     }
     // An organization blob is held as a blob, even for an organization not read.
     let mut c = k.login(&[("bwss:id", "x")], Some("pw"), None);

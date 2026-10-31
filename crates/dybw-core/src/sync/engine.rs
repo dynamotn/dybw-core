@@ -9,7 +9,9 @@ use super::write::{SyncWriteError, create, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
 use crate::vault::fields::{decrypt_opt, item_key};
-use crate::vault::scan::{Duplicate, MarkedItem, ScanReport, SkipReason, Uninspectable, scan_vault_with};
+use crate::vault::scan::{
+    Duplicate, MarkedItem, ScanReport, SkipReason, Uninspectable, UnmarkedCache, scan_vault_with,
+};
 use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError};
 use crate::vault::{Keys, Namespace, Organizations};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
@@ -38,6 +40,8 @@ pub struct SyncContext<'a, H: Http, C: Clock, R: Random> {
     pub applies: &'a dyn Fn(&MarkedItem) -> bool,
     /// Folder new uploads are filed in, created when missing; `None` or blank files them in no folder.
     pub upload_folder: Option<String>,
+    /// The ciphers found unmarked, kept between syncs (device state, §10) so an unchanged one is not opened again.
+    pub unmarked: &'a mut UnmarkedCache,
 }
 
 /// Why a sync stopped. Messages never carry a value.
@@ -143,7 +147,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     let sync = ctx.client.sync().await?;
     // Reserved ids are refused by the namespace's id rule, so the scan already skips them.
     let ScanReport { items, skipped, uninspectable, duplicates, present } =
-        scan_vault_with(&sync, ctx.ns, ctx.keys, ctx.allowed, ctx.applies);
+        scan_vault_with(&sync, ctx.ns, ctx.keys, ctx.allowed, ctx.applies, ctx.unmarked);
     // Only a value that fails after the id was read is reported, as the plugin's `readVault`; every other
     // uninspectable cipher (blob, item key, organization key) is silently held.
     let unreadable = uninspectable.into_iter().filter(|(_, u)| *u == Uninspectable::Value).map(|(c, _)| c).collect();

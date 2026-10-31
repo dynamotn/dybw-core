@@ -4,9 +4,58 @@
 
 use super::CryptoError;
 use std::collections::HashSet;
+use std::ops::Deref;
 use zeroize::{Zeroize, Zeroizing};
 
 const MAX_DEPTH: usize = 16;
+
+/// A CBOR text, wiped on drop. Under the `testing` feature every live one is counted per thread, so a test can see
+/// that nothing decoded outlives a scan (`testing::cbor_texts_alive`).
+#[derive(Debug, PartialEq, Eq)]
+pub struct CborText(Zeroizing<String>);
+
+#[cfg(feature = "testing")]
+thread_local!(static TEXTS_ALIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) });
+
+/// How many `CborText`s this thread holds.
+#[cfg(feature = "testing")]
+pub(crate) fn texts_alive() -> usize {
+    TEXTS_ALIVE.with(std::cell::Cell::get)
+}
+
+impl From<String> for CborText {
+    fn from(text: String) -> Self {
+        #[cfg(feature = "testing")]
+        TEXTS_ALIVE.with(|n| n.set(n.get().saturating_add(1)));
+        CborText(Zeroizing::new(text))
+    }
+}
+
+impl Clone for CborText {
+    fn clone(&self) -> Self {
+        CborText::from(String::clone(&self.0))
+    }
+}
+
+#[cfg(feature = "testing")]
+impl Drop for CborText {
+    fn drop(&mut self) {
+        TEXTS_ALIVE.with(|n| n.set(n.get().saturating_sub(1)));
+    }
+}
+
+impl Deref for CborText {
+    type Target = String;
+    fn deref(&self) -> &String {
+        &self.0
+    }
+}
+
+impl Zeroize for CborText {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
 
 /// Integer and text keys are kept apart, as CBOR does: `Uint(1)` is not `Text("1")`. `Nint(n)` is `-1 - n`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,7 +63,7 @@ pub enum Cbor {
     Uint(u64),
     Nint(u64),
     Bytes(Zeroizing<Vec<u8>>),
-    Text(Zeroizing<String>),
+    Text(CborText),
     Array(Vec<Cbor>),
     Map(Vec<(Cbor, Cbor)>),
     Bool(bool),
@@ -27,7 +76,7 @@ impl Cbor {
     }
 
     pub fn text(t: impl Into<String>) -> Self {
-        Cbor::Text(Zeroizing::new(t.into()))
+        Cbor::Text(CborText::from(t.into()))
     }
 
     /// What makes a map key unique: integers and texts only (labels, never secrets).
@@ -234,7 +283,6 @@ fn head(out: &mut Vec<u8>, major: u8, n: u64) {
 mod tests {
     use super::*;
 
-    /// Compile-level: building the variants from `Zeroizing` fails to compile if they hold anything else.
     #[test]
     fn encoded_len_matches_encode() {
         let items = [0, 23, 24, 255, 256, 65535, 65536, u64::from(u32::MAX), u64::from(u32::MAX) + 1];
@@ -247,9 +295,10 @@ mod tests {
         }
     }
 
+    /// Compile-level: building the variants from `Zeroizing` fails to compile if they hold anything else.
     #[test]
     fn decoded_text_is_zeroizing() {
-        assert_eq!(decode(&[0x61, b'a']).unwrap(), Cbor::Text(Zeroizing::new("a".to_owned())));
+        assert_eq!(decode(&[0x61, b'a']).unwrap(), Cbor::Text(CborText(Zeroizing::new("a".to_owned()))));
         assert_eq!(decode(&[0x41, 1]).unwrap(), Cbor::Bytes(Zeroizing::new(vec![1])));
     }
 }

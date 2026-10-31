@@ -1,6 +1,8 @@
 //! Discovery and reading (data model §4, §5) and duplicates (§7): port of bwss `src/bw/scan.rs` and the plugin's
-//! `readVault`. Only an item with a non-blank marker is read past its field names.
+//! `readVault`. Only an item with a non-blank marker is read past its field names; a personal blob is opened whole
+//! (ADR 0021), and only its field names are looked at until then.
 
+use super::blob::{OpenBlob, open_blob};
 use super::fields::{Mark, decrypt_opt, field_names, field_value, first_index, item_key};
 use super::namespace::{Encodings, IdProblem, Namespace};
 use super::{Keys, Organizations};
@@ -75,8 +77,11 @@ pub enum Uninspectable {
     FieldNames,
     Marker,
     Value,
-    /// A blob cipher (`data` with `format_version`), which no tool reads yet.
+    /// A blob cipher (`data` with `format_version`) the core does not read: an organization blob, or a
+    /// `format_version` or content version other than 1.
     NewerFormat,
+    /// A personal blob whose item key, content key or envelope fails, or whose content is malformed (ADR 0021).
+    Blob,
     /// A cipher whose JSON is longer than `MAX_CIPHER` (ADR 0019): never decrypted.
     TooLarge,
 }
@@ -189,6 +194,40 @@ fn parse_date(s: &str) -> Option<i64> {
     i64::try_from(t.unix_timestamp_nanos() / 1_000_000).ok().filter(|&ms| ms > 0)
 }
 
+/// Where a cipher's field values and value sources come from: its own encrypted strings, or its opened blob. Both
+/// formats run the same rules (§4, §5) through it.
+enum Item<'a> {
+    Fields(&'a Value, &'a SymmetricKey),
+    Blob(&'a OpenBlob),
+}
+
+fn copied(text: Option<&str>) -> Zeroizing<String> {
+    Zeroizing::new(text.unwrap_or_default().to_owned())
+}
+
+impl Item<'_> {
+    fn value(&self, index: usize) -> Result<Zeroizing<String>, CryptoError> {
+        match self {
+            Item::Fields(cipher, key) => field_value(cipher, index, key),
+            Item::Blob(blob) => Ok(copied(blob.field_value(index))),
+        }
+    }
+
+    fn notes(&self) -> Result<Zeroizing<String>, CryptoError> {
+        match self {
+            Item::Fields(cipher, key) => decrypt_opt(cipher.get("notes"), key),
+            Item::Blob(blob) => Ok(copied(blob.notes())),
+        }
+    }
+
+    fn login_password(&self) -> Result<Zeroizing<String>, CryptoError> {
+        match self {
+            Item::Fields(cipher, key) => decrypt_opt(cipher.pointer("/login/password"), key),
+            Item::Blob(blob) => Ok(copied(blob.login_password())),
+        }
+    }
+}
+
 pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> Scan {
     if trashed(cipher) {
         return Scan::Unmarked;
@@ -196,10 +235,19 @@ pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations
     if too_large(cipher) {
         return Scan::Uninspectable(Uninspectable::TooLarge);
     }
-    if is_blob(cipher) {
-        return Scan::Uninspectable(Uninspectable::NewerFormat);
-    }
     let org = organization(cipher);
+    if is_blob(cipher) {
+        // The SDK never seals an organization item as a blob: one is held, never decrypted (ADR 0021).
+        if org.is_some() {
+            return Scan::Uninspectable(Uninspectable::NewerFormat);
+        }
+        // Dropped, and every decoded text wiped, before this returns (§4.2).
+        let blob = match open_blob(cipher, &keys.user) {
+            Ok(blob) => blob,
+            Err(u) => return Scan::Uninspectable(u),
+        };
+        return discover(cipher, ns, keys, &Item::Blob(&blob), &blob.field_names(), None);
+    }
     let owner = match org {
         None => &keys.user,
         Some(org) => {
@@ -215,22 +263,35 @@ pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations
     };
     let Ok(key) = item_key(cipher, owner) else { return Scan::Uninspectable(Uninspectable::ItemKey) };
     let Ok(names) = field_names(cipher, &key) else { return Scan::Uninspectable(Uninspectable::FieldNames) };
-    let Some(id_index) = first_index(&names, &ns.field("id")) else { return Scan::Unmarked };
-    let Ok(id) = field_value(cipher, id_index, &key) else { return Scan::Uninspectable(Uninspectable::Marker) };
+    let names: Vec<Option<&str>> = names.iter().map(Option::as_deref).collect();
+    let org = org.map(|o| o.as_str().unwrap_or_default().to_owned());
+    discover(cipher, ns, keys, &Item::Fields(cipher, &key), &names, org)
+}
+
+/// Steps 3 and 4 of §4 on the field names: the marker, then the item.
+fn discover(
+    cipher: &Value,
+    ns: &Namespace,
+    keys: &Keys,
+    item: &Item,
+    names: &[Option<&str>],
+    org: Option<String>,
+) -> Scan {
+    let Some(id_index) = first_index(names, &ns.field("id")) else { return Scan::Unmarked };
+    let Ok(id) = item.value(id_index) else { return Scan::Uninspectable(Uninspectable::Marker) };
     let id = id.trim().to_owned();
     if id.is_empty() {
         return Scan::Unmarked;
     }
-    let org = org.map(|o| o.as_str().unwrap_or_default().to_owned());
-    read_marked(cipher, ns, &key, keys, &names, id, org).unwrap_or(Scan::Uninspectable(Uninspectable::Value))
+    read_marked(cipher, ns, item, keys, names, id, org).unwrap_or(Scan::Uninspectable(Uninspectable::Value))
 }
 
 fn read_marked(
     cipher: &Value,
     ns: &Namespace,
-    key: &SymmetricKey,
+    item: &Item,
     keys: &Keys,
-    names: &[Option<String>],
+    names: &[Option<&str>],
     id: String,
     org: Option<String>,
 ) -> Result<Scan, CryptoError> {
@@ -247,7 +308,7 @@ fn read_marked(
         Err(IdProblem::Reserved) => return Ok(Scan::Skipped(SkipReason::ReservedId)),
     }
     let field = |name: &str| -> Result<Option<Zeroizing<String>>, CryptoError> {
-        first_index(names, &ns.field(name)).map(|i| field_value(cipher, i, key)).transpose()
+        first_index(names, &ns.field(name)).map(|i| item.value(i)).transpose()
     };
 
     let encoding = field("encoding")?;
@@ -281,9 +342,9 @@ fn read_marked(
         return Ok(Scan::Skipped(SkipReason::EncodingOnUserSource));
     }
     let text = match (password_index, source) {
-        (Some(i), _) => field_value(cipher, i, key)?,
-        (None, ValueSource::LoginPassword) => decrypt_opt(cipher.pointer("/login/password"), key)?,
-        (None, _) => decrypt_opt(cipher.get("notes"), key)?,
+        (Some(i), _) => item.value(i)?,
+        (None, ValueSource::LoginPassword) => item.login_password()?,
+        (None, _) => item.notes()?,
     };
     let value = if base64 {
         match B64.decode(text.as_bytes()) {
@@ -302,13 +363,13 @@ fn read_marked(
     let mut attributes = BTreeMap::new();
     let mut tool_fields: Vec<(String, Zeroizing<String>)> = Vec::new();
     for (i, name) in names.iter().enumerate() {
-        let Some(name) = name.as_deref().filter(|n| n.starts_with(&prefix)) else { continue };
+        let Some(name) = name.filter(|n| n.starts_with(&prefix)) else { continue };
         if let Some(attr) = name.strip_prefix(&attr_prefix) {
             if !attr.is_empty() && !attributes.contains_key(attr) {
-                attributes.insert(attr.to_owned(), field_value(cipher, i, key)?.as_str().to_owned());
+                attributes.insert(attr.to_owned(), item.value(i)?.as_str().to_owned());
             }
         } else if !own.iter().any(|o| o == name) && !tool_fields.iter().any(|(n, _)| n == name) {
-            tool_fields.push((name.to_owned(), field_value(cipher, i, key)?));
+            tool_fields.push((name.to_owned(), item.value(i)?));
         }
     }
 
@@ -359,28 +420,41 @@ pub(crate) fn resolve_duplicates(mut items: Vec<MarkedItem>) -> (Vec<MarkedItem>
     (winners, duplicates)
 }
 
+/// The ciphers the last scan found unmarked, by `(cipher id, revisionDate)` (data model §4, §4.2): an unchanged one
+/// is not decrypted again, not even its field names. Device state (§10): ids and dates only.
+#[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct UnmarkedCache(BTreeSet<(String, String)>);
+
 /// Scans every cipher of a `/sync` response.
 pub fn scan_vault(sync: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> ScanReport {
-    scan_vault_with(sync, ns, keys, allowed, &|_| true)
+    scan_vault_with(sync, ns, keys, allowed, &|_| true, &mut UnmarkedCache::default())
 }
 
 /// `scan_vault` keeping only the marked items `applies` takes, before §7 picks one per id (the plugin filters by
-/// scope first). Items left out still count as `present`.
+/// scope first). Items left out still count as `present`. A cipher in `cache` is unmarked without being opened;
+/// afterwards `cache` holds exactly the ciphers of this response that are unmarked.
 pub fn scan_vault_with(
     sync: &Value,
     ns: &Namespace,
     keys: &Keys,
     allowed: &Organizations,
     applies: &dyn Fn(&MarkedItem) -> bool,
+    cache: &mut UnmarkedCache,
 ) -> ScanReport {
     let mut marked = Vec::new();
     let mut skipped = Vec::new();
     let mut uninspectable = Vec::new();
     let mut present = BTreeSet::new();
+    let mut unmarked = BTreeSet::new();
     for cipher in sync.get("ciphers").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
         let cipher_id = cipher.get("id").and_then(Value::as_str).unwrap_or_default().to_owned();
-        let result = scan(cipher, ns, keys, allowed);
-        if !matches!(result, Scan::Unmarked) {
+        let revision = cipher.get("revisionDate").and_then(Value::as_str).unwrap_or_default().to_owned();
+        let seen = (cipher_id.clone(), revision);
+        let result = if cache.0.contains(&seen) { Scan::Unmarked } else { scan(cipher, ns, keys, allowed) };
+        if matches!(result, Scan::Unmarked) {
+            unmarked.insert(seen);
+        } else {
             present.insert(cipher_id.clone());
         }
         match result {
@@ -391,6 +465,7 @@ pub fn scan_vault_with(
             Scan::Uninspectable(u) => uninspectable.push((cipher_id, u)),
         }
     }
+    cache.0 = unmarked;
     let (items, duplicates) = resolve_duplicates(marked);
     ScanReport { items, skipped, uninspectable, duplicates, present }
 }

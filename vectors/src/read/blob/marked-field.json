@@ -1,0 +1,73 @@
+{
+  "id": "read/blob/marked-field",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§5"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "format": "blob",
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "note",
+          "value": "text",
+          "type": 0
+        },
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "blob-secret",
+          "type": 1
+        },
+        {
+          "name": "{ns}:password",
+          "value": "second",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "blob-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

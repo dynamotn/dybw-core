@@ -1,0 +1,43 @@
+{
+  "id": "read/blob/organization-held",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": "org-a",
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "2.IRz+F7aGtEJ6eA5LKhRTlA==|LplzPDATV1m3/uC9J547sBK2hTPEbwl+sOAI/ZGhtlzJ95IypbFtr4O8zmpVh6Z8kngrHkY6m83Qzd6R4Vp4wVq3u+alQdEVoDEVlNdXThc=|H10iMX29vOZ1c29hs9aurv5uhZ/3E32AwqfrFyRwCUQ=",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2./yvngQldIP+GjWEBjStAlA==|oEZm/SPpfeLuVBrPRVhtiAhWSJW3OaMtEBE6CYFsyzJRXwUQBIlolaJM5FM5jCFy+7O2ra+AtjT++CO0X2Si+zn3Y+j3yMT/+5jYCYma62Q=|AemrdzQfJ1KZ2MC/1GRtgSepAuLZ3IxeKbzsuqmn3uI=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUASEjY3n3M/wxPlQCKHffRg6AAE4gQI6AAE4gAGhBUyjDtcYndqf4PiCqwxZATExnBNQCsyquvk/UfMPN6EMZGVa687WbJdpoz2tSK4cpCD1HuHUljObD0fej+/PwGawmZQrjhsCeNBnJxwr5cdSbN1ThhbfqYcOnDIsD6GFgVfESQ0d7NZW6tBOhitFH83Ka4z7g/d04ayXk7RqQXM30jgpqqS3WU3CuCVaKule0Hjyl/fljE4a0sDv2WOuw/YWgfe9THfLLquQoPxbvhPVH9ih/fPX27UNVKb+OB7Vu5y825AxUABr2VGfUZZitQSZiqmXG18R+t7K6VnR1ZGpdh6Yc5MrjqSLRY6gsznlnXJGrff98SmImyRfOdCRPUTidyU6PRBhKP0xqhihTM/LVVqMdGt09pjIMeepzW55+4HOKn8jvMfmkUaj+XUaycZHZW/ZJFoThTSHkTRQhD/oww==\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [],
+      "skipped": [],
+      "uninspectable": [
+        "c1"
+      ]
+    }
+  }
+}

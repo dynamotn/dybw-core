@@ -57,8 +57,8 @@ pub fn decrypt_opt(raw: Option<&Value>, key: &SymmetricKey) -> Result<Zeroizing<
 }
 
 /// Index of the first field called `name`.
-pub fn first_index(names: &[Option<String>], name: &str) -> Option<usize> {
-    names.iter().position(|n| n.as_deref() == Some(name))
+pub fn first_index<S: AsRef<str>>(names: &[Option<S>], name: &str) -> Option<usize> {
+    names.iter().position(|n| n.as_ref().map(AsRef::as_ref) == Some(name))
 }
 
 /// The key an item's strings are encrypted with: its own wrapped key, else the owner's.

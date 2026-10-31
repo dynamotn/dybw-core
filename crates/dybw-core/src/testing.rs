@@ -22,6 +22,11 @@ pub fn block_on<F: Future>(f: F) -> F::Output {
     }
 }
 
+/// How many decoded CBOR texts (`crypto::CborText`) this thread still holds: 0 once everything decoded was dropped.
+pub fn cbor_texts_alive() -> usize {
+    crate::crypto::cbor_texts_alive()
+}
+
 pub struct FixedClock {
     pub now_ms: i64,
 }

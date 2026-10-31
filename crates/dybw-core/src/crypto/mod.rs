@@ -12,7 +12,9 @@ mod mark;
 mod rsa;
 mod sign;
 
-pub use cbor::Cbor;
+#[cfg(feature = "testing")]
+pub(crate) use cbor::texts_alive as cbor_texts_alive;
+pub use cbor::{Cbor, CborText};
 pub use cose::{ContentFormat, CoseAlgorithm, CoseKey};
 pub use envelope::{EnvelopeNamespace, open_envelope, parse_cek, seal_envelope};
 #[cfg(feature = "native")]

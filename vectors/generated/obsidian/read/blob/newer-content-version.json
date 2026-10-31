@@ -1,0 +1,38 @@
+{
+  "id": "read/blob/newer-content-version",
+  "spec": "1.6",
+  "sections": [
+    "§4.2"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYH6kW62tNqnz80ZnDPgV0E9pilWxEMnZ2WFC/lLtY0rv2RAi8SWpgA6vwm3DgxEjgeQ+DOd6G+38Q6X6XmeNiuAPqIeJCa3p/xC4+aqtjqw3ELlmoNFrVGd9THOXiCpS43WdnMwwNms/ZJw==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.nv1OsAacjFEeA5VUp/fpjQ==|t59xgLc8Ofly7jvfcR+vt1IZLvG0/1MU77ex5qMaQCCNvlobxsVFGWx7sQW6Z3ozooPJEfGAXsP/Xy4p4UxHaje+uqxG1ixR995ZiongcXI=|jXitL1SrtXTXbd+sktBcHc+JUwjyAsZWS7vr3tubFgM=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUG7nwHKsC/6js5adwk161mY6AAE4gQI6AAE4gAGhBUyaf0ynL7+T+/qttsRZATlQakPGQFnSj2IxFTmskPWyaeJxibdWO+oEMpG4lvOr8CWdy7FKa8jj0yVuSsKzhE3S68f5mZpoAesMv+JpeJ5R4s9iQyxSR0NOsxgb1Ub69gpx+gmytmcPl9Uw/MsDHYSY1mcqze8V7OayDRj6g0luaYT7ye7DQE84Xi6w4OuHtu4aXE/mUBiJXoDxU4/P2YHolYTm9JupByb+tFl0I3Iqcv7Y7AdBJNM4moIxi2wP3TfAh2YTRK4mRgZhAoI/jouu9ijhjPVfeBn4hK2FE94CAWpVMCVJFYu7K8dZtWL4zhzxDgHwGYqKLsz76PdlvzW6xCGmfpr8GDmlH5VuCrF2WRwHK26NGja3WA2bQBNxxT+a9Rg5a5ra5rsRyEoi8PDTGl6u8tgJ0nAIfFdLVKrh+mHf257AZyiG\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [],
+      "skipped": [],
+      "uninspectable": [
+        "c1"
+      ]
+    }
+  }
+}

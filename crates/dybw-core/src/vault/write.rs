@@ -380,9 +380,13 @@ pub fn apply(
     rng: &impl Random,
     now_ms: i64,
 ) -> Result<Map<String, Value>, WriteError> {
-    // 1. Abort checks against the copy being written over (§6.5). A blob cipher scans as held, so it never gets here.
+    // 1. Abort checks against the copy being written over (§6.5).
     if trashed(cipher) {
         return Err(WriteError::Gone);
+    }
+    // A blob reads as marked, but a field-level body would wipe it: held until blobs are written (ADR 0021).
+    if is_blob(cipher) {
+        return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }
     let fresh = match scan(cipher, ns, keys, &Organizations::All) {
         Scan::Marked(m) if m.id == patch.id => m,

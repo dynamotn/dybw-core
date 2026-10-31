@@ -314,16 +314,15 @@ def flip_envelope(env: bytes) -> bytes:
 def encrypt_blob_cipher(
     src: dict, account: dict, sid: str, ns: str, fresh: bool = False, same_as: dict | None = None
 ) -> dict:
-    """A personal blob cipher: ``data`` is the SDK's sealed blob (AES-256-GCM CEK, wrapped under the item key,
-    which a blob always has). The item key is a 64-byte legacy key, wrapped under the user key as the account's
-    EncString type (2, or 7 labelled legacy-key); the CEK is wrapped under it as type 2."""
+    """A blob cipher: ``data`` is the SDK's sealed blob (AES-256-GCM CEK, wrapped under the item key, which a blob
+    always has). The item key is a 64-byte legacy key, wrapped under the owner key (the user key, or the
+    organization key for an organization blob, which the SDK never writes) as its EncString type (2, or 7 labelled
+    legacy-key); the CEK is wrapped under it as type 2."""
     seed = base64.b64decode(account["seed"])
-    if src.get("organizationId"):
-        raise GenError(f"cipher {src['id']!r}: a blob cipher is personal")
     unknown = sorted(set(src.get("tamper", [])) - {"envelope", "wrapped_cek"})
     if unknown:
         raise GenError(f"cipher {src['id']!r}: tamper paths not encrypted: {', '.join(unknown)}")
-    owner = _owner_key(account, None)
+    owner = _owner_key(account, src.get("organizationId"))
     base = (sid, ns, src["id"]) + (("fresh",) if fresh else ())
     if same_as is not None and (same_as.get("itemKey") or same_as.get("format") == "blob"):
         item_key = bwcrypto.derive(seed, 64, sid, ns, src["id"], "itemKey")
@@ -349,8 +348,9 @@ def encrypt_blob_cipher(
         "envelope": bwcrypto.b64(envelope),
     }
     out: dict = {"id": src["id"], "type": src["type"]}
-    if "folderId" in src:
-        out["folderId"] = src["folderId"]
+    for k in ("folderId", "organizationId"):
+        if k in src:
+            out[k] = src[k]
     out.update(name=None, notes=None, login=None, fields=None, passwordHistory=None, key=wrapped_key)
     out["data"] = json.dumps(data, separators=(",", ":"))
     for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword"):

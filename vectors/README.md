@@ -50,7 +50,7 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | `folderId` | string or `null` | `null` | |
 | `organizationId` | string or `null` | `null` | |
 | `itemKey` | bool | `false` | `true` gives the cipher a per-item key |
-| `format` | `"fields"` or `"blob"` | `"fields"` | `"blob"` (1.6) seals the cipher as Bitwarden's blob form, below. A blob cipher is personal (no `organizationId`), a login (`type` 1) or a secure note (2), and always has an item key (`itemKey` is forced `true`) |
+| `format` | `"fields"` or `"blob"` | `"fields"` | `"blob"` (1.6) seals the cipher as Bitwarden's blob form, below. A blob cipher is a login (`type` 1) or a secure note (2), and always has an item key (`itemKey` is forced `true`), wrapped under the organization key when `organizationId` is set (an organization blob, which the SDK never writes, exists only to be held as uninspectable) |
 | `formatVersion` | int | `1` | Blob only: the `format_version` of `data`. A value other than 1 writes a newer format |
 | `contentVersion` | string | `"1"` | Blob only: the `version` of the sealed CBOR content. Another value writes a newer content version |
 | `creationDate`, `revisionDate`, `deletedDate` | ISO 8601 or `null` | `null` | |
@@ -191,7 +191,7 @@ The source object with these differences:
     `passwordHistory` all `null`, and `data`: a JSON text (compact, in this key
     order) `{"format_version": 1, "wrapped_cek": "<EncString>", "envelope":
     "<base64>"}`. The item key (`key`) is a 64-byte legacy key wrapped under
-    the user key as the account's EncString type (2, or 7 labelled
+    the owner key (the user key, or the organization key) as its EncString type (2, or 7 labelled
     legacy-key). `wrapped_cek` is the content key (CEK), a COSE_Key
     (AES-256-GCM, `key_ops` `[4]`, padded by one `0x01`), wrapped under the
     item key as type 2. `envelope` is a DataEnvelope: a COSE_Encrypt0 under the

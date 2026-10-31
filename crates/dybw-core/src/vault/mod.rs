@@ -1,6 +1,7 @@
 //! Read rules of the data model: namespaces, discovery and the value source (§2–§5), duplicates (§7) and
 //! organization keys (§9, design §6.9).
 
+mod blob;
 pub mod fields;
 pub mod namespace;
 pub mod orgs;
@@ -10,7 +11,8 @@ pub mod write;
 pub use namespace::{Encodings, IdProblem, Namespace};
 pub use orgs::{OrgProblem, unlock_organizations};
 pub use scan::{
-    Duplicate, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, ValueSource, scan, scan_vault, scan_vault_with,
+    Duplicate, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, UnmarkedCache, ValueSource, scan, scan_vault,
+    scan_vault_with,
 };
 
 use crate::crypto::{Marker, SymmetricKey};
@@ -51,6 +53,10 @@ mod scan_tests;
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod orgs_tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod blob_tests;
 
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]

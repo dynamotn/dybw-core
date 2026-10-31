@@ -10,7 +10,7 @@ use dybw_core::crypto::Marker;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom, block_on};
 use dybw_core::vault::write::{NewItem, Patch, ValueChange, WriteError};
-use dybw_core::vault::{Namespace, Organizations, scan_vault};
+use dybw_core::vault::{Namespace, Organizations, UnmarkedCache, scan_vault};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -249,6 +249,7 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
     let rng = SeededRandom::new(0x0000_706c_616e);
     let overrides = BTreeMap::new();
+    let mut unmarked = UnmarkedCache::default();
     let mut api = client(server)?;
     let planned = block_on(async {
         api.login(&api_key()?).await.map_err(|e| e.to_string())?;
@@ -262,6 +263,7 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
             overrides: &overrides,
             applies: &|_| true,
             upload_folder: None,
+            unmarked: &mut unmarked,
         };
         sync::plan_pass(&mut ctx, &state, &local).await.map_err(|e| e.to_string())
     })?;

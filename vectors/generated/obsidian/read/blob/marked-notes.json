@@ -1,0 +1,68 @@
+{
+  "id": "read/blob/marked-notes",
+  "spec": "1.6",
+  "sections": [
+    "§3.2",
+    "§4.2",
+    "§5"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYu1kcvBkULZdaA1QL2LVEKjqvHKDlogJlWFDjZr4JNNQIIz1W8DsiKZtvgXrUgwOLiVcV8MWAuI3Jmzej43TH9DvoILRP2ZOlbPUWbY0iaTmYZ5dWfx4mZs03Aig7SXmNb1xj8bqO5Pknzg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.bPc+KLVRbH1Eki9M8Dj4oQ==|YT5zs+VCQkA016TWGKFGwlZog0o7yc9BVIwJNK7Vztmv129z22PY3dUe0Iz0wkiDGtREjasBVKAwLOimXcTVPgR67uY7WtCl4Vg/SlzGfpU=|adCm2Onr6wbVJlS2pJeZ/oGbufsCHNhfA9kNMXwGUWc=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUBWtjq3hfQHYCJCAgVQ4iJo6AAE4gQI6AAE4gAGhBUwm15YD5Fw7ZiASMspZAUQKoaeBytDWHuhls7lnFvLjtr9nzIvm5i1GpmDJcSvVBcaLxyvVwi0xvVtvvH2uT2ulAct/hFybBfPTYv1lOSFR+/JfVRg9FAaF6/iCTaAz3zZhfRpNJnGgamoowvWSLFH7WJ5EuRelzdgRp5Tzjj4JgYuLsDT4InA2DzKRp1tBautzFWwEjsSx9hu4sTvhywMymRe7lg7cP6pj2jzK33IrPP4wBTuLiEAva1q5KjcBo06xTwhYuewk9cRWk8mWtaFnnNvMjHESsL7OBbY8RUWmyAzbbqBKWV3VL6KuHIXtzfxRBFHoC/h8S2ibygveXQ+3mGq6LxBho6Hjem3kBgK0NsevGq5+KA/nKSMqeYHgOP01EVogQ0XqcYDjqdzYSBWN648yv8j0oRsPD192OOizSSQLHGe4Kc5ks1JPD19U8p+ctCs=\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "folderId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYFAXsJdy4QJBYVDRBuzOXGcFtuQLddFjuWFAfbBUIVIEroINPsHZCc/mQ34clU37kkjNwWnoknsveVdwghXXW6AdTGraLjksSOYq0m7vPdhc65xG0sH5brDS7QhSTVP5DOLzVMzk7Gq+Kkg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.FDxU6NU3TsztdvsyM4VFDA==|SbjtclEgWQmQ4FVp8PhDJYpm5CAemdARVQATXKsez6DaYP6UtUMgMJ1DAis9nhQY8f3O8iajMYv1D8iHKDYj2qAwksJpDGDnkzTutDMpp1A=|yuh0aw0XuTNd3AldRRdd63T9nSg2aNXj4rUhRSOcpNE=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUKlIzm09p8i3DJpLfaFQIF46AAE4gQI6AAE4gAGhBUxkJ+Gt/x1v0dP1LnhYpnYyDiilVja6x64gbGlAA3Xr25zks4WT9xjd1t6ztP0ZKUbfyRT9hVko9aU4u5lKencxuuD1WGYL4iLXi4HwbG5eVqARPpZlRP10ym2vAUUySOdC8X5ZbIBtrL9+6MNkI5CGA+UySThBZq3UuA4H/CwBJsAFPaNElAcT5LPWjFg8td1exBq4XeF9jSIU2K2URXcXtok4K7QVmlIVrSDXC7QfQYUIM2Q=\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "blob-notes-secret",
+          "source": "notes"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "blob-note-body",
+          "source": "note-body"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

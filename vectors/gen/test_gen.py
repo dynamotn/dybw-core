@@ -1051,13 +1051,22 @@ def test_blob_tamper_breaks_only_the_named_part():
 def test_blob_is_rejected_where_it_cannot_be_written():
     account = gen.load_account("cose-v2")
     for over, why in (
-        ({"organizationId": "org-a"}, "personal"),
         ({"type": 3}, "login or a secure note"),
         ({"tamper": ["name"]}, "not encrypted"),
     ):
         src = gen.expand_ns({**BLOB_FIXTURE["ciphers"][0], **over}, "bwss")
         with pytest.raises(gen.GenError, match=why):
             gen.encrypt_cipher(src, account, "read/blob", "bwss")
+
+
+def test_organization_blob_is_sealed_under_the_organization_key():
+    account = gen.load_account("org")
+    src = gen.expand_ns({**BLOB_FIXTURE["ciphers"][0], "organizationId": "org-a"}, "bwss")
+    cipher = gen.encrypt_cipher(src, account, "read/blob", "bwss")
+    assert cipher["organizationId"] == "org-a"
+    assert gen.open_blob(cipher, account)["content"]["name"] == "Blob bwss"
+    with pytest.raises(Exception):
+        gen.open_blob({**cipher, "organizationId": None}, account)
 
 
 def test_blob_fresh_keeps_the_item_key():

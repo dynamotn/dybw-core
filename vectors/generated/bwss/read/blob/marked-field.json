@@ -1,0 +1,44 @@
+{
+  "id": "read/blob/marked-field",
+  "spec": "1.6",
+  "sections": [
+    "§4.2",
+    "§5"
+  ],
+  "account": "cose-v2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYeGNW+CybNYZInzOFQJbBnD0YELcZz3s5WFC2wIZyj65rQiDuXwWIMaEqRdRHJenbInJjG/hV0q3ou9EB9fyTxUllY99qv/iI/bm8g+TxKPSElPqhP0Vv/3de6mJgU/nale115EVLeEDugQ==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.aRXfBFAG1TlwgIhSZ4v7sQ==|DW8vDo8rahwi6X/uSmfiyb6hEAAZ7DEOgS2KjKC+wMRkH2mxoOtIFGbNjnV+GH3hCgNOnygKJlnS/2Ayz2cd/AGlYj9mR+IhfkXNUshzsMs=|jJS6IsTVUnJHL3v8yBXgmTv42P+UKnrTjmhnCmjPdS0=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUB9KkG5CKus2SKdtGslXy4U6AAE4gQI6AAE4gAGhBUzA3Tk25NcJYH6AmZxZAYgzsqLpK5U1Ugkg2kz6nakfYfZf06Fv93ikh3tI6xj/TZeuy7lUvLRVXu10yaSEGvYrpYcOlYtI1LEy5HAvqSiH75/d73kYP04BXJa3Tl83TLik42CLoSyyiTYMOITgZHJzvnGEdHOluafEDcWz3GXiDpsEl0JTXSbnKpLjCyT+8PTyD5W6ruw9YIrzALOQOyvCbgQgxpzgM5dAtGf/jaxOefxNQymhfBSsRyIXrnIBPJRkdm68bZ95ZcoiJ0MnreAiBVnoxERtjmoBUDW0kLV3Oc8/zFISalOR5Gu4+c5vciItAI/uZ4p+KilCWu0ZyM+wwAcY98cWlC9YeFBYGLehXUVSj0vKhC0l9XAhtaZhIgLMXTPGNMdQsIcYkYTMf+I+cJWfEsR48Kc0ijOmZvWsio8gy8tKi77aMAfvMsKN1zkQAQEcAdtq0ZzCvf5sBk+/ZLizGOs8L2vStPx0LNIeW2xqLp+/I8YYN/qzJsZVM8a5EneshHOXN1fyiS3ACsMEjnthX67I0g==\"}",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "blob-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

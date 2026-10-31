@@ -1,0 +1,90 @@
+{
+  "id": "read/blob/marked-notes",
+  "spec": "1.6",
+  "sections": [
+    "§3.2",
+    "§4.2",
+    "§5"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "format": "blob",
+      "name": "Login c1",
+      "notes": "blob-notes-secret",
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:location",
+          "value": "notes",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    },
+    {
+      "id": "c2",
+      "type": 2,
+      "format": "blob",
+      "name": "Note c2",
+      "notes": "blob-note-body",
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "beta",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "blob-notes-secret",
+          "source": "notes"
+        },
+        {
+          "cipher": "c2",
+          "id": "beta",
+          "value": "blob-note-body",
+          "source": "note-body"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

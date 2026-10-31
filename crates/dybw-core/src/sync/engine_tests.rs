@@ -9,7 +9,7 @@ use crate::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
 use crate::testing::{FixedClock, SeededRandom, block_on};
 use crate::vault::scan::{MarkedItem, Scan, SkipReason, scan};
 use crate::vault::write::WriteError;
-use crate::vault::{Keys, Namespace, Organizations};
+use crate::vault::{Keys, Namespace, Organizations, UnmarkedCache};
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -197,6 +197,7 @@ struct Rig {
     overrides: BTreeMap<String, ConflictOverride>,
     allowed: Organizations,
     folder: Option<String>,
+    unmarked: UnmarkedCache,
     cancelled: Rc<Cell<bool>>,
     applies: Box<dyn Fn(&MarkedItem) -> bool>,
     saves: Rc<Cell<usize>>,
@@ -254,6 +255,7 @@ impl Rig {
             overrides: BTreeMap::new(),
             allowed: Organizations::All,
             folder: None,
+            unmarked: UnmarkedCache::default(),
             cancelled: Rc::default(),
             applies: Box::new(|_| true),
             saves: Rc::default(),
@@ -337,6 +339,7 @@ impl Rig {
             overrides: &self.overrides,
             applies: &*self.applies,
             upload_folder: self.folder.clone(),
+            unmarked: &mut self.unmarked,
         };
         let save = move |_: &DeviceState| saves.set(saves.get() + 1);
         block_on(run_sync(&mut ctx, &mut self.state, &mut self.store.clone(), save, move || cancelled.get()))
@@ -364,6 +367,7 @@ impl Rig {
             overrides: &self.overrides,
             applies: &*self.applies,
             upload_folder: self.folder.clone(),
+            unmarked: &mut self.unmarked,
         };
         block_on(plan_pass(&mut ctx, &self.state, &self.store)).unwrap()
     }
@@ -382,6 +386,7 @@ impl Rig {
             overrides: &self.overrides,
             applies: &*self.applies,
             upload_folder: self.folder.clone(),
+            unmarked: &mut self.unmarked,
         };
         let mut report = SyncReport::default();
         let mut store = self.store.clone();

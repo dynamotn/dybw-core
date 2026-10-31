@@ -1,0 +1,58 @@
+{
+  "id": "read/blob/newer-content-version",
+  "spec": "1.6",
+  "sections": [
+    "§4.2"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "format": "blob",
+      "name": "Login c1",
+      "notes": null,
+      "login": {
+        "username": "user",
+        "password": "login-pw",
+        "uris": [
+          "https://example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "blob-secret",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true,
+      "contentVersion": "2"
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [],
+      "skipped": [],
+      "uninspectable": [
+        "c1"
+      ]
+    }
+  }
+}
