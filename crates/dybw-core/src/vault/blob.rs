@@ -154,6 +154,8 @@ impl OpenBlob {
         let sealed =
             Cbor::Map(vec![(Cbor::text("version"), Cbor::text("1")), (Cbor::text("content"), Cbor::Map(self.0))]);
         let (envelope, cek) = seal_envelope(&sealed, EnvelopeNamespace::VaultItem, rng)?;
+        // Content format OctetStream, as the SDK wraps it under a legacy item key; unverified for a COSE (type 7) item
+        // key, which the core never creates.
         let wrapped = item_key.encrypt(&SymmetricKey::Cose(cek).to_bytes(), rng)?;
         // The SDK's key order; an EncString and base64 need no JSON escaping.
         Ok(format!(r#"{{"format_version":1,"wrapped_cek":"{wrapped}","envelope":"{}"}}"#, B64.encode(envelope)))

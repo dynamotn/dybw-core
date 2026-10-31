@@ -1351,12 +1351,12 @@ fn blob_create_needs_version_2() {
     for v in [BLOB_SECURITY_VERSION, 3] {
         k.keys.security_version = v;
         let body = new_item(&it, B, &k.keys, &k.rng).unwrap();
-        for key in ["name", "notes", "login", "fields", "passwordHistory"] {
+        for key in ["name", "notes", "login", "secureNote", "fields", "passwordHistory"] {
             assert_eq!(body[key], Value::Null, "{key}");
         }
         assert_eq!(
-            (&body["type"], &body["organizationId"], &body["folderId"], &body["secureNote"]),
-            (&json!(2), &Value::Null, &json!("f1"), &json!({ "type": 0 }))
+            (&body["type"], &body["organizationId"], &body["folderId"]),
+            (&json!(2), &Value::Null, &json!("f1"))
         );
         assert!(!body.contains_key("lastKnownRevisionDate"));
         // A fresh 64-byte item key, wrapped under the user key.

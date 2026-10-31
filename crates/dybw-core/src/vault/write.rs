@@ -621,7 +621,6 @@ pub fn new_item(
         ("organizationId", Value::Null),
         ("folderId", json!(item.folder_id)),
         ("login", Value::Null),
-        ("secureNote", json!({ "type": 0 })),
         ("favorite", json!(false)),
         ("reprompt", json!(0)),
     ] {
@@ -633,7 +632,8 @@ pub fn new_item(
         let item_key = SymmetricKey::generate(rng)?;
         let data = edit.body.seal(&item_key, rng)?;
         let key = keys.user.encrypt_as(&item_key.to_bytes(), ContentFormat::LegacyKey, rng)?;
-        for k in ["name", "notes", "fields", "passwordHistory"] {
+        // The type data lives in the blob's `typeData`: the SDK sends every legacy part null.
+        for k in ["name", "notes", "secureNote", "fields", "passwordHistory"] {
             body.insert(k.into(), Value::Null);
         }
         body.insert("key".into(), json!(key));
@@ -649,6 +649,7 @@ pub fn new_item(
         ("notes", notes),
         ("key", Value::Null),
         ("passwordHistory", json!([])),
+        ("secureNote", json!({ "type": 0 })),
         ("fields", fields),
     ] {
         body.insert(k.into(), v);
