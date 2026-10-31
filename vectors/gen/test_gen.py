@@ -1016,22 +1016,27 @@ def test_blob_pascal_case_and_versions():
     assert gen.open_blob(cipher, account)["version"] == "2"
 
 
-def test_blob_padding_is_64():
+def test_blob_padding_matches_sdk():
+    """The SDK's pad_bytes(content, 64): a minimum length of 64, and at least one byte."""
     import bwcrypto
 
-    account = gen.load_account("cose-v2")
-    for n in (0, 1, 63, 64, 65, 200):
-        cek = bwcrypto.cek_key(b"k" * 16, b"s" * 32)
-        content = b"\x01" * n
+    cek = bwcrypto.cek_key(b"k" * 16, b"s" * 32)
+    for n, want in ((0, 64), (1, 64), (63, 64), (64, 65), (65, 66), (200, 201)):
+        content = b"\x07" * n
         env = bwcrypto.data_envelope(content, cek, b"n" * 12)
         _, _, ct = bwcrypto.cbor_decode(env)
-        assert (len(ct) - 16) % 64 == 0 and len(ct) - 16 > n
+        assert len(ct) - 16 == want
         assert bwcrypto.open_envelope(env, cek) == content
-    cipher, _ = _blob()
-    data = json.loads(cipher["data"])
-    _, _, ct = bwcrypto.cbor_decode(base64.b64decode(data["envelope"]))
-    assert (len(ct) - 16) % 64 == 0
-    assert account["name"] == "cose-v2"
+    assert bwcrypto.pad(b"\x07" * 64, 64)[-1] == 1
+    # every recorded SDK envelope unpads under this rule: the last byte n, and n bytes of value n
+    for name in load(SDK_M3)["v1"]:
+        key, env, _ = _sdk_blob(name)
+        k = bwcrypto._cose_parts(key)
+        protected, unprotected, ct = bwcrypto.cbor_decode(env)
+        plain = bwcrypto._seal(k[3], k[-1], unprotected[5], ct, bwcrypto._enc_structure(protected), open_=True)
+        n = plain[-1]
+        assert 0 < n <= len(plain) and plain[-n:] == bytes([n]) * n
+        assert bwcrypto.pad(plain[:-n], 64) == plain
 
 
 def test_blob_tamper_breaks_only_the_named_part():

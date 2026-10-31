@@ -289,7 +289,7 @@ FORMATS = {
     "cose-key": 101,  # CoAP content format application/cose-key
 }
 ENVELOPE_FORMAT = "application/x.bitwarden.cbor-padded"
-ENVELOPE_BLOCK = 64
+ENVELOPE_MIN_LEN = 64
 LABEL_CONTENT_NAMESPACE = -80001  # 1 = VaultItem
 LABEL_SAFE_OBJECT_NAMESPACE = -80002  # 2 = DataEnvelope
 LABEL_SIGNING_NAMESPACE = -80000  # 2 = SecurityState
@@ -359,9 +359,9 @@ def cose_key(seed: bytes, alg: int = ALG_XAES) -> bytes:
     return cbor_encode(key) + b"\x01"
 
 
-def pad(plain: bytes, block: int) -> bytes:
-    """The core's ``cose::pad``: N bytes of value N, at least one, up to the next multiple of ``block``."""
-    n = block * (1 + len(plain) // block) - len(plain)
+def pad(plain: bytes, min_len: int) -> bytes:
+    """The core's ``cose::pad`` (the SDK's ``pad_bytes``): N bytes of value N, at least one, up to ``min_len``."""
+    n = max(min_len - len(plain), 1)
     return plain + bytes([n]) * n
 
 
@@ -461,7 +461,7 @@ def cose_encrypt(plain: bytes, key: bytes, nonce: bytes, content_format: str) ->
     k = _cose_parts(key)
     protected = _protected(k, content_format)
     if content_format == "utf8":
-        plain = pad(plain, 32)
+        plain = pad(plain, 32 * (1 + len(plain) // 32))
     ct = _seal(k[3], k[-1], nonce, plain, _enc_structure(protected), open_=False)
     return "7." + b64(cbor_encode([protected, {5: nonce}, ct]))
 
@@ -503,7 +503,7 @@ def data_envelope(content_cbor: bytes, cek: bytes, nonce: bytes) -> bytes:
             LABEL_CONTENT_NAMESPACE: 1,
         }
     )
-    ct = _seal(k[3], k[-1], nonce, pad(content_cbor, ENVELOPE_BLOCK), _enc_structure(protected), open_=False)
+    ct = _seal(k[3], k[-1], nonce, pad(content_cbor, ENVELOPE_MIN_LEN), _enc_structure(protected), open_=False)
     return cbor_encode([protected, {5: nonce}, ct])
 
 

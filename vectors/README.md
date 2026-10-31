@@ -199,8 +199,9 @@ The source object with these differences:
     `application/x.bitwarden.cbor-padded`, `kid`, label `-80002` = 2 (safe
     object: DataEnvelope) and label `-80001` = 1 (content: VaultItem), the
     nonce in the unprotected `iv`. Its content is CBOR (definite lengths)
-    `{"version": "1", "content": CipherBlobV1}` padded with N bytes of value N
-    to a multiple of 64 bytes (at least one). `CipherBlobV1` is
+    `{"version": "1", "content": CipherBlobV1}` padded as the SDK's
+    `pad_bytes(content, 64)`: N bytes of value N up to a length of 64, at
+    least one (so content of 64 bytes or more gets one `0x01` byte). `CipherBlobV1` is
     `{name, notes, typeData: {"type": "login" | "secureNote", ...}, fields?,
     passwordHistory?}` in camelCase, as the SDK serializes it: an absent value
     is `null`, an empty `fields`, `passwordHistory` or `uris` is left out. Login
