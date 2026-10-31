@@ -48,7 +48,7 @@ pub(super) fn as_map(v: &Cbor) -> Result<&[(Cbor, Cbor)], CryptoError> {
 }
 
 /// Copies the byte string under `label` into `out`, which must be exactly its length.
-fn bytes_into(map: &[(Cbor, Cbor)], label: i64, out: &mut [u8]) -> Result<(), CryptoError> {
+pub(super) fn bytes_into(map: &[(Cbor, Cbor)], label: i64, out: &mut [u8]) -> Result<(), CryptoError> {
     match get(map, label) {
         Some(Cbor::Bytes(b)) if b.len() == out.len() => {
             out.copy_from_slice(b);

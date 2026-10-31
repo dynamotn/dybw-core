@@ -1,7 +1,9 @@
 //! The fixed accounts of `vectors/accounts/`, unlocked by the core's own code.
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
-use dybw_core::crypto::{AwsLcRsa, ContentFormat, Marker, SymmetricKey, unwrap_org_key};
+use dybw_core::crypto::{
+    AwsLcRsa, ContentFormat, Marker, SymmetricKey, unwrap_org_key, unwrap_signing_key, verify_security_state,
+};
 use dybw_core::testing::{SeededRandom, block_on};
 use dybw_core::vault::{Keys, Namespace};
 use serde_json::{Value, json};
@@ -87,10 +89,18 @@ pub fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys
     if let (Some(account_keys), Some(p)) = (account.pointer("/profile/accountKeys"), profile.as_object_mut()) {
         p.insert("accountKeys".into(), account_keys.clone());
     }
-    // TODO(Task 4): read the version from `verify_security_state` over the signed state, never from the server's
-    // `securityVersion`; the test `security_version_is_read_from_the_account_file` goes with this line.
-    let security_version =
-        account.pointer("/profile/accountKeys/securityState/securityVersion").and_then(Value::as_u64).unwrap_or(0);
+    // Verified with the key derived from the wrapped signing key; the server's `securityVersion` is never read.
+    let security_version = match account.pointer("/profile/accountKeys") {
+        Some(keys) => {
+            let wrapped = keys.pointer("/signatureKeyPair/wrappedSigningKey").and_then(Value::as_str);
+            let signing = unwrap_signing_key(&user, wrapped.unwrap_or_else(|| panic!("{name}: no wrappedSigningKey")))
+                .unwrap_or_else(|e| panic!("{name}: wrappedSigningKey: {e}"));
+            let state = keys.pointer("/securityState/securityState").and_then(Value::as_str);
+            verify_security_state(&signing, state.unwrap_or_else(|| panic!("{name}: no securityState")))
+                .unwrap_or_else(|e| panic!("{name}: securityState: {e}"))
+        }
+        None => 0,
+    };
     let kdf = account.get("kdf").unwrap_or_else(|| panic!("{name}: no kdf"));
     let num = |k: &str| kdf.get(k).cloned().unwrap_or(Value::Null);
     let prelogin = match kdf.get("type").and_then(Value::as_str) {

@@ -4,7 +4,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of, resolve_server_urls};
 use dybw_core::crypto::{
     AwsLcRsa, CoseAlgorithm, CryptoError, KdfParams, NativeArgon2, SymmetricKey, derive_master_key,
-    hash_master_password,
+    hash_master_password, unwrap_signing_key, verify_security_state,
 };
 use dybw_core::ports::{Http, HttpRequest, HttpResponse, PortError};
 use dybw_core::profile::{ProfileError, Unlocked, unlock};
@@ -440,16 +440,19 @@ fn unlock_uses_the_server_salt() {
     assert!(matches!(out.result, Err(ProfileError::WrongPassword)));
 }
 
-// TODO(Task 4): the version comes from `verify_security_state` over the signed state; delete this test with the
-// line in `keys.rs` that reads the server's `securityVersion`.
+/// The version comes from the signed state, verified with the key derived from the wrapped signing key; accounts
+/// without a signed state read 0.
 #[test]
-fn security_version_is_read_from_the_account_file() {
+fn cose_v2_security_state_is_2() {
     let dir = vectors_dir().unwrap();
     for (name, version) in [("pbkdf2", 0), ("cose", 0), ("cose-v2", 2)] {
         assert_eq!(account_keys(&dir, name, false).security_version, version, "{name}");
     }
     let v2 = account_keys(&dir, "cose-v2", false);
-    assert!(v2.profile["accountKeys"]["signatureKeyPair"]["wrappedSigningKey"].as_str().unwrap().starts_with("7."));
+    let keys = &v2.profile["accountKeys"];
+    let signing =
+        unwrap_signing_key(&v2.user, keys["signatureKeyPair"]["wrappedSigningKey"].as_str().unwrap()).unwrap();
+    assert_eq!(verify_security_state(&signing, keys["securityState"]["securityState"].as_str().unwrap()), Ok(2));
     assert!(account_keys(&dir, "cose", false).profile.get("accountKeys").is_none());
 }
 

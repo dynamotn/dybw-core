@@ -66,7 +66,7 @@ impl SymmetricKey {
 
     /// Dispatches on the type prefix: `2.` for a legacy key, `7.` for a COSE key; a value of the other type is
     /// `WrongKey`, any other number `UnsupportedType`. A type 7 value must hold one of the `expected` formats.
-    fn open(
+    pub(super) fn open(
         &self,
         s: &str,
         expected: &[ContentFormat],
