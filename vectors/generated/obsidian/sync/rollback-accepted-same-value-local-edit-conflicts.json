@@ -1,0 +1,75 @@
+{
+  "id": "sync/rollback-accepted-same-value-local-edit-conflicts",
+  "spec": "1.6",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask",
+    "acceptRollback": true
+  },
+  "local": {
+    "alpha": "edited-locally"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-02-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.u3iExoOsXLhacFmpbxcTYw==|HcIVwi1YYvPwIiUjO9JKmQ==|bAuKgiKRvX0d3o0MpbkPEG9xmOI4DGIOa8BSblr7ZF4=",
+      "notes": null,
+      "login": {
+        "username": "2.0WOfEBYinAAXzfhrHe8sNQ==|yDnlm+N5l6o1JOq1ammlvA==|+dQUZW8poF9KETfTuK6zX+IQqVmaBBFytf6cNA6Ke8o=",
+        "password": "2.GPBfL0cqvksNtitJ1UhC7A==|3NFwTP/1leBowgGZZq0ZLg==|qfwCtSWqz5c4XImg8N8eN3zxo+YBnYcebX7p/zFjcFA=",
+        "uris": [
+          {
+            "uri": "2.e655apza8CsjlbBY3LFg8g==|cM+lavKfvo5a7SMX+wXFf/qALGloz1femKJgpv7d3v4=|7xrUAh0/8DKfqsFddf+qxv4P/Dz042F+gPhovHiTvQc=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.vZqo2V+n0rZftjsobwImRA==|YBSXlkGu/i+PajBlQ9IMWg==|C6CQU62l/yY9+Xx5V1PzcMRMtj0ZAf1CQ2tWJ5lk0bA=",
+          "value": "2.NOisdtKwGOfoR/KUCfOR6Q==|M/zpN/nhsl7wuP6fRWtQCA==|R6bSmQfh1PWXwUqUjapCaaP4xg1iAzD/cjlqZhd4IoM=",
+          "type": 0
+        },
+        {
+          "name": "2.+RKUecsKLXNvCaSiPwh7dg==|s1LGg3BKFqQFvsrAcSv18KMwSL2egpmpGim2bihJD4I=|XGy60XCxNjrR4AcPrfXCPC2BxEa7oC6oEE5n5wUO5+w=",
+          "value": "2.9NbV2jP1YqGU0bzgBat83Q==|SVqgskwhn8zw3Hjjdn1D4w==|ujbBi8pij7uNKoRFznc9I52KH1Zjqmdz0w/KTzwPn74=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "conflict",
+        "id": "alpha",
+        "conflict": "both-changed"
+      }
+    ]
+  }
+}

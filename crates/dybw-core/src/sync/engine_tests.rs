@@ -1534,13 +1534,27 @@ fn another_cipher_for_the_id_is_not_a_rollback() {
 }
 
 #[test]
-fn rollback_counts_toward_no_mass_clear() {
+fn rollbacks_are_left_out_of_the_mass_clear_base() {
     let mut r = Rig::obsidian();
-    let (a, b) = (r.add("a", "1"), r.add("b", "2"));
+    let ids: Vec<_> = ["a", "b", "c", "d", "e"].iter().map(|k| r.add(k, "v")).collect();
     r.ok();
-    roll_back(&r, &a);
-    roll_back(&r, &b);
+    roll_back(&r, &ids[0]);
+    roll_back(&r, &ids[1]);
+    r.world().ciphers.retain(|c| c["id"] != ids[2].as_str() && c["id"] != ids[3].as_str());
     let plan = r.plan();
     assert_eq!(plan.report.rollbacks.len(), 2);
-    assert!(plan.actions.is_empty() && plan.mass_clear.is_none());
+    // Two clears of a base of three: with the rollbacks counted it would be two of five.
+    assert_eq!(plan.mass_clear, Some((2, 3)));
+}
+
+#[test]
+fn a_rolled_back_item_is_not_created_from_a_pending_create() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    roll_back(&r, &c);
+    r.state.pending_creates.push("k".into());
+    let plan = r.plan();
+    assert_eq!(plan.report.rollbacks.len(), 1);
+    assert!(plan.actions.is_empty());
 }

@@ -40,6 +40,7 @@ struct Case {
     base: Vec<(String, BaseEntry)>,
     local: Vec<(&'static str, &'static str)>,
     pending: Vec<&'static str>,
+    rolled_back: Vec<&'static str>,
     policy: Option<Policy>,
     overrides: Vec<(&'static str, ConflictOverride)>,
 }
@@ -49,6 +50,7 @@ impl Case {
         let remote: BTreeMap<_, _> = self.remote.iter().map(|e| (e.id.clone(), e.clone())).collect();
         let base: BTreeMap<_, _> = self.base.iter().cloned().collect();
         let pending: BTreeSet<_> = self.pending.iter().map(|s| s.to_string()).collect();
+        let rolled_back: BTreeSet<_> = self.rolled_back.iter().map(|s| s.to_string()).collect();
         let overrides: BTreeMap<_, _> = self.overrides.iter().map(|(k, v)| (k.to_string(), *v)).collect();
         let local = |id: &str| self.local.iter().find(|(k, _)| *k == id).map(|(_, v)| v.to_string());
         plan_sync(&PlanInput {
@@ -56,6 +58,7 @@ impl Case {
             base: &base,
             local: &local,
             pending_creates: &pending,
+            rolled_back: &rolled_back,
             policy: self.policy.unwrap_or(Policy::Ask),
             overrides: &overrides,
         })
@@ -428,4 +431,24 @@ fn equal_dates_are_not_a_rollback() {
     // The same instant written in two offsets is equal too.
     assert!(!is_rollback("2026-05-01T00:00:00.000Z", "2026-05-01T00:00:00.000Z"));
     assert!(!is_rollback("2026-05-01T01:00:00.000+01:00", "2026-05-01T00:00:00.000Z"));
+}
+
+#[test]
+fn an_accepted_rollback_never_pushes() {
+    let case = |local: &'static str| Case {
+        remote: vec![r("a", "r0", "f0")],
+        base: vec![b("a", "r1", "f0")],
+        local: vec![("a", local)],
+        rolled_back: vec!["a"],
+        ..Case::default()
+    };
+    assert_eq!(case("f0").plan(), [pull("a")]);
+    assert_eq!(case("f1").plan(), [Action::Conflict { id: "a".into(), kind: BothChanged }]);
+    let mut same = case("f0");
+    same.remote = vec![r("a", "r0", "f1")];
+    same.local = vec![("a", "f1")];
+    assert_eq!(same.plan(), [adopt("a")]);
+    let mut prefer = case("f1");
+    prefer.policy = Some(Policy::PreferLocal);
+    assert_eq!(prefer.plan(), [push("a")]);
 }

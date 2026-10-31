@@ -173,17 +173,23 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     // invalid id, moved to an organization, re-scoped) is left alone rather than treated as deleted.
     let mut base = BTreeMap::new();
     let mut rolled_back = BTreeSet::new();
+    let mut accepted = BTreeSet::new();
     for (id, entry) in &state.base {
         if !items.contains_key(id) && present.contains(&entry.cipher_id) {
             report.held.push((id.clone(), entry.cipher_id.clone()));
-        } else if !ctx.accept_rollback
-            && items
-                .get(id)
-                .is_some_and(|i| i.cipher_id == entry.cipher_id && is_rollback(&entry.revision_date, &i.revision_date))
+        } else if items
+            .get(id)
+            .is_some_and(|i| i.cipher_id == entry.cipher_id && is_rollback(&entry.revision_date, &i.revision_date))
         {
-            // Out of the plan and the base alike, as held: it must not count toward the mass-clear guard either.
-            report.rollbacks.push((id.clone(), entry.cipher_id.clone()));
-            rolled_back.insert(id.clone());
+            if ctx.accept_rollback {
+                // Planned as a remote change, never as a push over the server's version.
+                accepted.insert(id.clone());
+                base.insert(id.clone(), entry.clone());
+            } else {
+                // Out of the plan and the base alike, as held: it must not count toward the mass-clear guard.
+                report.rollbacks.push((id.clone(), entry.cipher_id.clone()));
+                rolled_back.insert(id.clone());
+            }
         } else {
             base.insert(id.clone(), entry.clone());
         }
@@ -202,7 +208,8 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
             (id.clone(), entry)
         })
         .collect();
-    let pending: BTreeSet<String> = state.pending_creates.iter().cloned().collect();
+    let pending: BTreeSet<String> =
+        state.pending_creates.iter().filter(|p| !rolled_back.contains(*p)).cloned().collect();
     let mut values = BTreeMap::new();
     for id in remote.keys().chain(base.keys()).chain(&pending) {
         if let Some(v) = local.get(id) {
@@ -216,6 +223,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
         base: &base,
         local: &fingerprint,
         pending_creates: &pending,
+        rolled_back: &accepted,
         policy: ctx.policy,
         overrides: ctx.overrides,
     });

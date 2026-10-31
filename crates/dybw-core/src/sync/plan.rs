@@ -91,6 +91,8 @@ pub struct PlanInput<'a> {
     pub local: &'a dyn Fn(&str) -> Option<String>,
     /// Secrets the user asked to upload that have no item yet.
     pub pending_creates: &'a BTreeSet<String>,
+    /// Accepted rollbacks (ADR 0019): the remote value counts as changed, so the local one is never pushed over it.
+    pub rolled_back: &'a BTreeSet<String>,
     pub policy: Policy,
     pub overrides: &'a BTreeMap<String, ConflictOverride>,
 }
@@ -159,7 +161,8 @@ pub fn plan_sync(input: &PlanInput) -> Vec<Action> {
             }),
             (Some(r), Some(b)) => {
                 // Values, not just revisions: edits to the name or folder bump the revision, not the secret.
-                let remote_changed = r.cipher_id != b.cipher_id || r.fingerprint != b.fingerprint;
+                let remote_changed =
+                    r.cipher_id != b.cipher_id || r.fingerprint != b.fingerprint || input.rolled_back.contains(id);
                 let remote_touched = remote_changed || r.revision_date != b.revision_date;
                 // A secret missing on this device is restored, never treated as a deletion.
                 let Some(l) = l else {
