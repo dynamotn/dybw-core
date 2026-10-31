@@ -1,7 +1,7 @@
 # Conformance vectors
 
 Scenarios that bwss and the Obsidian plugin must both satisfy, following data
-model **1.5**. Each scenario is written once as a plaintext **source** under
+model **1.6**. Each scenario is written once as a plaintext **source** under
 `vectors/src/`, and the generator turns it into one **generated** file per
 namespace under `vectors/generated/<ns>/`. Adapters in each tool read only the
 generated files. Both formats are pinned by JSON Schemas (`additionalProperties`
@@ -24,7 +24,7 @@ One JSON object per file.
 | Key | Type | Meaning |
 |---|---|---|
 | `id` | string | `^[a-z0-9-]+(/[a-z0-9-]+)*$`; the path below `vectors/src/` without `.json` |
-| `spec` | `"1.5"` | The data model version |
+| `spec` | `"1.5"` or `"1.6"` | The data model version. Every source written for 1.6 uses `"1.6"`; the 1.5 sources stay as they are |
 | `sections` | `["§5", ...]` | The sections of the data model the scenario tests (at least one) |
 | `account` | string | Name of a fixed account in `vectors/accounts/` |
 | `namespaces` | subset of `["bwss", "obsidian"]` | The scenario applies to each one listed. In field names and values, `{ns}` stands for the namespace |
@@ -66,6 +66,15 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 `value` is plaintext. The adapter computes the tool's own fingerprint from it,
 so vectors never carry a tool-specific fingerprint. `pushConfirmed` is optional.
 
+**1.6 additions.** `options.acceptRollback` (bool, default `false`) is the
+user's agreement to accept a rolled-back remote value (ADR 0021). A `base`
+entry gains two optional keys: `written`, the plaintext values this device
+wrote to `login.password`, newest first and at most 5, and
+`writeBackConfirmed` (bool), whether the first write-back to a hand-marked
+login was already confirmed (ADR 0016). Like `value`, `written` is plaintext.
+A read vector may carry `device`; only `base` is used there, for the bindings
+of ADR 0019.
+
 ### `operation`
 
 One of:
@@ -89,10 +98,14 @@ change to `fresh`.
   only the requests sent after the refetch; the rejected first write is not
   listed. An empty list means the tool gave up (data model §6.5). Each listed
   request's `lastKnownRevisionDate` is then the `revisionDate` of `fresh`.
-- **Confirmations.** A write vector shows the requests after every
-  confirmation the data model asks for was answered "go ahead" (the first
-  write-back to a hand-marked login, §6.1; the first write to an organization
-  item, §9). The questions themselves are not part of a write vector.
+- **Confirmations.** Unless `operation.answer` says otherwise, a write vector
+  shows the requests after every confirmation the data model asks for was
+  answered "go ahead" (the first write-back to a hand-marked login, §6.1; the
+  first write to an organization item, §9).
+  - **1.6 additions.** `answer` is `"write-to-login"` (the default, the
+    "go ahead" above), `"keep-separate"` or `"unanswered"`, and applies to
+    every kind of operation. A question the tool must ask before sending
+    anything is expressed as `expect.write` `{ "question": ... }`.
 
 ### `expect`
 
@@ -115,14 +128,19 @@ change to `fresh`.
     attributes are not listed. When it is absent, attributes are not checked.
   - `skipped`: `[{ cipher, reason }]`, with `reason` from the table below.
   - `uninspectable`: `[cipher id]`.
-  - `duplicates`: `[{ id, kept, left: [cipher id] }]`.
+  - `duplicates`: `[{ id, kept, left: [cipher id] }]`. 1.6 adds an optional
+    `boundKept` (bool, default `false`): the kept cipher is the one a device
+    binding chose (ADR 0019), not the default pick.
 - `write`: either `{ "requests": [CanonicalRequest] }` or
   `{ "error": "too-long" | "notes-hold-user-text" | "value-source-changed" }`.
+  1.6 adds a third form, `{ "question": "first-write-back" |
+  "evicts-foreign-history" }`: nothing was sent, and the tool must ask.
 - `plan`: `[{ kind, id }]` sorted by `id`, with `kind` one of `pull`, `push`,
   `adopt`, `clear-local`, `forget`, `create`; or
   `{ kind: "conflict", id, conflict }` with `conflict` one of `both-changed`,
   `local-unsynced`, `deleted-remotely`, `organization-claim`,
-  `organization-push`.
+  `organization-push`. 1.6 adds `{ kind: "rollback", id }`, sorted with the
+  rest (ADR 0021).
 
   The plan covers every id found in the read items, in `device.base` or in
   `device.pendingCreates`; an id that needs nothing has no entry, and an id
@@ -196,9 +214,10 @@ The source object with these differences:
 | `organizationId`, `folderId` | string or `null` |
 | `lastKnownRevisionDate` | string or `null` |
 | `hasItemKey` | bool |
+| `blob` | bool, optional (1.6): the body was sent as a blob, and the other keys are read from inside it |
 | `extra` | the unknown properties passed through: the `^x[A-Za-z0-9]+$` keys only, as in a cipher. Any other key of the request that is not in this table is ignored |
 
-A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`; no M1 vector carries one, so this applies once a vector does (M3). Only the plugin's adapter handles `<now>` today (it freezes the clock); bwss's adapter will need a fixed clock then. The
+A `trash` request carries only `method` and `cipher` (a string). `POST` carries every key with `cipher: null`; `PUT` carries every key with `cipher` set. A field `value` may be `null`. Dates written by the tool become the literal `"<now>"`; since 1.6, password history dates written by the core are `"<now>"`. Only the plugin's adapter handles `<now>` today (it freezes the clock); bwss's adapter will need a fixed clock then. The
 comparison is a deep equality after both sides are canonicalized: the adapters
 canonicalize the tool's real request by decrypting it with the scenario's keys.
 
@@ -219,9 +238,8 @@ Conventions the expectations follow:
 - **Not compared.** The canonical body does not check
   `login.passwordRevisionDate` (§6.1) or `encryptedFor` (§6.3).
 - **Password history.** A write-back to the login password puts the old
-  password first, and the vectors never start from a full history of 5. The
-  eviction of an entry from a full history arrives with ADR 0016 (password
-  history protection) in M3.
+  password first. Since 1.6, history vectors may start full (5 entries), and
+  the eviction of an entry follows ADR 0016.
 
 ## Reason codes
 
@@ -238,4 +256,5 @@ Used in `expect.read.skipped[].reason`.
 | `view-password-hidden` | An organization hides the password from this user |
 | `organizations-off` | Reserved, not used in read skips: an organization cipher the tool does not read is listed in `uninspectable` (data model §4, §9) |
 | `undecryptable` | Reserved, not used in read skips: a cipher whose item key or field names fail to decrypt is listed in `uninspectable` (data model §4) |
-| `newer-format` | Reserved, no vector in M1: the mark was written by a newer data model than this tool supports |
+| `newer-format` | The mark was written by a newer data model than this tool supports (ADR 0020) |
+| `invalid-base64` | A value under `{ns}:encoding=base64` does not decode |

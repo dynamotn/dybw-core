@@ -29,12 +29,14 @@ pub struct Scenario {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Options {
     #[serde(default)]
     pub organizations: bool,
     #[serde(default)]
     pub policy: Policy,
+    #[serde(default)]
+    pub accept_rollback: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -61,6 +63,21 @@ pub struct BaseEntry {
     pub value: String,
     #[serde(default)]
     pub push_confirmed: Option<bool>,
+    /// Plaintext values this device wrote to `login.password`, newest first (ignored until the core keeps records).
+    #[serde(default)]
+    pub written: Vec<String>,
+    #[serde(default)]
+    pub write_back_confirmed: bool,
+}
+
+/// How the tool's questions are answered (README, `operation`).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Answer {
+    #[default]
+    WriteToLogin,
+    KeepSeparate,
+    Unanswered,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,6 +89,8 @@ pub enum Operation {
         value: String,
         #[serde(default)]
         fresh: Option<Value>,
+        #[serde(default)]
+        answer: Answer,
     },
     #[serde(rename_all = "camelCase")]
     Create {
@@ -80,12 +99,16 @@ pub enum Operation {
         folder_id: Option<String>,
         #[serde(default)]
         fresh: Option<Value>,
+        #[serde(default)]
+        answer: Answer,
     },
     #[serde(rename_all = "camelCase")]
     Delete {
         id: String,
         #[serde(default)]
         fresh: Option<Value>,
+        #[serde(default)]
+        answer: Answer,
     },
 }
 
@@ -145,6 +168,8 @@ pub struct Duplicate {
     pub id: String,
     pub kept: String,
     pub left: Vec<String>,
+    #[serde(default)]
+    pub bound_kept: bool,
 }
 
 /// Either the canonical requests (decrypted bodies, kept as JSON: compared by deep equality) or an error code.
@@ -153,6 +178,14 @@ pub struct Duplicate {
 pub enum WriteExpect {
     Requests(WriteRequests),
     Error(WriteError),
+    Question(WriteQuestion),
+}
+
+/// Nothing was sent: the tool must ask this question first.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WriteQuestion {
+    pub question: String,
 }
 
 #[derive(Debug, Deserialize)]

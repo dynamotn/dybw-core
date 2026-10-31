@@ -9,7 +9,10 @@
       "pattern": "^[a-z0-9-]+(/[a-z0-9-]+)*$"
     },
     "spec": {
-      "const": "1.5"
+      "enum": [
+        "1.5",
+        "1.6"
+      ]
     },
     "sections": {
       "type": "array",
@@ -64,6 +67,13 @@
             },
             "fresh": {
               "$ref": "#/$defs/serverCipher"
+            },
+            "answer": {
+              "enum": [
+                "write-to-login",
+                "keep-separate",
+                "unanswered"
+              ]
             }
           },
           "additionalProperties": false,
@@ -93,6 +103,13 @@
             },
             "fresh": {
               "$ref": "#/$defs/serverCipher"
+            },
+            "answer": {
+              "enum": [
+                "write-to-login",
+                "keep-separate",
+                "unanswered"
+              ]
             }
           },
           "additionalProperties": false,
@@ -114,6 +131,13 @@
             },
             "fresh": {
               "$ref": "#/$defs/serverCipher"
+            },
+            "answer": {
+              "enum": [
+                "write-to-login",
+                "keep-separate",
+                "unanswered"
+              ]
             }
           },
           "additionalProperties": false,

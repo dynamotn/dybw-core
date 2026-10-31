@@ -9,7 +9,10 @@
       "pattern": "^[a-z0-9-]+(/[a-z0-9-]+)*$"
     },
     "spec": {
-      "const": "1.5"
+      "enum": [
+        "1.5",
+        "1.6"
+      ]
     },
     "sections": {
       "type": "array",
@@ -65,6 +68,13 @@
             },
             "fresh": {
               "$ref": "#/$defs/cipher"
+            },
+            "answer": {
+              "enum": [
+                "write-to-login",
+                "keep-separate",
+                "unanswered"
+              ]
             }
           },
           "additionalProperties": false,
@@ -94,6 +104,13 @@
             },
             "fresh": {
               "$ref": "#/$defs/cipher"
+            },
+            "answer": {
+              "enum": [
+                "write-to-login",
+                "keep-separate",
+                "unanswered"
+              ]
             }
           },
           "additionalProperties": false,
@@ -115,6 +132,13 @@
             },
             "fresh": {
               "$ref": "#/$defs/cipher"
+            },
+            "answer": {
+              "enum": [
+                "write-to-login",
+                "keep-separate",
+                "unanswered"
+              ]
             }
           },
           "additionalProperties": false,
@@ -464,6 +488,9 @@
               "propertyNames": {
                 "pattern": "^x[A-Za-z0-9]+$"
               }
+            },
+            "blob": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false,
@@ -588,6 +615,9 @@
               "propertyNames": {
                 "pattern": "^x[A-Za-z0-9]+$"
               }
+            },
+            "blob": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false,
@@ -620,6 +650,9 @@
             "prefer-remote",
             "prefer-local"
           ]
+        },
+        "acceptRollback": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -655,6 +688,16 @@
                 "type": "string"
               },
               "pushConfirmed": {
+                "type": "boolean"
+              },
+              "written": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "writeBackConfirmed": {
                 "type": "boolean"
               }
             },
@@ -743,7 +786,8 @@
                       "view-password-hidden",
                       "organizations-off",
                       "undecryptable",
-                      "newer-format"
+                      "newer-format",
+                      "invalid-base64"
                     ]
                   }
                 },
@@ -777,6 +821,9 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "boundKept": {
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false,
@@ -827,6 +874,21 @@
               "required": [
                 "error"
               ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "enum": [
+                    "first-write-back",
+                    "evicts-foreign-history"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "question"
+              ]
             }
           ]
         },
@@ -844,7 +906,8 @@
                       "adopt",
                       "clear-local",
                       "forget",
-                      "create"
+                      "create",
+                      "rollback"
                     ]
                   },
                   "id": {

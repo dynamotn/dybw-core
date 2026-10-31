@@ -15,7 +15,7 @@ fn vectors_found() {
         assert!(ids.windows(2).all(|w| w[0] < w[1]), "{ns}: not sorted by id");
         for (path, s) in &all {
             assert_eq!(s.namespace, ns, "{}", path.display());
-            assert_eq!(s.spec, "1.5", "{}", path.display());
+            assert!(["1.5", "1.6"].contains(&s.spec.as_str()), "{}", path.display());
             let rel = path.strip_prefix(dir.join("generated").join(ns)).unwrap();
             assert_eq!(rel.with_extension("").to_str().unwrap(), s.id, "{}", path.display());
         }
@@ -137,4 +137,40 @@ fn gone_or_unmarked_after_a_refetch_is_giving_up() {
         assert!(!gave_up(false, &e));
     }
     assert!(!gave_up(true, &WriteError::SourceChanged));
+}
+
+#[test]
+fn write_expect_accepts_a_question() {
+    use dybw_vectors::scenario::WriteExpect;
+    let parse = |v: serde_json::Value| serde_json::from_value::<WriteExpect>(v);
+    let q = parse(serde_json::json!({ "question": "first-write-back" })).unwrap();
+    assert!(matches!(q, WriteExpect::Question(ref q) if q.question == "first-write-back"));
+    assert!(parse(serde_json::json!({ "question": "x", "extra": 1 })).is_err());
+}
+
+#[test]
+fn device_record_deserializes() {
+    use dybw_vectors::scenario::{Answer, BaseEntry, Operation, Options};
+    let base: BaseEntry = serde_json::from_value(serde_json::json!({
+        "cipher": "c", "revisionDate": null, "value": "v", "written": ["a", "b"], "writeBackConfirmed": true
+    }))
+    .unwrap();
+    assert_eq!((base.written.len(), base.write_back_confirmed), (2, true));
+    let plain: BaseEntry =
+        serde_json::from_value(serde_json::json!({ "cipher": "c", "revisionDate": null, "value": "v" })).unwrap();
+    assert!(plain.written.is_empty() && !plain.write_back_confirmed);
+    let op: Operation = serde_json::from_value(serde_json::json!({ "kind": "delete", "id": "a" })).unwrap();
+    assert!(matches!(op, Operation::Delete { answer: Answer::WriteToLogin, .. }));
+    let op: Operation = serde_json::from_value(
+        serde_json::json!({ "kind": "create", "id": "a", "value": "v", "folderId": null, "answer": "keep-separate" }),
+    )
+    .unwrap();
+    assert!(matches!(op, Operation::Create { answer: Answer::KeepSeparate, .. }));
+    let op: Operation = serde_json::from_value(
+        serde_json::json!({ "kind": "set-value", "id": "a", "value": "v", "answer": "unanswered" }),
+    )
+    .unwrap();
+    assert!(matches!(op, Operation::SetValue { answer: Answer::Unanswered, .. }));
+    let o: Options = serde_json::from_value(serde_json::json!({ "acceptRollback": true })).unwrap();
+    assert!(o.accept_rollback && !Options::default().accept_rollback);
 }

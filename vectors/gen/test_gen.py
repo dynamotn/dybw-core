@@ -77,7 +77,7 @@ def test_reason_codes_listed():
     assert enums, "schema defines no reason enum"
     readme = README.read_text(encoding="utf-8")
     section = readme.split("## Reason codes", 1)[1]
-    listed = set(re.findall(r"^\|\s*`([a-z-]+)`\s*\|", section, re.MULTILINE))
+    listed = set(re.findall(r"^\|\s*`([a-z0-9-]+)`\s*\|", section, re.MULTILINE))
     for codes in enums:
         assert set(codes) == listed, set(codes) ^ listed
 
@@ -838,3 +838,46 @@ def test_cose_cipher_is_type7():
     assert plain["name"] == "Login bwss" and plain["login"]["password"] == "pw-ünï-😀"
     with pytest.raises(gen.GenError, match="item key"):
         gen.render_scenario({**doc, "ciphers": [FIXTURE["ciphers"][0]]}, "bwss", account)
+
+
+BASE16 = {"cipher": "c", "revisionDate": "2026-01-01T00:00:00Z", "value": "v"}
+
+
+def with_device(entry: dict, **extra) -> dict:
+    return {**MINIMAL, "spec": "1.6", "device": {"base": {"a": {**BASE16, **entry}}, "pendingCreates": []}, **extra}
+
+
+def test_spec_16_accepted():
+    check({**MINIMAL, "spec": "1.6"}, SOURCE_SCHEMA)
+    check({**MINIMAL, "spec": "1.5"}, SOURCE_SCHEMA)
+    check({**generated({"id": "c1", "type": 1, "name": ENC}), "spec": "1.6"}, SCENARIO_SCHEMA)
+    rejects({**MINIMAL, "spec": "1.4"})
+
+
+def test_written_is_capped_at_five():
+    check(with_device({"written": ["1", "2", "3", "4", "5"], "writeBackConfirmed": True}), SOURCE_SCHEMA)
+    rejects(with_device({"written": ["1", "2", "3", "4", "5", "6"]}))
+    rejects(with_device({"written": [1]}))
+    rejects(with_device({"writeBackConfirmed": "yes"}))
+
+
+@pytest.mark.parametrize("answer", ["write-to-login", "keep-separate", "unanswered"])
+def test_answer_values(answer):
+    ops = [{"kind": "set-value", "id": "a", "value": "v"},
+           {"kind": "create", "id": "a", "value": "v", "folderId": None},
+           {"kind": "delete", "id": "a"}]
+    for op in ops:
+        check({**MINIMAL, "operation": {**op, "answer": answer}}, SOURCE_SCHEMA)
+        rejects({**MINIMAL, "operation": {**op, "answer": "later"}})
+
+
+def test_1_6_expectations():
+    q = {"write": {"question": "first-write-back"}}
+    check(with_expect(q), SOURCE_SCHEMA)
+    check(with_expect({"write": {"question": "evicts-foreign-history"}}), SOURCE_SCHEMA)
+    rejects(with_expect({"write": {"question": "why"}}))
+    check({**MINIMAL, "options": {"acceptRollback": True}}, SOURCE_SCHEMA)
+    check(with_expect({"plan": [{"kind": "rollback", "id": "a"}]}), SOURCE_SCHEMA)
+    read = {"items": [], "skipped": [{"cipher": "c", "reason": "invalid-base64"}], "uninspectable": [],
+            "duplicates": [{"id": "a", "kept": "c", "left": [], "boundKept": True}]}
+    check(with_expect({"read": read}), SOURCE_SCHEMA)

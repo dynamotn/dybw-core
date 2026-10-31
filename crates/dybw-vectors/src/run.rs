@@ -184,6 +184,7 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
             compare("error code", e.code(), Some(want.error.as_str()))?;
             compare_requests(&s.namespace, sent, &[])
         }
+        (WriteExpect::Question(_), _) => Err("a question expectation needs the core's write records".into()),
         (_, Ok(())) => Err("expected an error, the write succeeded".into()),
         (_, Err(e)) => Err(format!("unexpected error: {e}")),
     }

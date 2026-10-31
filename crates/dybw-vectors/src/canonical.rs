@@ -34,6 +34,9 @@ pub fn canonicalize(sent: &Sent, user: &SymmetricKey, orgs: &BTreeMap<String, Sy
         Sent::Put { cipher, body } => ("PUT", json!(cipher), body),
     };
     let body = body.as_object().ok_or("request body is not an object")?;
+    if body.get("data").is_some_and(|d| !d.is_null()) {
+        return Err("a blob body is not supported yet".into());
+    }
     let plain = |k: &str| body.get(k).cloned().unwrap_or(Value::Null);
     let owner = match body.get("organizationId").and_then(Value::as_str) {
         Some(org) => orgs.get(org).ok_or_else(|| format!("no key for organization {org}"))?,

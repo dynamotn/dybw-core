@@ -1,0 +1,57 @@
+{
+  "id": "read/value-source/invalid-base64",
+  "spec": "1.6",
+  "sections": [
+    "§3.2",
+    "§5"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note c1",
+      "notes": null,
+      "login": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "bad",
+          "type": 0
+        },
+        {
+          "name": "{ns}:encoding",
+          "value": "base64",
+          "type": 0
+        },
+        {
+          "name": "{ns}:password",
+          "value": "not base64!",
+          "type": 1
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [],
+      "skipped": [
+        {
+          "cipher": "c1",
+          "reason": "invalid-base64"
+        }
+      ],
+      "uninspectable": []
+    }
+  }
+}
