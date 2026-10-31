@@ -143,18 +143,28 @@ fn the_plugin_json_is_always_version_one() {
 #[test]
 fn state_json_round_trips_the_record() {
     use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
-    let marks: Vec<String> = (1..=6u8).map(|i| B64.encode([i; 32])).collect();
+    let marks: Vec<String> = (1..=7u8).map(|i| B64.encode([i; 32])).collect();
     let mut e = entry();
-    e["writtenMarks"] =
-        json!([marks[0], "not base64!", B64.encode([7u8; 31]), 42, marks[1], marks[2], marks[3], marks[4], marks[5]]);
+    e["writtenMarks"] = json!([
+        marks[0],
+        "not base64!",
+        B64.encode([7u8; 31]),
+        42,
+        marks[1],
+        marks[2],
+        marks[3],
+        marks[4],
+        marks[5],
+        marks[6]
+    ]);
     e["writeBackConfirmed"] = json!(true);
     let s = parse(&json!({ "version": 1, "deviceId": "d1", "base": { "a": e } }));
-    // A mark that is not 32 bytes of base64 is dropped; at most 5 are kept.
+    // A mark that is not 32 bytes of base64 is dropped; at most 6 are kept.
     let record = &s.base["a"].record;
-    assert_eq!(record.written, (1..=5u8).map(|i| [i; 32]).collect::<Vec<_>>());
+    assert_eq!(record.written, (1..=6u8).map(|i| [i; 32]).collect::<Vec<_>>());
     assert!(record.confirmed);
     let json = to_plugin_json(&s);
-    assert_eq!(json["base"]["a"]["writtenMarks"], json!(marks[..5]));
+    assert_eq!(json["base"]["a"]["writtenMarks"], json!(marks[..6]));
     assert_eq!(json["base"]["a"]["writeBackConfirmed"], json!(true));
     assert_eq!(parse(&json), s);
     // Both keys are optional, and left out when there is nothing to say.

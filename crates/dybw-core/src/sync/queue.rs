@@ -85,8 +85,8 @@ fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option
         set,
         remove,
         value,
-        // A later answer is the newer decision; without one, the first one's still holds.
-        answer: later.answer.or(first.answer),
+        // An answer belongs to the value it was given for: never carried onto a later one.
+        answer: later.answer,
     }
 }
 

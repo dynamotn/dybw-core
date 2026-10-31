@@ -800,7 +800,7 @@ fn flush_keeps_a_write_that_asks() {
     assert!(r.records.is_empty());
     // Answered, it goes, and the record learns what this device wrote.
     if let Op::Patch(p) = &mut queue[0] {
-        p.answer = Some(HistoryAnswer::WriteToLogin);
+        p.answer = Some((HistoryQuestion::FirstWriteBack, HistoryAnswer::WriteToLogin));
     }
     r.fake.echo();
     r.fake.echo();
@@ -820,18 +820,22 @@ fn queued_patch_without_answer_reads() {
     .unwrap();
     assert_eq!(as_patch(&old[0]).answer, None);
     let mut p = patch("a", ValueChange::Keep);
-    p.answer = Some(HistoryAnswer::KeepSeparate);
+    p.answer = Some((HistoryQuestion::EvictsForeign, HistoryAnswer::KeepSeparate));
     let back: Patch = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
-    assert_eq!(back.answer, Some(HistoryAnswer::KeepSeparate));
+    assert_eq!(back.answer, p.answer);
 }
 
 #[test]
-fn a_merged_patch_keeps_the_latest_answer() {
-    let answered = |a: Option<HistoryAnswer>| Op::Patch(Patch { answer: a, ..patch("a", ValueChange::Keep) });
+fn merge_drops_the_earlier_answer() {
+    type A = Option<(HistoryQuestion, HistoryAnswer)>;
+    let answered = |a: A| Op::Patch(Patch { answer: a, ..patch("a", ValueChange::Keep) });
+    let earlier = Some((HistoryQuestion::FirstWriteBack, HistoryAnswer::KeepSeparate));
+    let later = Some((HistoryQuestion::EvictsForeign, HistoryAnswer::WriteToLogin));
     let mut queue = Vec::new();
-    push(&mut queue, answered(Some(HistoryAnswer::KeepSeparate)), None);
+    push(&mut queue, answered(earlier), None);
+    // An answer belongs to the value it was given for: the later value goes unanswered.
     push(&mut queue, answered(None), None);
-    assert_eq!(as_patch(&queue[0]).answer, Some(HistoryAnswer::KeepSeparate));
-    push(&mut queue, answered(Some(HistoryAnswer::WriteToLogin)), None);
-    assert_eq!((queue.len(), as_patch(&queue[0]).answer), (1, Some(HistoryAnswer::WriteToLogin)));
+    assert_eq!((queue.len(), as_patch(&queue[0]).answer), (1, None));
+    push(&mut queue, answered(later), None);
+    assert_eq!((queue.len(), as_patch(&queue[0]).answer), (1, later));
 }

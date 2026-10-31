@@ -73,7 +73,8 @@ so vectors never carry a tool-specific fingerprint. `pushConfirmed` is optional.
 **1.6 additions.** `options.acceptRollback` (bool, default `false`) is the
 user's agreement to accept a rolled-back remote value (ADR 0021). A `base`
 entry gains two optional keys: `written`, the plaintext values this device
-wrote to `login.password`, newest first and at most 5, and
+wrote to `login.password`, newest first and at most 6 (the password and
+the 5 history entries can all be this device's), and
 `writeBackConfirmed` (bool), whether the first write-back to a hand-marked
 login was already confirmed (ADR 0016). Like `value`, `written` is plaintext.
 A read vector may carry `device`; only `base` is used there, for the bindings
@@ -102,6 +103,8 @@ change to `fresh`.
   only the requests sent after the refetch; the rejected first write is not
   listed. An empty list means the tool gave up (data model §6.5). Each listed
   request's `lastKnownRevisionDate` is then the `revisionDate` of `fresh`.
+  Without `fresh`, an empty list means nothing was sent at all (for example
+  an identical value, §6.1).
 - **Confirmations.** Unless `operation.answer` says otherwise, a write vector
   shows the requests after every confirmation the data model asks for was
   answered "go ahead" (the first write-back to a hand-marked login, §6.1; the
@@ -112,7 +115,10 @@ change to `fresh`.
     anything is expressed as `expect.write` `{ "question": ... }`. A sync
     vector may carry `expect.write` without an `operation`: what one sync
     from `device` and `local` sends, or the question it asks first, with no
-    answer given (`sync/history-question-holds-push`).
+    answer given (`sync/history-question-holds-push`). A sync question names
+    no id: it is the vector's single planned push. An answer applies to
+    the question the copy raises, so the default `"write-to-login"` answers
+    whichever one it is.
 
 ### `expect`
 

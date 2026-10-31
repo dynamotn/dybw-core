@@ -176,7 +176,8 @@ fn marked_blob_is_written_as_a_blob() {
         value: write::ValueChange::Keep,
         answer: None,
     };
-    let got = write::apply(&c, &patch, &Namespace::BWSS, &k.keys, &Default::default(), &k.rng, 0).unwrap().body;
+    let got =
+        write::apply(&c, &patch, &Namespace::BWSS, &k.keys, &Default::default(), &k.rng, 0).unwrap().body.unwrap();
     assert!(got["data"].is_string());
     assert_eq!((&got["fields"], &got["key"]), (&Value::Null, &c["key"]));
 }

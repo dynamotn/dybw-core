@@ -153,13 +153,22 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                         base_mark: found.mark,
                         owned: false,
                     },
-                    answer: match answer {
-                        Answer::WriteToLogin => Some(HistoryAnswer::WriteToLogin),
-                        Answer::KeepSeparate => Some(HistoryAnswer::KeepSeparate),
-                        Answer::Unanswered => None,
-                    },
+                    answer: None,
                 };
-                sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &found.cipher, &patch).await.map(|_| ())
+                // Asked first, as a tool asks: the vector's answer then goes to the question the copy raised.
+                let given = match answer {
+                    Answer::WriteToLogin => Some(HistoryAnswer::WriteToLogin),
+                    Answer::KeepSeparate => Some(HistoryAnswer::KeepSeparate),
+                    Answer::Unanswered => None,
+                };
+                match (sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &found.cipher, &patch).await, given) {
+                    (Err(SyncWriteError::Write(WriteError::Ask(q))), Some(a)) => {
+                        let patch = Patch { answer: Some((q, a)), ..patch };
+                        sync::update(&mut api, ns, &keys, &record, &rng, NOW_MS, &found.cipher, &patch).await
+                    }
+                    (sent, _) => sent,
+                }
+                .map(|_| ())
             }
             Operation::Create { id, value, folder_id, .. } => {
                 let new = NewItem {
@@ -286,8 +295,12 @@ fn sync_write(dir: &Path, s: &Scenario, want: &WriteExpect) -> Result<(), String
     match want {
         WriteExpect::Requests(want) => compare_requests(&s.namespace, sent, &want.requests),
         WriteExpect::Question(want) => {
-            let asked: Vec<&str> = report.skipped.questions.iter().map(|(_, q)| q.code()).collect();
-            compare("questions", asked, vec![want.question.as_str()])?;
+            // The format names no id: the question is about the vector's single planned push.
+            let pushes = s.expect.plan.iter().flatten().filter(|p| p.kind == "push").collect::<Vec<_>>();
+            let [push] = pushes.as_slice() else { return Err("a sync question needs one planned push".into()) };
+            let asked: Vec<(&str, &str)> =
+                report.skipped.questions.iter().map(|(i, q)| (i.as_str(), q.code())).collect();
+            compare("questions", asked, vec![(push.id.as_str(), want.question.as_str())])?;
             compare("base", &state.base, &before.base)?;
             compare_requests(&s.namespace, sent, &[])
         }

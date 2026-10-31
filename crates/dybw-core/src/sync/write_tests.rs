@@ -486,6 +486,14 @@ fn an_empty_patch_sends_nothing() {
     let c = r.bare("2026-01-01T00:00:00Z", "old");
     assert!(r.update(&c, &keep_patch(&r, &c)).unwrap().is_none());
     assert!(r.log().is_empty());
+    // the value the copy already holds, with no field change, is no change either (§6.1)
+    let same = Patch { set: vec![], ..r.patch_for(&c, b"old") };
+    assert!(r.update(&c, &same).unwrap().is_none());
+    assert!(r.log().is_empty());
+    // with a field to remove, it is sent
+    r.fake.echo();
+    let remove = Patch { remove: vec!["bwss:label".into()], ..same };
+    assert!(r.update(&c, &remove).unwrap().is_some());
     // a patch that only removes, or only sets a tool field, is a change
     r.fake.echo();
     let remove = Patch { remove: vec!["bwss:label".into()], ..keep_patch(&r, &c) };

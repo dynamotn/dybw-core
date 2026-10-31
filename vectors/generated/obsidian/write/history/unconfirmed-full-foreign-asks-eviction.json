@@ -1,0 +1,87 @@
+{
+  "id": "write/history/unconfirmed-full-foreign-asks-eviction",
+  "spec": "1.6",
+  "sections": [
+    "§6.1",
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-01-01T00:00:00.000Z",
+        "value": "current-pw"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.zSA2T89dONL9p/2ILcqxPA==|vWeFsa7r7TFMPK0hUdHH3Q==|9ljATNFb6izEfni+hy6mGDQu2tkjtluRnqGmXKgughQ=",
+      "notes": null,
+      "login": {
+        "username": "2.Fuw7Ra8ujC8iSOHnnktC9A==|6B5nRuQJEd0R7SOWmw5s9g==|b5Z4ld81QUAUGT0x+1zRMwQHqBT3XOCh1zt9rmUWcyA=",
+        "password": "2.QNBqk0GuqV/DVXCd7FSF3Q==|HtVeslj+9P1788RkaDcxWA==|HqjB885dq+DYa90v2RAJNTUz5vRt5pp8heQOB8RA/fs=",
+        "uris": [
+          {
+            "uri": "2.d9tlYEb+uPMiF5agnyf5mA==|kx/AG4UvEaL04eYilUkvSdWn/pcFiymmjZoVwKfbnek=|LUOQmRUkgZOXPNkfYW7x3U3jMRXCmsmS6ALIH8XWpO0=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.fJGrEMRRRzT4x1hiVjUe+Q==|5oNVtDPq43CBZ2+ODzxKGw==|bhSOwoCzhGVDRJCzhVe5uD3+IPxlKq0Z85L7TrTKUx4=",
+          "value": "2.RV9+AGn7fxdp5dGiRYriQQ==|F27l5gDSdWtrj5YjTw60AA==|l8Tt9G4CuPPKcy3uH8aAM76ZPSJvnclIIwsJUHt74ww=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "2.QK3zqO8pBQ9i1ML2w8mr3w==|Ppb8LLp8MziVpc//IcUXYg==|8rqFhRIeH+3mi5YRAzF0VxBVrHAtwTUrAmREddVUtwI=",
+          "lastUsedDate": "2025-12-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.mwpvk2Bd6l1q0XcKR8PjEA==|HvMsURxsUXKOXjXd2AV9tQ==|O4a0nk6DBTLTuDxiBJHewV6pVr5nfBv9tOTPiK8BrRM=",
+          "lastUsedDate": "2025-11-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.vecotrBz0w2BF1C8SO0f9g==|iqzlaFXPXxKdbAgKqpsKEA==|m8kGy77ZN5YWUuvX0NacaZHuLrl3a2CFyZIMZfTxtgY=",
+          "lastUsedDate": "2025-10-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.8YALYvpNhl6+eEl/AEvxRQ==|6DZBRUvdnovhySyCi6zpog==|wHQr1EPpGwZ10F6jMz/M10gzOZi7p4tJycaX5Y5WZqg=",
+          "lastUsedDate": "2025-09-01T00:00:00.000Z"
+        },
+        {
+          "password": "2.zEsRHMi7Dj0vcpiEHjMlVA==|ONYmpa5nwrIqjWJ8IE3yXg==|8XC1uEEuSHxSB5BKTUcB9Y/j9gkj5rgdypugnwYxlXw=",
+          "lastUsedDate": "2025-08-01T00:00:00.000Z"
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "next-pw",
+    "answer": "unanswered"
+  },
+  "expect": {
+    "write": {
+      "question": "evicts-foreign-history"
+    }
+  }
+}

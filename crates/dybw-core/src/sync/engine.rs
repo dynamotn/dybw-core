@@ -38,8 +38,9 @@ pub struct SyncContext<'a, H: Http, C: Clock, R: Random> {
     pub allowed: &'a Organizations,
     pub policy: Policy,
     pub overrides: &'a BTreeMap<String, ConflictOverride>,
-    /// The user's answers to history questions by `{ns}:id` (ADR 0016); a push without one may ask instead.
-    pub answers: &'a BTreeMap<String, HistoryAnswer>,
+    /// The user's answers to history questions by `{ns}:id`, each with the question it answers (ADR 0016); a push
+    /// without one, or whose item now raises another question, asks instead.
+    pub answers: &'a BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     /// Whether a marked item is the tool's to sync here (the plugin's scope); the others are left out before §7.
     pub applies: &'a dyn Fn(&MarkedItem) -> bool,
     /// Folder new uploads are filed in, created when missing; `None` or blank files them in no folder.
@@ -108,7 +109,8 @@ pub struct PassReport {
     pub read_only: Vec<(String, String)>,
     /// Cipher ids of marked items whose value could not be decrypted (the plugin's skipped "undecryptable" items).
     pub unreadable: Vec<String>,
-    /// Pushes not applied because the user must answer first (ADR 0016); their base is unchanged.
+    /// Pushes not applied because the user must answer first (ADR 0016); their base is unchanged. Like the rest of
+    /// `SyncReport::skipped`, of the last pass only, so each id is listed once however many passes asked.
     pub questions: Vec<(String, HistoryQuestion)>,
 }
 
@@ -412,7 +414,7 @@ async fn apply<H: Http, C: Clock, R: Random>(
                 bound.filter(|b| b.cipher_id == rec.cipher_id).map(|b| b.record.clone()).unwrap_or_default();
             let sent = update(ctx.client, ctx.ns, ctx.keys, &record, ctx.rng, now_ms, &rec.cipher, &patch).await;
             let (reply, wrote_login) = match sent {
-                // A value patch is never empty, so there is always a reply.
+                // No reply when the copy already held the value: the base takes the copy's.
                 Ok(sent) => sent.unzip(),
                 // Nothing was sent: the push waits for the user's answer, and the base stays as it was.
                 Err(SyncWriteError::Write(WriteError::Ask(q))) => {

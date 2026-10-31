@@ -81,42 +81,7 @@
   },
   "expect": {
     "write": {
-      "requests": [
-        {
-          "method": "PUT",
-          "cipher": "c1",
-          "type": 1,
-          "name": "Login c1",
-          "notes": null,
-          "login": {
-            "username": "user",
-            "password": "current-pw",
-            "uris": [
-              "https://example.invalid"
-            ],
-            "totp": null,
-            "passwordHistory": [
-              "old-1",
-              "old-2",
-              "old-3",
-              "old-4",
-              "old-5"
-            ]
-          },
-          "fields": [
-            {
-              "name": "bwss:id",
-              "value": "alpha",
-              "type": 0
-            }
-          ],
-          "organizationId": null,
-          "folderId": null,
-          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
-          "hasItemKey": false,
-          "extra": {}
-        }
-      ]
+      "requests": []
     }
   }
 }

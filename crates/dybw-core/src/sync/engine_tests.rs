@@ -8,7 +8,7 @@ use crate::crypto::{Cbor, EnvelopeNamespace, MarkScheme, Marker, SymmetricKey, s
 use crate::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
 use crate::testing::{FixedClock, SeededRandom, block_on};
 use crate::vault::scan::{MarkedItem, Scan, SkipReason, scan};
-use crate::vault::write::{HistoryAnswer, WriteError, WriteRecord};
+use crate::vault::write::{HistoryAnswer, HistoryQuestion, WriteError, WriteRecord};
 use crate::vault::{Keys, Namespace, Organizations, UnmarkedCache};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
@@ -196,7 +196,7 @@ struct Rig {
     state: DeviceState,
     policy: Policy,
     overrides: BTreeMap<String, ConflictOverride>,
-    answers: BTreeMap<String, HistoryAnswer>,
+    answers: BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     allowed: Organizations,
     folder: Option<String>,
     unmarked: UnmarkedCache,
@@ -1428,7 +1428,7 @@ fn a_push_that_asks_is_held_with_the_base_unchanged() {
     assert!(report.pushed.is_empty() && report.errors.is_empty() && report.conflicts.is_empty());
     assert_eq!((&r.state.base["k"], r.remote(&c).as_str()), (&base, "p1"));
     // Answered, the push goes and the record learns the value.
-    r.answers.insert("k".into(), HistoryAnswer::WriteToLogin);
+    r.answers.insert("k".into(), (FirstWriteBack, HistoryAnswer::WriteToLogin));
     assert_eq!(r.ok().pushed, ["k"]);
     r.answers.clear();
     let (m2, m3) = (r.keys.marker.mark("k", "p2"), r.keys.marker.mark("k", "p3"));
@@ -1448,10 +1448,30 @@ fn a_push_that_asks_is_held_with_the_base_unchanged() {
     let report = r.sync_with("k", Policy::PreferLocal, ConflictKind::BothChanged);
     assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
     // "Keep separate" writes a tool field instead, which never asks again.
-    r.answers.insert("k".into(), HistoryAnswer::KeepSeparate);
+    r.answers.insert("k".into(), (FirstWriteBack, HistoryAnswer::KeepSeparate));
     assert_eq!(r.sync_with("k", Policy::PreferLocal, ConflictKind::BothChanged).pushed, ["k"]);
     assert_eq!(r.state.base["k"].record, WriteRecord::default());
     r.answers.clear();
     r.store.put("k", "p5");
     assert_eq!(r.ok().pushed, ["k"]);
+}
+
+#[test]
+fn a_question_is_reported_once_however_many_passes_ask_it() {
+    use crate::vault::write::HistoryQuestion::FirstWriteBack;
+    let mut r = Rig::obsidian();
+    r.add_login("k", "p1");
+    let other = r.add("j", "v1");
+    r.ok();
+    r.store.put("k", "p2");
+    r.store.put("j", "mine");
+    // j keeps changing under its push, so every pass runs and asks about k again.
+    r.on_update(move |to, w| {
+        if to == other {
+            w.bump(to);
+        }
+    });
+    let report = r.ok();
+    assert_eq!((report.passes, report.kept_changing), (MAX_PASSES, true));
+    assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
 }

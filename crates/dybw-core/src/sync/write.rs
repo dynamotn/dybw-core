@@ -70,7 +70,7 @@ async fn refetch<H: Http, C: Clock>(client: &mut Client<H, C>, id: &str) -> Resu
 /// applied to a refetched copy (§6.5): `SourceChanged`, `Gone` and `Unmarked` end it, and at most `ATTEMPTS` writes
 /// are sent in all. `now_ms` dates a replaced login password; `record` is this device's record of the item (ADR
 /// 0016, see `apply`). Returns the server's reply with the mark of the value written to `login.password` (for
-/// `record_write`), or `None` for an empty patch, which sends nothing (a PUT would bump the revision date and look
+/// `record_write`), or `None` for an empty patch or a value the copy already holds, which sends nothing (a PUT would bump the revision date and look
 /// like an edit to other devices).
 #[expect(clippy::too_many_arguments, reason = "the writer's inputs, each the caller's")]
 pub async fn update<H: Http, C: Clock>(
@@ -90,7 +90,9 @@ pub async fn update<H: Http, C: Clock>(
     let mut current = cipher.clone();
     for attempt in 1..=ATTEMPTS {
         let applied = apply(&current, patch, ns, keys, record, rng, now_ms)?;
-        match client.update_cipher(&id, applied.body).await {
+        // The copy already holds the value: nothing is sent.
+        let Some(body) = applied.body else { return Ok(None) };
+        match client.update_cipher(&id, body).await {
             Err(e) if e.is_out_of_date() => {
                 if attempt < ATTEMPTS {
                     let fresh = refetch(client, &id).await?.ok_or(WriteError::Gone)?;

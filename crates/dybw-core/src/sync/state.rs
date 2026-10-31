@@ -3,7 +3,7 @@
 
 use super::plan::BaseEntry;
 use crate::vault::namespace::Namespace;
-use crate::vault::write::{HISTORY_MAX, WriteRecord};
+use crate::vault::write::{RECORD_MAX, WriteRecord};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -54,7 +54,7 @@ pub fn parse_plugin_state(raw: &Value, ns: &Namespace, fresh_id: impl FnOnce() -
             let (scope, push_confirmed) = (str_of(e, "scope"), e.get("pushConfirmed") == Some(&Value::Bool(true)));
             // A mark that is not 32 bytes of base64 is dropped: it can only make a write ask, never skip a question.
             let marks = e.get("writtenMarks").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str);
-            let written = marks.filter_map(|m| B64.decode(m).ok()?.try_into().ok()).take(HISTORY_MAX).collect();
+            let written = marks.filter_map(|m| B64.decode(m).ok()?.try_into().ok()).take(RECORD_MAX).collect();
             let record = WriteRecord { written, confirmed: e.get("writeBackConfirmed") == Some(&Value::Bool(true)) };
             let entry = BaseEntry { cipher_id, revision_date, fingerprint, scope, push_confirmed, record };
             state.base.insert(id.clone(), entry);

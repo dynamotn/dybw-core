@@ -854,9 +854,9 @@ def test_spec_16_accepted():
     rejects({**MINIMAL, "spec": "1.4"})
 
 
-def test_written_is_capped_at_five():
-    check(with_device({"written": ["1", "2", "3", "4", "5"], "writeBackConfirmed": True}), SOURCE_SCHEMA)
-    rejects(with_device({"written": ["1", "2", "3", "4", "5", "6"]}))
+def test_written_is_capped_at_six():
+    check(with_device({"written": ["1", "2", "3", "4", "5", "6"], "writeBackConfirmed": True}), SOURCE_SCHEMA)
+    rejects(with_device({"written": ["1", "2", "3", "4", "5", "6", "7"]}))
     rejects(with_device({"written": [1]}))
     rejects(with_device({"writeBackConfirmed": "yes"}))
 

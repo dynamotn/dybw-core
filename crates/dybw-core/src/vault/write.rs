@@ -66,28 +66,32 @@ pub struct Patch {
     /// Field names; every copy goes (ADR 0014). `{ns}:attr:` removes every attribute field.
     pub remove: Vec<String>,
     pub value: ValueChange,
-    /// The user's answer to a history question about this change (ADR 0016); none in a patch queued before M3.
+    /// The user's answer to a history question about this change, with the question it answers (ADR 0016); none in
+    /// a patch queued before M3.
     #[serde(default)]
-    pub answer: Option<HistoryAnswer>,
+    pub answer: Option<(HistoryQuestion, HistoryAnswer)>,
 }
 
 /// What this device wrote to an item's `login.password` (ADR 0016, §10): the value marks, newest first, at most
-/// `HISTORY_MAX`, and whether the first write-back was confirmed.
+/// `RECORD_MAX`, and whether the first write-back was confirmed.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WriteRecord {
     pub written: Vec<[u8; 32]>,
     pub confirmed: bool,
 }
 
+/// The marks a record keeps: the login password and every history entry may all be this device's.
+pub const RECORD_MAX: usize = HISTORY_MAX + 1;
+
 /// Records a write of the value marked `mark` to `login.password`; writing there confirms the first write-back.
 pub fn record_write(record: &mut WriteRecord, mark: [u8; 32]) {
     record.written.insert(0, mark);
-    record.written.truncate(HISTORY_MAX);
+    record.written.truncate(RECORD_MAX);
     record.confirmed = true;
 }
 
 /// A question the user must answer before a write to `login.password` (ADR 0016).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HistoryQuestion {
     /// The first write-back to this hand-marked login from this device.
     FirstWriteBack,
@@ -114,9 +118,10 @@ pub enum HistoryAnswer {
     KeepSeparate,
 }
 
-/// A write's request body, and the mark of the value it writes to `login.password`, for `record_write`.
+/// A write's request body, `None` when it would change nothing (an identical value and no field change: nothing is
+/// sent), and the mark of the value it writes to `login.password`, for `record_write`.
 pub struct ApplyOutcome {
-    pub body: Map<String, Value>,
+    pub body: Option<Map<String, Value>>,
     pub wrote_login: Option<[u8; 32]>,
 }
 
@@ -460,23 +465,27 @@ impl<B: Body> Edit<'_, B> {
         Ok(self.body.replace_password(text, now)?)
     }
 
-    /// ADR 0016, before `text` replaces the login password: unless the user answered, asks on the first write-back
-    /// and before a password this device did not write leaves the full history. Returns the mark of what is written,
-    /// `None` when `write_login_password` writes nothing (too long, or identical).
+    /// ADR 0016, before `text` replaces the login password: the question this copy raises, the stronger one when
+    /// both apply (a password this device did not write would leave the full history, over the first write-back).
+    /// Only "write to the login" given to that very question goes ahead. Returns the mark of what is written, `None`
+    /// when `write_login_password` writes nothing (too long, or identical).
     fn guard_login(&self, text: &str, guard: &Guard) -> Result<Option<[u8; 32]>, WriteError> {
         if self.body.stored_len(text) > MAX_PASSWORD_ENC || self.body.password_text()?.as_str() == text {
             return Ok(None);
         }
         let mark = |t: &str| guard.marker.mark(guard.id, t);
-        if guard.answer.is_none() {
-            if !guard.record.confirmed {
-                return Err(WriteError::Ask(HistoryQuestion::FirstWriteBack));
-            }
-            if self.body.evicted()?.iter().any(|old| !guard.record.written.contains(&mark(old))) {
-                return Err(WriteError::Ask(HistoryQuestion::EvictsForeign));
-            }
+        let question = if self.body.evicted()?.iter().any(|old| !guard.record.written.contains(&mark(old))) {
+            Some(HistoryQuestion::EvictsForeign)
+        } else if !guard.record.confirmed {
+            Some(HistoryQuestion::FirstWriteBack)
+        } else {
+            None
+        };
+        match question {
+            // An answer to another question (a stale one, or the weaker one) does not cover this copy.
+            Some(q) if guard.answer != Some((q, HistoryAnswer::WriteToLogin)) => Err(WriteError::Ask(q)),
+            _ => Ok(Some(mark(text))),
         }
-        Ok(Some(mark(text)))
     }
 
     /// Writes `secret` back to `source` (§6.1, ADR 0005); with `owned`, into the tool's storage instead of a value
@@ -525,8 +534,9 @@ impl<B: Body> Edit<'_, B> {
     ) -> Result<Option<[u8; 32]>, WriteError> {
         let mut wrote = None;
         if let ValueChange::Set { secret, owned, .. } = &patch.value {
-            // "Keep separate" is the move of ADR 0005: the tool's own `{ns}:password`, the source from then on.
-            let owned = *owned || guard.answer == Some(HistoryAnswer::KeepSeparate);
+            // "Keep separate" is the move of ADR 0005: the tool's own `{ns}:password`, the source from then on. It
+            // touches no history, so it holds whichever question it answered.
+            let owned = *owned || matches!(guard.answer, Some((_, HistoryAnswer::KeepSeparate)));
             if let (ValueSource::LoginPassword, false, Ok(text)) = (source, owned, std::str::from_utf8(secret)) {
                 wrote = self.guard_login(text, guard)?;
             }
@@ -572,7 +582,7 @@ impl<B: Body> Edit<'_, B> {
 /// What ADR 0016 checks a write to `login.password` against.
 struct Guard<'a> {
     record: &'a WriteRecord,
-    answer: Option<HistoryAnswer>,
+    answer: Option<(HistoryQuestion, HistoryAnswer)>,
     marker: &'a Marker,
     id: &'a str,
 }
@@ -619,6 +629,14 @@ pub fn apply(
     {
         return Err(WriteError::SourceChanged);
     }
+    // The same value and no field change: nothing to send (§6.1, identical values are never written).
+    if let ValueChange::Set { secret, .. } = &patch.value
+        && patch.set.is_empty()
+        && patch.remove.is_empty()
+        && **secret == *fresh.value
+    {
+        return Ok(ApplyOutcome { body: None, wrote_login: None });
+    }
     let revision = cipher.get("revisionDate").and_then(Value::as_str).unwrap_or(&patch.base_revision);
 
     // 2. Everything new is encrypted under the item's own key; 3 and 4, the value and the tool's own fields.
@@ -628,11 +646,12 @@ pub fn apply(
     if is_blob(cipher) {
         let mut edit = Edit { ns, body: open_blob(cipher, owner).map_err(WriteError::Uninspectable)? };
         let wrote_login = edit.patch(fresh.source, patch, &guard, now_ms)?;
-        return Ok(ApplyOutcome { body: blob_body(cipher, edit.body.seal(&key, rng)?, revision), wrote_login });
+        let body = blob_body(cipher, edit.body.seal(&key, rng)?, revision);
+        return Ok(ApplyOutcome { body: Some(body), wrote_login });
     }
     let mut edit = Edit { ns, body: Fields::read(cipher, &key, rng)? };
     let wrote_login = edit.patch(fresh.source, patch, &guard, now_ms)?;
-    Ok(ApplyOutcome { body: edit.body.finish(revision), wrote_login })
+    Ok(ApplyOutcome { body: Some(edit.body.finish(revision)), wrote_login })
 }
 
 /// Body of the update that removes every field of the tool's namespace from `cipher` (§8.2 step 1). The notes are
