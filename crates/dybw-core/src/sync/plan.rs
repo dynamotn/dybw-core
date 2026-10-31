@@ -1,6 +1,7 @@
 //! The three-way planner: remote (Bitwarden), local (the tool's store) and base (both after the last sync).
 //! Pure: no I/O, ids sorted. A line-by-line port of the plugin's `plan.ts`.
 
+use crate::vault::scan::parse_date;
 use crate::vault::write::WriteRecord;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -122,6 +123,15 @@ fn resolve(input: &PlanInput, id: &str, kind: ConflictKind) -> Action {
         Policy::PreferLocal if kind == OrganizationPush => Action::Push { id: id_s, confirmed: true },
         Policy::PreferLocal => push(input, id),
         Policy::Ask => Action::Conflict { id: id_s, kind },
+    }
+}
+
+/// Whether a remote revision date is below the base's (ADR 0019). A date that is missing, does not parse or is not
+/// after the epoch cannot show the server moved forward, so it counts as a rollback; equal dates are not one.
+pub fn is_rollback(base_revision: &str, remote_revision: &str) -> bool {
+    match (parse_date(base_revision), parse_date(remote_revision)) {
+        (Some(base), Some(remote)) => remote < base,
+        _ => true,
     }
 }
 

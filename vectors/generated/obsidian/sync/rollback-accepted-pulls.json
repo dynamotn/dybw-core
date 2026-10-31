@@ -1,0 +1,74 @@
+{
+  "id": "sync/rollback-accepted-pulls",
+  "spec": "1.6",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask",
+    "acceptRollback": true
+  },
+  "local": {
+    "alpha": "old-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-02-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.3Z5QRkDurC+Ml46BenVqdg==|FxbF65SNqY/dnCH4mfgnBw==|4+akrcLJx0iz+GlRJ7Ak8Fql3VDjYa6SJh34BBH6zZ0=",
+      "notes": null,
+      "login": {
+        "username": "2.Yx8BJ4bhlcLx6z0DW01Ppw==|igwTPI8NJMTZjlHR0U9XQQ==|tnRDrk27b6aa6dTWN4yPYB2JzUi2EI+LvF7upN6v2pg=",
+        "password": "2.fnfq3dHa89GwmK1RzOGSoQ==|TGqnYh1nZO6R+HCSMXY/sA==|Ri438i2M9tzDaFhhsmlQ5UDbBqnvke8kEMSH8CH8+jE=",
+        "uris": [
+          {
+            "uri": "2.1/gGop4lolbD6BoHVO8TPw==|B5cEIu7dusrOfKodMgwVw2ryxqbQhuoaXP0YrhE3Pr8=|ULDOkdeIOleGXlKRgtScwc/KQvlReileriSaAnlART0=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.3bJ+wggDX8oBPUK/phOpdA==|F9xbf84C2QQG1swpLUYHEQ==|XRsW5wUhEYlo+tZMkjzYKtiToEITjEu4ZWUT95bRTP4=",
+          "value": "2.5spsKWHXUlFxx3BpTM2qJA==|K1c0ewOCNnbSKFeuNvvJQA==|+/EA4gdvK4wVNeVWXVuasVl/jBGexGDj5ueFo9vrr+4=",
+          "type": 0
+        },
+        {
+          "name": "2.IKrQJvcyDhcJhX+HVTZonQ==|PBMKcbTbshYvI0nQF/66NLyLb3ispTaiEuWcqkY016E=|bB0706og1KQpUoZ9J2EMmrdk+g715N53HJkwGaaFs/s=",
+          "value": "2.4I47bit8eVJ4rVSUyVGMbA==|vegLyDvnXcB0y7AQdYk3xA==|LuDFsW8S5hERmAQ4x+GCWdESsRHcdBXGvzJEqAUpUY4=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "pull",
+        "id": "alpha"
+      }
+    ]
+  }
+}

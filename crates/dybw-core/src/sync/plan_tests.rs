@@ -411,3 +411,21 @@ fn never_asks_for_personal_items() {
     };
     assert_eq!(c.plan(), [push("a")]);
 }
+
+#[test]
+fn unparseable_remote_date_is_a_rollback() {
+    let ok = "2026-05-01T00:00:00.000Z";
+    for bad in ["", "r1", "1970-01-01T00:00:00.000Z"] {
+        assert!(is_rollback(ok, bad), "remote {bad:?}");
+        assert!(is_rollback(bad, ok), "base {bad:?}");
+    }
+    assert!(is_rollback(ok, "2026-04-30T23:59:59.999Z"));
+    assert!(!is_rollback(ok, "2026-05-01T00:00:00.001Z"));
+}
+
+#[test]
+fn equal_dates_are_not_a_rollback() {
+    // The same instant written in two offsets is equal too.
+    assert!(!is_rollback("2026-05-01T00:00:00.000Z", "2026-05-01T00:00:00.000Z"));
+    assert!(!is_rollback("2026-05-01T01:00:00.000+01:00", "2026-05-01T00:00:00.000Z"));
+}

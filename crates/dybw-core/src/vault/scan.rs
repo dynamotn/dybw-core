@@ -189,7 +189,7 @@ pub(crate) fn is_blob(cipher: &Value) -> bool {
 }
 
 /// Unix milliseconds; at or before the epoch counts as undated, as bwss.
-fn parse_date(s: &str) -> Option<i64> {
+pub(crate) fn parse_date(s: &str) -> Option<i64> {
     let t = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).ok()?;
     i64::try_from(t.unix_timestamp_nanos() / 1_000_000).ok().filter(|&ms| ms > 0)
 }

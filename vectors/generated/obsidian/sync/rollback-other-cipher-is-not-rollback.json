@@ -1,0 +1,73 @@
+{
+  "id": "sync/rollback-other-cipher-is-not-rollback",
+  "spec": "1.6",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "old-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c9",
+        "revisionDate": "2026-02-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.fJHvv1VfiHK8JdkfWbF9KA==|C1G7sNH1P2muL04tx3RlZQ==|8upU9KUdswFgpBYnNQoUP32oXUBSNC2CBkOyLNSIzEg=",
+      "notes": null,
+      "login": {
+        "username": "2.j+wrf5+KeVGEGvlEJj1y/w==|XYrMK3O38l9frwcEOWgUKg==|ikrRCTTQ7/6QLt9FQ7JIKS34ajQVTuuMVeQT10kjN+Q=",
+        "password": "2.ZJvJfiLYV5+XDtZ2wmNjUA==|/U+np4GXEEDuJStEmBHTdQ==|zIChz5dEaOL43KTMDYScFfleQNVpPw9iCAvNZWsavRA=",
+        "uris": [
+          {
+            "uri": "2.Tt4RjhY4r1YZQF6NmXIPOA==|aePCmX2gzmMfHnJoKYbqZ38cnYmWkDxnrazzDIfvSq0=|UAD978vRozNe25PGmabCAYqxwFcjIsrWm6+fe4lcgqE=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.8kbfTQtBeGtIhQAWlyIaYQ==|JCTe6Czb1Y82mqGmm+igzQ==|/UJGjFaD2iuvk1U145LNySjJXP1uifGV2uUdLI17wCw=",
+          "value": "2.T+xf04kvrwINFuZVG2Qpjg==|aoc3Ur83a0wrizv/P3v94g==|2Q9P/B98q5UeHiBECYrVKtLZPTNkesBmYhk50hTCZZI=",
+          "type": 0
+        },
+        {
+          "name": "2.+1ss3p07fBGk2+Pf3c0ZsA==|GQzo/JBii0YA8z6ZA7deXVMfZM3Xum5Z8mtIkrcnPEM=|QOzSyTV+JHfTlDOGrnRrg9aw5I1ZOSyQqhSphSewuhU=",
+          "value": "2.CYxlomqs8IoyKueHmoCjWg==|8aIRfGNmSkaPPJunYU+A6A==|wleqr8OFthLk9QGICOSQUnnd9PT5JgiljFtNtIiAQRo=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "pull",
+        "id": "alpha"
+      }
+    ]
+  }
+}

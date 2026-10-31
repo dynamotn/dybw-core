@@ -1,0 +1,73 @@
+{
+  "id": "sync/rollback-held",
+  "spec": "1.6",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "old-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-02-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.tNCOOw8/cherRoICBbGzmA==|ASyHTFn5EHVxVhR+fvrqqw==|CdLf6+5fAzTVxCm3Bj7qP8Lk1kdv0NhabzgGE/JJAuQ=",
+      "notes": null,
+      "login": {
+        "username": "2.rgVAZop6LjS6VwF1Nc/ymQ==|Xp/wq3qF5c1eUuohGkynxw==|KdnQqBDw7itrbl/jjgvGkzGnuzsV7C4uUi3T6NZGZ5g=",
+        "password": "2.gabYrSIJOxEjjLVE3QzWmw==|ckRvF3424zZrK2AvUn4RwA==|ontlo+Y/REJ3hdEFOc1bNyenefge0SRScYShPqTIukI=",
+        "uris": [
+          {
+            "uri": "2.pmPfKJV20kdmWQwGFB05sA==|Yjd8BEUXCndNUuu3U+ay/VEZ4cdD58RFrDyCeiH8pS4=|Ntzi9QvTVkxmNB6m0SdueJaQ0xvjaCiPyYlfW8L+sVA=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.G8hPm0yPdm/j6hNXN6AO5A==|wPq4WbfQBNoqpxuceBv/8w==|Gyf8mKOKzJ6nnChmrzEMRc9A/puqWu1e7ydFpI5Wbjw=",
+          "value": "2.Kzs73LCtWPKvTqA+FsoSfg==|ur5NJCsHaiG7aUidXfeFBA==|zcAiuUoddEtiLEP9HSv0++sl2KmpJp3V5yZPxJvOna4=",
+          "type": 0
+        },
+        {
+          "name": "2.Cnvem+qaPrpdgs9kiWSQhw==|325olV1Mn7ix/K6Ko0tMyCTEhQBb/s2rWCBI5MbgvaQ=|CveszFjxveKAbvm6qSDBFYLR2rOhp+5cxE4Mj9+kOFk=",
+          "value": "2.jsqIB66KA4EA7w/BLSzF9Q==|k6exoGYzMSeQXXZBiTxFyg==|ufYSHAD/gEEIFjeIRCTzBL7JB9VjcgjZ6RX0m7VbJts=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "rollback",
+        "id": "alpha"
+      }
+    ]
+  }
+}

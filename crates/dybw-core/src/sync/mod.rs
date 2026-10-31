@@ -11,7 +11,9 @@ pub use engine::{
     ActionError, ApplyError, Conflict, LocalValues, MAX_PASSES, PassPlan, PassReport, SyncContext, SyncError,
     SyncReport, plan_pass, run_sync,
 };
-pub use plan::{Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, plan_sync};
+pub use plan::{
+    Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, is_rollback, plan_sync,
+};
 pub use queue::{FlushReport, Op, enqueue, flush};
 pub use state::{DeviceState, parse_plugin_state, to_plugin_json};
 pub use write::{ATTEMPTS, DeleteOutcome, SyncWriteError, create, delete, update};

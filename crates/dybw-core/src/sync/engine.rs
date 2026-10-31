@@ -3,7 +3,9 @@
 //! `MAX_PASSES`. Every action is checked again against what the pass read itself (§9), so a planner bug can never
 //! write to the wrong item.
 
-use super::plan::{Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, plan_sync};
+use super::plan::{
+    Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, is_rollback, plan_sync,
+};
 use super::state::DeviceState;
 use super::write::{SyncWriteError, create, update};
 use crate::api::{ApiError, Client};
@@ -37,6 +39,8 @@ pub struct SyncContext<'a, H: Http, C: Clock, R: Random> {
     pub rng: &'a R,
     pub allowed: &'a Organizations,
     pub policy: Policy,
+    /// The user accepts the rollbacks of this sync (ADR 0019): an item below its base is planned as a remote change.
+    pub accept_rollback: bool,
     pub overrides: &'a BTreeMap<String, ConflictOverride>,
     /// The user's answers to history questions by `{ns}:id`, each with the question it answers (ADR 0016); a push
     /// without one, or whose item now raises another question, asks instead.
@@ -105,6 +109,9 @@ pub struct PassReport {
     pub duplicates: Vec<Duplicate>,
     /// `(id, cipher id)` of synced secrets whose item is still there but can no longer be used: kept as is.
     pub held: Vec<(String, String)>,
+    /// `(id, cipher id)` of synced secrets whose item came back with a revision date below the base's (ADR 0019):
+    /// kept out of the plan, so nothing is pulled, pushed or cleared for them, until the user accepts.
+    pub rollbacks: Vec<(String, String)>,
     /// `(id, cipher id)` changed here, in an item its organization does not let this account edit: not uploaded.
     pub read_only: Vec<(String, String)>,
     /// Cipher ids of marked items whose value could not be decrypted (the plugin's skipped "undecryptable" items).
@@ -165,15 +172,25 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     // A synced secret whose item is still there but cannot be used here any more (newer format, renamed to an
     // invalid id, moved to an organization, re-scoped) is left alone rather than treated as deleted.
     let mut base = BTreeMap::new();
+    let mut rolled_back = BTreeSet::new();
     for (id, entry) in &state.base {
         if !items.contains_key(id) && present.contains(&entry.cipher_id) {
             report.held.push((id.clone(), entry.cipher_id.clone()));
+        } else if !ctx.accept_rollback
+            && items
+                .get(id)
+                .is_some_and(|i| i.cipher_id == entry.cipher_id && is_rollback(&entry.revision_date, &i.revision_date))
+        {
+            // Out of the plan and the base alike, as held: it must not count toward the mass-clear guard either.
+            report.rollbacks.push((id.clone(), entry.cipher_id.clone()));
+            rolled_back.insert(id.clone());
         } else {
             base.insert(id.clone(), entry.clone());
         }
     }
     let remote: BTreeMap<String, RemoteEntry> = items
         .iter()
+        .filter(|(id, _)| !rolled_back.contains(*id))
         .map(|(id, i)| {
             let entry = RemoteEntry {
                 id: id.clone(),

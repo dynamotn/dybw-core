@@ -282,6 +282,7 @@ fn sync_write(dir: &Path, s: &Scenario, want: &WriteExpect) -> Result<(), String
             rng: &rng,
             allowed: &allowed,
             policy: policy(s),
+            accept_rollback: s.options.accept_rollback,
             overrides: &overrides,
             answers: &answers,
             applies: &|_| true,
@@ -346,6 +347,7 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
             rng: &rng,
             allowed: &allowed,
             policy: policy(s),
+            accept_rollback: s.options.accept_rollback,
             overrides: &overrides,
             answers: &answers,
             applies: &|_| true,
@@ -354,7 +356,9 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
         };
         sync::plan_pass(&mut ctx, &state, &local).await.map_err(|e| e.to_string())
     })?;
-    let got: Vec<_> = planned.actions.iter().map(plan_entry).collect();
+    let mut got: Vec<_> = planned.actions.iter().map(plan_entry).collect();
+    got.extend(planned.report.rollbacks.iter().map(|(id, _)| ("rollback", id.as_str(), None)));
+    got.sort_by(|a, b| a.1.cmp(b.1));
     let want: Vec<_> = want.iter().map(|p| (p.kind.as_str(), p.id.as_str(), p.conflict.as_deref())).collect();
     compare("plan", got, want)
 }

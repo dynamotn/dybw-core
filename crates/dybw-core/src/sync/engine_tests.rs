@@ -195,6 +195,7 @@ struct Rig {
     store: Store,
     state: DeviceState,
     policy: Policy,
+    accept_rollback: bool,
     overrides: BTreeMap<String, ConflictOverride>,
     answers: BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     allowed: Organizations,
@@ -255,6 +256,7 @@ impl Rig {
             store: Store::default(),
             state: DeviceState::new("d1".into()),
             policy: Policy::Ask,
+            accept_rollback: false,
             overrides: BTreeMap::new(),
             answers: BTreeMap::new(),
             allowed: Organizations::All,
@@ -381,6 +383,7 @@ impl Rig {
             rng: &self.rng,
             allowed: &self.allowed,
             policy: self.policy,
+            accept_rollback: self.accept_rollback,
             overrides: &self.overrides,
             answers: &self.answers,
             applies: &*self.applies,
@@ -410,6 +413,7 @@ impl Rig {
             rng: &self.rng,
             allowed: &self.allowed,
             policy: self.policy,
+            accept_rollback: self.accept_rollback,
             overrides: &self.overrides,
             answers: &self.answers,
             applies: &*self.applies,
@@ -430,6 +434,7 @@ impl Rig {
             rng: &self.rng,
             allowed: &self.allowed,
             policy: self.policy,
+            accept_rollback: self.accept_rollback,
             overrides: &self.overrides,
             answers: &self.answers,
             applies: &*self.applies,
@@ -1474,4 +1479,68 @@ fn a_question_is_reported_once_however_many_passes_ask_it() {
     let report = r.ok();
     assert_eq!((report.passes, report.kept_changing), (MAX_PASSES, true));
     assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
+}
+
+// --- no rollback below the base (ADR 0019) ---
+
+const OLD: &str = "2026-04-01T00:00:00.000Z";
+
+fn roll_back(r: &Rig, cipher: &str) {
+    r.world().cipher(cipher)["revisionDate"] = json!(OLD);
+}
+
+#[test]
+fn a_rolled_back_item_is_held_and_reported() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    r.edit_remote(&c, "old");
+    roll_back(&r, &c);
+    r.store.put("k", "mine");
+    let report = r.ok();
+    assert!(nothing_moved(&report) && report.errors.is_empty());
+    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c.clone())]);
+    assert_eq!(r.store.value("k").as_deref(), Some("mine"));
+    assert_eq!(r.state.base["k"].cipher_id, c);
+}
+
+#[test]
+fn an_accepted_rollback_pulls_or_conflicts_and_never_pushes() {
+    let mut r = Rig::obsidian();
+    r.accept_rollback = true;
+    let c = r.add("k", "v");
+    r.ok();
+    r.edit_remote(&c, "old");
+    roll_back(&r, &c);
+    let report = r.ok();
+    assert_eq!((report.pulled.as_slice(), report.skipped.rollbacks.len()), (["k".to_owned()].as_slice(), 0));
+    assert_eq!(r.store.value("k").as_deref(), Some("old"));
+    r.edit_remote(&c, "older");
+    roll_back(&r, &c);
+    r.store.put("k", "mine");
+    let report = r.ok();
+    assert_eq!(report.conflicts, [conflict("k", ConflictKind::BothChanged, None)]);
+    assert!(report.pushed.is_empty());
+}
+
+#[test]
+fn another_cipher_for_the_id_is_not_a_rollback() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    r.state.base.get_mut("k").unwrap().cipher_id = "gone".into();
+    roll_back(&r, &c);
+    assert!(r.plan().report.rollbacks.is_empty());
+}
+
+#[test]
+fn rollback_counts_toward_no_mass_clear() {
+    let mut r = Rig::obsidian();
+    let (a, b) = (r.add("a", "1"), r.add("b", "2"));
+    r.ok();
+    roll_back(&r, &a);
+    roll_back(&r, &b);
+    let plan = r.plan();
+    assert_eq!(plan.report.rollbacks.len(), 2);
+    assert!(plan.actions.is_empty() && plan.mass_clear.is_none());
 }
