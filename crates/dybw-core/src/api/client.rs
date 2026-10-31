@@ -10,6 +10,9 @@ use zeroize::Zeroizing;
 /// Largest response body read (bwss's limit).
 pub const MAX_BODY: usize = 256 * 1024 * 1024;
 
+/// Largest response body read from any endpoint but `/sync` (ADR 0019).
+pub const MAX_RESPONSE: usize = 16 * 1024 * 1024;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
     #[error("network error: {0}")]
@@ -163,8 +166,10 @@ pub struct Client<H: Http, C: Clock> {
     device: DeviceInfo,
     session: Option<Session>,
     user_id: Option<String>,
-    /// `MAX_BODY`; tests lower it.
+    /// `MAX_BODY`, for `/sync`; tests lower it.
     body_limit: usize,
+    /// `MAX_RESPONSE`, for every other response; tests lower it.
+    response_limit: usize,
 }
 
 impl<H: Http, C: Clock> Client<H, C> {
@@ -174,7 +179,16 @@ impl<H: Http, C: Clock> Client<H, C> {
         if texts.iter().any(|t| t.chars().any(char::is_control)) {
             return Err(ApiError::Invalid("device info must not contain control characters".into()));
         }
-        Ok(Client { http, clock, urls, device, session: None, user_id: None, body_limit: MAX_BODY })
+        Ok(Client {
+            http,
+            clock,
+            urls,
+            device,
+            session: None,
+            user_id: None,
+            body_limit: MAX_BODY,
+            response_limit: MAX_RESPONSE,
+        })
     }
 
     /// The client's clock, in Unix milliseconds.
@@ -213,16 +227,17 @@ impl<H: Http, C: Clock> Client<H, C> {
         url: String,
         mut headers: Vec<(String, String)>,
         body: Option<Zeroizing<Vec<u8>>>,
+        limit: usize,
     ) -> Result<Zeroizing<Vec<u8>>, ApiError> {
         headers.push(("Bitwarden-Client-Name".into(), self.device.client_name.clone()));
         headers.push(("Bitwarden-Client-Version".into(), self.device.client_version.clone()));
         headers.push(("Device-Type".into(), self.device.device_type.to_string()));
         let res = self
             .http
-            .send(HttpRequest { method, url, headers, body, max_body: self.body_limit })
+            .send(HttpRequest { method, url, headers, body, max_body: limit })
             .await
             .map_err(|e| ApiError::Network(e.0))?;
-        if res.body.len() > self.body_limit {
+        if res.body.len() > limit {
             return Err(ApiError::TooLarge);
         }
         if !(200..300).contains(&res.status) {
@@ -233,7 +248,8 @@ impl<H: Http, C: Clock> Client<H, C> {
 
     /// An authenticated call with an optional JSON body; the answer is parsed and normalized.
     async fn authed(&mut self, method: Method, path: &str, body: Option<Value>) -> Result<Value, ApiError> {
-        self.authed_raw(method, path, body).await.map(|b| parse_json(&b))
+        let limit = self.response_limit;
+        self.authed_raw(method, path, body, limit).await.map(|b| parse_json(&b))
     }
 
     async fn authed_raw(
@@ -241,6 +257,7 @@ impl<H: Http, C: Clock> Client<H, C> {
         method: Method,
         path: &str,
         body: Option<Value>,
+        limit: usize,
     ) -> Result<Zeroizing<Vec<u8>>, ApiError> {
         self.ensure_login().await?;
         let token = self.session.as_ref().map(|s| s.token.as_str()).unwrap_or_default();
@@ -249,14 +266,14 @@ impl<H: Http, C: Clock> Client<H, C> {
             headers.push(("Content-Type".into(), "application/json".into()));
             Zeroizing::new(b.to_string().into_bytes())
         });
-        self.call(method, format!("{}{path}", self.urls.api), headers, body).await
+        self.call(method, format!("{}{path}", self.urls.api), headers, body, limit).await
     }
 
     pub async fn prelogin(&self, email: &str) -> Result<KdfParams, ApiError> {
         let body = Zeroizing::new(json!({ "email": email }).to_string().into_bytes());
         let headers = vec![("Content-Type".to_owned(), "application/json".to_owned())];
         let url = format!("{}/accounts/prelogin", self.urls.identity);
-        let res = parse_json(&self.call(Method::Post, url, headers, Some(body)).await?);
+        let res = parse_json(&self.call(Method::Post, url, headers, Some(body), self.response_limit).await?);
         let num = |k: &str| res.get(k).and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok());
         match num("kdf") {
             Some(0) => Ok(KdfParams::Pbkdf2 { iterations: num("kdfIterations").unwrap_or(0) }),
@@ -290,7 +307,7 @@ impl<H: Http, C: Clock> Client<H, C> {
         let body = Zeroizing::new(form.finish().into_bytes());
         let headers = vec![("Content-Type".to_owned(), "application/x-www-form-urlencoded; charset=utf-8".to_owned())];
         let url = format!("{}/connect/token", self.urls.identity);
-        let res = parse_json(&self.call(Method::Post, url, headers, Some(body)).await?);
+        let res = parse_json(&self.call(Method::Post, url, headers, Some(body), self.response_limit).await?);
         // Moved out of the parsed value, so no second copy of the token is left behind.
         let (token, expires_in) = match res {
             Value::Object(mut m) => (m.remove("access_token"), m.get("expires_in").and_then(Value::as_u64)),
@@ -315,7 +332,8 @@ impl<H: Http, C: Clock> Client<H, C> {
     /// `/sync`, with missing `folders` and `ciphers` as empty lists. A response without a profile id or an
     /// account key is refused.
     pub async fn sync(&mut self) -> Result<Value, ApiError> {
-        let mut body = self.authed(Method::Get, "/sync?excludeDomains=true", None).await?;
+        let limit = self.body_limit;
+        let mut body = parse_json(&self.authed_raw(Method::Get, "/sync?excludeDomains=true", None, limit).await?);
         let text = |p: &str| body.pointer(p).and_then(Value::as_str).filter(|t| !t.is_empty());
         let id = text("/profile/id").ok_or_else(|| ApiError::Protocol("sync response has no profile".into()))?;
         let id = id.to_owned();
@@ -337,7 +355,8 @@ impl<H: Http, C: Clock> Client<H, C> {
 
     /// The account's revision date as the server sends it (a number or a string), as raw text: it is only compared.
     pub async fn revision_date(&mut self) -> Result<String, ApiError> {
-        let body = self.authed_raw(Method::Get, "/accounts/revision-date", None).await?;
+        let limit = self.response_limit;
+        let body = self.authed_raw(Method::Get, "/accounts/revision-date", None, limit).await?;
         Ok(String::from_utf8_lossy(&body).trim().to_owned())
     }
 

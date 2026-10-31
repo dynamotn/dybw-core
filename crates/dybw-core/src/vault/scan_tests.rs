@@ -586,3 +586,35 @@ fn field_primitives() {
         assert_eq!(plain.decrypt_str(&key.encrypt_str("y", &k.rng).unwrap()).unwrap().as_str(), "y");
     }
 }
+
+/// A login whose notes grow the cipher's JSON to exactly `len` bytes.
+fn sized(k: &Fx, len: usize) -> Value {
+    let mut c = k.login(&[("bwss:id", "x")], Some("pw"), None);
+    let base = serde_json::to_vec(&c).unwrap().len();
+    c["junk"] = json!("");
+    let base = base + r#","junk":"""#.len();
+    c["junk"] = json!("a".repeat(len - base));
+    assert_eq!(serde_json::to_vec(&c).unwrap().len(), len);
+    c
+}
+
+#[test]
+fn cipher_over_1_mib_is_held() {
+    let k = bwss();
+    let c = sized(&k, scan::MAX_CIPHER + 1);
+    assert_eq!(held(k.scan(&c)), Uninspectable::TooLarge);
+    // In the trash it is still just the trash.
+    let mut trash = c.clone();
+    trash["deletedDate"] = json!("2026-01-01T00:00:00Z");
+    assert!(matches!(k.scan(&trash), Scan::Unmarked));
+    let sync = json!({ "ciphers": [c] });
+    let r = scan::scan_vault(&sync, &Namespace::BWSS, &k.keys, &Organizations::All);
+    assert_eq!(r.uninspectable, vec![("c1".to_owned(), Uninspectable::TooLarge)]);
+    assert!(r.present.contains("c1"));
+}
+
+#[test]
+fn cipher_of_exactly_1_mib_is_read() {
+    let k = bwss();
+    assert!(matches!(k.scan(&sized(&k, scan::MAX_CIPHER)), Scan::Marked(_)));
+}

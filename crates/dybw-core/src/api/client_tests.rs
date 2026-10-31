@@ -157,7 +157,7 @@ fn login_sends_client_credentials() {
     block_on(rig.client.login(&tricky)).unwrap();
     let (method, url, headers, body) = rig.last();
     assert_eq!((method, url.as_str()), (Method::Post, "https://bw.example.org/identity/connect/token"));
-    assert_eq!(rig.sent.borrow()[0].max_body, MAX_BODY);
+    assert_eq!(rig.sent.borrow()[0].max_body, MAX_RESPONSE);
     assert_eq!(header(&headers, "Content-Type"), Some("application/x-www-form-urlencoded; charset=utf-8"));
     assert_eq!(header(&headers, "Device-Type"), Some("21"));
     assert_eq!(header(&headers, "Bitwarden-Client-Name"), Some("test-tool"));
@@ -447,7 +447,7 @@ fn responses_over_the_limit_are_refused() {
     assert_eq!(MAX_BODY, 256 * 1024 * 1024);
     for status in [200, 400] {
         let mut rig = Rig::new();
-        rig.client.body_limit = 8;
+        rig.client.response_limit = 8;
         rig.reply(status, "123456789");
         assert!(matches!(block_on(rig.client.prelogin("a")), Err(ApiError::TooLarge)));
         rig.reply(status, "12345678");
@@ -549,4 +549,28 @@ fn device_info_with_control_characters_is_refused() {
         assert!(matches!(&e, ApiError::Invalid(m) if m.contains("control characters")), "{i}");
     }
     assert!(make(device()).is_ok());
+}
+
+const MIB: usize = 1024 * 1024;
+
+#[test]
+fn get_cipher_over_16_mib_is_too_large() {
+    assert_eq!(MAX_RESPONSE, 16 * MIB);
+    let mut rig = Rig::new();
+    rig.login();
+    rig.reply(200, &" ".repeat(MAX_RESPONSE + 1));
+    assert!(matches!(block_on(rig.client.get_cipher("c1")), Err(ApiError::TooLarge)));
+    assert_eq!(rig.sent.borrow().last().unwrap().max_body, MAX_RESPONSE);
+    rig.reply(200, &" ".repeat(MAX_RESPONSE));
+    assert!(block_on(rig.client.get_cipher("c1")).is_ok());
+}
+
+#[test]
+fn sync_up_to_256_mib_is_read() {
+    let mut rig = Rig::new();
+    rig.login();
+    let pad = " ".repeat(17 * MIB - SYNC.len());
+    rig.reply(200, &format!("{SYNC}{pad}"));
+    assert!(block_on(rig.client.sync()).is_ok());
+    assert_eq!(rig.sent.borrow().last().unwrap().max_body, MAX_BODY);
 }

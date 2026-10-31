@@ -1008,6 +1008,18 @@ fn strip_refuses_trashed_and_unreadable_items() {
 }
 
 #[test]
+fn oversized_cipher_is_never_written() {
+    let k = fx();
+    let c = k.login(&[("bwss:id", "x", false), ("bwss:password", "old", true)], Some("pw"), None);
+    let p = k.set_secret(&c, B, b"new");
+    let big = with_key(&c, "junk", json!("a".repeat(super::scan::MAX_CIPHER)));
+    let held = Err(WriteError::Uninspectable(Uninspectable::TooLarge));
+    assert_eq!(k.apply(&big, &p, B), held);
+    assert_eq!(strip(&big, B, &k.keys, &k.rng), held);
+    assert_eq!(has_foreign_content(&big, B, &k.keys), held.map(|_: Map<String, Value>| false));
+}
+
+#[test]
 fn blob_cipher_is_never_written() {
     // A blob cipher scans as held; the update body would drop `data` (response-only) and wipe the blob.
     let k = fx();

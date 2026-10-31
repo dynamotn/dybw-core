@@ -5,7 +5,8 @@
 use super::fields::{Mark, decrypt_opt, field_names, item_key};
 use super::namespace::{Encodings, Namespace};
 use super::scan::{
-    Scan, TYPE_SECURE_NOTE, Uninspectable, ValueSource, is_blob, organization, read_only, scan, supported_type, trashed,
+    Scan, TYPE_SECURE_NOTE, Uninspectable, ValueSource, is_blob, organization, read_only, scan, supported_type,
+    too_large, trashed,
 };
 use super::{Keys, Organizations};
 use crate::crypto::{CryptoError, SymmetricKey};
@@ -430,6 +431,9 @@ pub fn strip(cipher: &Value, ns: &Namespace, keys: &Keys, rng: &impl Random) -> 
     if trashed(cipher) {
         return Err(WriteError::Gone);
     }
+    if too_large(cipher) {
+        return Err(WriteError::Uninspectable(Uninspectable::TooLarge));
+    }
     if is_blob(cipher) {
         return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }
@@ -453,6 +457,9 @@ pub fn strip(cipher: &Value, ns: &Namespace, keys: &Keys, rng: &impl Random) -> 
 /// Whether anything in `cipher` is not the tool's (§8.2). Only what the answer needs is decrypted. An item that
 /// cannot be read is an error, never `false`: it must not be trashed.
 pub fn has_foreign_content(cipher: &Value, ns: &Namespace, keys: &Keys) -> Result<bool, WriteError> {
+    if too_large(cipher) {
+        return Err(WriteError::Uninspectable(Uninspectable::TooLarge));
+    }
     if is_blob(cipher) {
         return Err(WriteError::Uninspectable(Uninspectable::NewerFormat));
     }

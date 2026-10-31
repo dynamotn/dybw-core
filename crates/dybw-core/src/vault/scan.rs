@@ -77,6 +77,16 @@ pub enum Uninspectable {
     Value,
     /// A blob cipher (`data` with `format_version`), which no tool reads yet.
     NewerFormat,
+    /// A cipher whose JSON is longer than `MAX_CIPHER` (ADR 0019): never decrypted.
+    TooLarge,
+}
+
+/// Largest cipher, as its JSON, that is read (ADR 0019).
+pub const MAX_CIPHER: usize = 1024 * 1024;
+
+/// Whether the cipher's JSON is longer than `MAX_CIPHER`.
+pub(crate) fn too_large(cipher: &Value) -> bool {
+    serde_json::to_vec(cipher).is_ok_and(|v| v.len() > MAX_CIPHER)
 }
 
 /// A marked, readable item. No `Clone`; `Debug` shows neither the value nor tool field values.
@@ -182,6 +192,9 @@ fn parse_date(s: &str) -> Option<i64> {
 pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> Scan {
     if trashed(cipher) {
         return Scan::Unmarked;
+    }
+    if too_large(cipher) {
+        return Scan::Uninspectable(Uninspectable::TooLarge);
     }
     if is_blob(cipher) {
         return Scan::Uninspectable(Uninspectable::NewerFormat);
