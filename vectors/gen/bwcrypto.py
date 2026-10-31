@@ -23,7 +23,7 @@ import struct
 from argon2.low_level import Type, hash_secret_raw
 from cryptography.hazmat.primitives import hashes, padding, serialization
 from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
@@ -281,7 +281,18 @@ def rsa_oaep_wrap(key: bytes, public_der: bytes, sha1: bool, seed: bytes | None 
 
 ALG_XCHACHA = -70000
 ALG_XAES = -70010
-FORMATS = {"utf8": "application/x.bitwarden.utf8-padded"}
+ALG_AES_GCM = 3  # COSE AES-256-GCM, a 12-byte nonce: the CEK of a DataEnvelope the SDK seals
+ALG_EDDSA = -8
+FORMATS = {
+    "utf8": "application/x.bitwarden.utf8-padded",
+    "legacy-key": "application/x.bitwarden.legacy-key",
+    "cose-key": 101,  # CoAP content format application/cose-key
+}
+ENVELOPE_FORMAT = "application/x.bitwarden.cbor-padded"
+ENVELOPE_BLOCK = 64
+LABEL_CONTENT_NAMESPACE = -80001  # 1 = VaultItem
+LABEL_SAFE_OBJECT_NAMESPACE = -80002  # 2 = DataEnvelope
+LABEL_SIGNING_NAMESPACE = -80000  # 2 = SecurityState
 KEY_OPS = [3, 4, 5, 6]  # encrypt, decrypt, wrap key, unwrap key (the SDK's order)
 
 
@@ -293,6 +304,8 @@ def _head(major: int, n: int) -> bytes:
 
 
 def cbor_encode(v) -> bytes:
+    if v is None or isinstance(v, bool):
+        return bytes([0xF6 if v is None else 0xF5 if v else 0xF4])
     if isinstance(v, int):
         return _head(0, v) if v >= 0 else _head(1, -1 - v)
     if isinstance(v, bytes):
@@ -315,6 +328,10 @@ def _cbor_at(data: bytes, i: int):
         i += size
     else:
         n = info
+    if major == 7:  # simple values only: false, true, null
+        if info not in (20, 21, 22):
+            raise ValueError("unsupported CBOR simple value")
+        return (False, True, None)[info - 20], i
     if major == 0:
         return n, i
     if major == 1:
@@ -340,6 +357,19 @@ def cose_key(seed: bytes, alg: int = ALG_XAES) -> bytes:
     """The padded COSE_Key a COSE account stores as its ``userKey``."""
     key = {1: 4, 2: derive(seed, 16, "cose", "kid"), 3: alg, 4: KEY_OPS, -1: derive(seed, 32, "cose", "key")}
     return cbor_encode(key) + b"\x01"
+
+
+def pad(plain: bytes, block: int) -> bytes:
+    """The core's ``cose::pad``: N bytes of value N, at least one, up to the next multiple of ``block``."""
+    n = block * (1 + len(plain) // block) - len(plain)
+    return plain + bytes([n]) * n
+
+
+def unpad(plain: bytes) -> bytes:
+    n = plain[-1] if plain else 0
+    if n == 0 or n > len(plain):  # as the core's unpad: the last byte counts the padding
+        raise ValueError("bad padding")
+    return plain[:-n]
 
 
 def _cose_parts(key: bytes) -> dict:
@@ -406,9 +436,14 @@ def xaes_key(key: bytes, nonce: bytes) -> bytes:
 def _seal(alg: int, secret: bytes, nonce: bytes, data: bytes, aad: bytes, *, open_: bool) -> bytes:
     if alg == ALG_XCHACHA:
         return (xchacha20poly1305_open if open_ else xchacha20poly1305)(secret, nonce, data, aad)
-    aead = AESGCM(xaes_key(secret, nonce))
+    if alg == ALG_AES_GCM:
+        aead, iv = AESGCM(secret), nonce[:12]
+    elif alg == ALG_XAES:
+        aead, iv = AESGCM(xaes_key(secret, nonce)), nonce[12:]
+    else:
+        raise ValueError(f"unsupported COSE algorithm: {alg}")
     try:
-        return aead.decrypt(nonce[12:], data, aad) if open_ else aead.encrypt(nonce[12:], data, aad)
+        return aead.decrypt(iv, data, aad) if open_ else aead.encrypt(iv, data, aad)
     except InvalidTag as exc:
         raise ValueError("AEAD tag mismatch") from exc
 
@@ -425,8 +460,9 @@ def cose_encrypt(plain: bytes, key: bytes, nonce: bytes, content_format: str) ->
     """``7.<base64 COSE_Encrypt0>``; text is padded to the next multiple of 32 bytes, as the SDK does."""
     k = _cose_parts(key)
     protected = _protected(k, content_format)
-    n = 32 * (1 + len(plain) // 32) - len(plain)
-    ct = _seal(k[3], k[-1], nonce, plain + bytes([n]) * n, _enc_structure(protected), open_=False)
+    if content_format == "utf8":
+        plain = pad(plain, 32)
+    ct = _seal(k[3], k[-1], nonce, plain, _enc_structure(protected), open_=False)
     return "7." + b64(cbor_encode([protected, {5: nonce}, ct]))
 
 
@@ -439,12 +475,62 @@ def cose_decrypt(s: str, key: bytes) -> bytes:
     if header[1] != k[3] or header[4] != k[2]:
         raise ValueError("message names another key")
     plain = _seal(k[3], k[-1], unprotected[5], ct, _enc_structure(protected), open_=True)
-    n = plain[-1] if plain else 0
-    if n == 0 or n > len(plain):  # as the core's unpad: the last byte counts the padding
-        raise ValueError("bad padding")
-    return plain[:-n]
+    return unpad(plain) if header[3] == FORMATS["utf8"] else plain
 
 
 def dec_any(s: str, key: bytes) -> bytes:
     """Decrypt a type 2 or type 7 EncString."""
     return cose_decrypt(s, key) if s.startswith("7.") else dec_string(s, key)
+
+
+# --- DataEnvelope and signed objects -------------------------------------------
+
+
+def cek_key(kid: bytes, secret: bytes, alg: int = ALG_AES_GCM) -> bytes:
+    """A content-encryption key as the SDK stores it: a padded COSE_Key that may only decrypt (``key_ops`` [4])."""
+    return cbor_encode({1: 4, 2: kid, 3: alg, 4: [4], -1: secret}) + b"\x01"
+
+
+def data_envelope(content_cbor: bytes, cek: bytes, nonce: bytes) -> bytes:
+    """A DataEnvelope: a COSE_Encrypt0 whose content is ``content_cbor`` padded to 64-byte blocks."""
+    k = _cose_parts(cek)
+    protected = cbor_encode(
+        {
+            1: k[3],
+            3: ENVELOPE_FORMAT,
+            4: k[2],
+            LABEL_SAFE_OBJECT_NAMESPACE: 2,
+            LABEL_CONTENT_NAMESPACE: 1,
+        }
+    )
+    ct = _seal(k[3], k[-1], nonce, pad(content_cbor, ENVELOPE_BLOCK), _enc_structure(protected), open_=False)
+    return cbor_encode([protected, {5: nonce}, ct])
+
+
+def open_envelope(env: bytes, cek: bytes) -> bytes:
+    """The CBOR content of a DataEnvelope, unpadded. The envelope must name this key and be a DataEnvelope."""
+    k = _cose_parts(cek)
+    protected, unprotected, ct = cbor_decode(env)
+    header = cbor_decode(protected)
+    if (header[1], header[4]) != (k[3], k[2]):
+        raise ValueError("message names another key")
+    if header.get(3) != ENVELOPE_FORMAT or header.get(LABEL_SAFE_OBJECT_NAMESPACE) != 2:
+        raise ValueError("not a DataEnvelope")
+    return unpad(_seal(k[3], k[-1], unprotected[5], ct, _enc_structure(protected), open_=True))
+
+
+def ed25519_cose_keys(seed: bytes, kid: bytes) -> tuple[bytes, bytes]:
+    """The COSE_Keys (signing, verifying) of an Ed25519 key, in the field order of the SDK's coset encoding."""
+    sk = ed25519.Ed25519PrivateKey.from_private_bytes(seed)
+    x = sk.public_key().public_bytes_raw()
+    signing = {1: 1, 2: kid, 3: ALG_EDDSA, 4: [1], -1: 6, -4: seed}
+    verifying = {1: 1, 2: kid, 3: ALG_EDDSA, 4: [2], -1: 6, -2: x}
+    return cbor_encode(signing), cbor_encode(verifying)
+
+
+def cose_sign1_ed25519(payload: bytes, seed: bytes, kid: bytes, namespace: int) -> bytes:
+    """A COSE_Sign1 (EdDSA) with the content type 60 (CBOR), the key id and the signing namespace protected."""
+    protected = cbor_encode({1: ALG_EDDSA, 3: 60, 4: kid, LABEL_SIGNING_NAMESPACE: namespace})
+    to_sign = cbor_encode(["Signature1", protected, b"", payload])
+    sig = ed25519.Ed25519PrivateKey.from_private_bytes(seed).sign(to_sign)
+    return cbor_encode([protected, {}, payload, sig])

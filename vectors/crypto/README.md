@@ -22,6 +22,7 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
 | `bwss/gen_vectors.py` | bwss | `tests/fixtures/gen_vectors.py` | `dc65284` | `c5fb2e57d917f4daf2a01421ae6802e95130540a816234f4cb24a57bb310df16` |
 | `marks.json` | dybw-core | `vectors/crypto/marks.json` | written for M2; checked against bwss `6a0bc62` and plugin `409d2a4` | `37035135df1e65740837db6bd3b06ff85e577fb72486f6356165ba48a1607a92` |
 | `../gen/gen_marks.py` | dybw-core | `vectors/gen/gen_marks.py` | written for M2 | `a3797a42eeccfc8ec70c8bd038aaebf3130d6a6bdf120f3d31700ea9e5462fc1` |
+| `sdk-m3.json` | sdk-internal | constants of `bitwarden-vault` `cipher/blob/sealed.rs` and `cipher/blob/v1.rs`, `bitwarden-core` `key_management/security_state.rs`, `bitwarden-crypto` `signing/signing_key.rs` and `signing/signed_object.rs` (the file and line of each are inside) | `3d16437` | `8f8817b95d912846513099f3a5502c023aac27f2ed1e19a69274046aa2f19e0b` |
 
 ## What each fixture covers
 
@@ -44,6 +45,18 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
   with a throwaway test. bwss has no COSE keys, so the `cose` `bwss` rows (the
   owner-approved formula: PRK = the secret, info `bwss value-mark enc/mac`,
   the MAC half) are pinned by the core only.
+- `sdk-m3.json`: recorded SDK vectors for data model 1.6, each constant with
+  its source `file` and `line` at `3d16437`, as strings (a Rust byte array is
+  written as hex). `sealed` is a sealed blob (the `data` of a blob cipher) with
+  its wrapping key, whose envelope uses XChaCha20-Poly1305 and a 24-byte nonce
+  (the generator seals with AES-256-GCM, so its readers must open both). `v1`
+  holds one DataEnvelope per blob type, each with its CEK and the plaintext
+  the SDK test asserts, in the serialized shape. `security_state` is a signed
+  security state of version 2 with its Ed25519 verifying key (its payload also
+  carries an `entityId`, which is ignored). `mldsa44` is an ML-DSA-44
+  verifying key and a raw signature over `Test message`. `signed_object` is a
+  COSE_Sign1 over `{"field1": "Test message"}` in namespace -1, with its
+  Ed25519 verifying key.
 - `bwss/vectors.json`, `bwss/gen_vectors.py`: bwss's own crypto known-answer
   fixture and its generator (ruling R6). Both are identical to the plugin's
   `vectors.json` and `gen_vectors.py` (same sha256); they are kept for

@@ -306,6 +306,7 @@ dependencies = [
 name = "dybw-vectors"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "base64",
  "dybw-core",
  "percent-encoding",

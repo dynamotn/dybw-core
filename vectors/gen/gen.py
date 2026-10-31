@@ -62,11 +62,66 @@ ACCOUNTS = [
         "orgs": [],
         "cose": True,
     },
+    {
+        # `cose` plus an Ed25519 signing key and a signed security state of version 2 (a blob cipher needs it)
+        "name": "cose-v2",
+        "email": "cose-v2@vectors.invalid",
+        "password": "vectors-cose-v2-password",
+        "kdf": {"type": "pbkdf2", "iterations": 600000},
+        "orgs": [],
+        "cose": True,
+        "signed": True,
+    },
 ]
 
 
 def seed_for(name: str) -> bytes:
     return hashlib.sha256(f"dybw-vectors:{name}".encode()).digest()
+
+
+SECURITY_STATE_VERSION = 2
+SIGNING_NAMESPACE_SECURITY_STATE = 2
+
+
+def signed_account_parts(spec: dict, seed: bytes, user_key: bytes, profile_key: str) -> dict:
+    """``profile.accountKeys`` (signing key wrapped under the user key, signed security state) and the
+    ``userDecryption`` of a newer server. The Ed25519 seed is SHA-256("dybw-vectors:<name>/signing")."""
+    sign_seed = seed_for(f"{spec['name']}/signing")
+    kid = bwcrypto.derive(seed, 16, "signing", "kid")
+    signing, verifying = bwcrypto.ed25519_cose_keys(sign_seed, kid)
+    state = bwcrypto.cbor_encode(
+        {"entityId": bwcrypto.derive(seed, 16, "securityState", "entityId"), "version": SECURITY_STATE_VERSION}
+    )
+    signed = bwcrypto.cose_sign1_ed25519(state, sign_seed, kid, SIGNING_NAMESPACE_SECURITY_STATE)
+    kdf = spec["kdf"]
+    unlock_kdf = (
+        {"kdfType": 0, "iterations": kdf["iterations"]}
+        if kdf["type"] == "pbkdf2"
+        else {"kdfType": 1, "iterations": kdf["iterations"], "memory": kdf["memory"], "parallelism": kdf["parallelism"]}
+    )
+    return {
+        "profile": {
+            "accountKeys": {
+                "signatureKeyPair": {
+                    "wrappedSigningKey": bwcrypto.cose_encrypt(
+                        signing, user_key, bwcrypto.derive(seed, 24, "signing", "wrap"), "cose-key"
+                    ),
+                    "verifyingKey": bwcrypto.b64(verifying),
+                },
+                "securityState": {
+                    "securityState": bwcrypto.b64(signed),
+                    "securityVersion": SECURITY_STATE_VERSION,
+                },
+            }
+        },
+        "userDecryption": {
+            "masterPasswordUnlock": {
+                "kdf": unlock_kdf,
+                "masterKeyEncryptedUserKey": profile_key,
+                "salt": spec["email"],
+            }
+        },
+    }
 
 
 def build_account(spec: dict) -> dict:
@@ -84,6 +139,8 @@ def build_account(spec: dict) -> dict:
             user_key, stretched, bwcrypto.iv_for(seed, "profileKey")
         ),
     }
+    if spec.get("signed"):
+        acc.update(signed_account_parts(spec, seed, user_key, acc["profileKey"]))
     if spec["orgs"]:
         rsa_key = bwcrypto.rsa_key_from_seed(bwcrypto.derive(seed, 32, "rsa"))
         pub = bwcrypto.public_der(rsa_key)
@@ -221,10 +278,93 @@ class _Encryptor:
         return self.finish(bwcrypto.enc_string(plain.encode("utf-8"), self.key, iv), path)
 
 
+def blob_content(src: dict) -> dict:
+    """``CipherBlobV1`` as the SDK serializes it: camelCase, None as null, empty lists left out."""
+    if src["type"] == 1:
+        lg = src.get("login") or {}
+        type_data = {"type": "login", "username": lg.get("username"), "password": lg.get("password")}
+        type_data["passwordRevisionDate"] = None
+        if lg.get("uris"):
+            type_data["uris"] = [{"uri": u, "match": None} for u in lg["uris"]]
+        type_data["totp"] = lg.get("totp")
+        type_data["autofillOnPageLoad"] = None
+    elif src["type"] == 2:
+        type_data = {"type": "secureNote", "secureNoteType": 0}
+    else:
+        raise GenError(f"cipher {src['id']!r}: a blob cipher is a login or a secure note")
+    content = {"name": src["name"], "notes": src.get("notes"), "typeData": type_data}
+    if src.get("fields"):
+        content["fields"] = [
+            {"name": f["name"], "value": f["value"], "type": f["type"], "linkedId": None} for f in src["fields"]
+        ]
+    history = (src.get("login") or {}).get("passwordHistory")
+    if history:
+        content["passwordHistory"] = [
+            {"password": h["password"], "lastUsedDate": h["lastUsedDate"]} for h in history
+        ]
+    return content
+
+
+def flip_envelope(env: bytes) -> bytes:
+    """The same COSE_Encrypt0 with one ciphertext byte flipped: it parses, but the AEAD fails."""
+    protected, unprotected, ct = bwcrypto.cbor_decode(env)
+    return bwcrypto.cbor_encode([protected, unprotected, bytes([ct[0] ^ 1]) + ct[1:]])
+
+
+def encrypt_blob_cipher(
+    src: dict, account: dict, sid: str, ns: str, fresh: bool = False, same_as: dict | None = None
+) -> dict:
+    """A personal blob cipher: ``data`` is the SDK's sealed blob (AES-256-GCM CEK, wrapped under the item key,
+    which a blob always has). The item key is a 64-byte legacy key, wrapped under the user key as the account's
+    EncString type (2, or 7 labelled legacy-key); the CEK is wrapped under it as type 2."""
+    seed = base64.b64decode(account["seed"])
+    if src.get("organizationId"):
+        raise GenError(f"cipher {src['id']!r}: a blob cipher is personal")
+    unknown = sorted(set(src.get("tamper", [])) - {"envelope", "wrapped_cek"})
+    if unknown:
+        raise GenError(f"cipher {src['id']!r}: tamper paths not encrypted: {', '.join(unknown)}")
+    owner = _owner_key(account, None)
+    base = (sid, ns, src["id"]) + (("fresh",) if fresh else ())
+    if same_as is not None and (same_as.get("itemKey") or same_as.get("format") == "blob"):
+        item_key = bwcrypto.derive(seed, 64, sid, ns, src["id"], "itemKey")
+    else:
+        item_key = bwcrypto.derive(seed, 64, *base, "itemKey")
+    if bwcrypto.is_cose(owner):
+        wrapped_key = bwcrypto.cose_encrypt(
+            item_key, owner, bwcrypto.derive(seed, 24, *base, "key"), "legacy-key"
+        )
+    else:
+        wrapped_key = bwcrypto.enc_string(item_key, owner, bwcrypto.iv_for(seed, *base, "key"))
+    cek = bwcrypto.cek_key(bwcrypto.derive(seed, 16, *base, "cek", "kid"), bwcrypto.derive(seed, 32, *base, "cek"))
+    content = bwcrypto.cbor_encode({"version": src.get("contentVersion", "1"), "content": blob_content(src)})
+    envelope = bwcrypto.data_envelope(content, cek, bwcrypto.derive(seed, 12, *base, "nonce"))
+    if "envelope" in src.get("tamper", []):
+        envelope = flip_envelope(envelope)
+    wrapped_cek = bwcrypto.enc_string(cek, item_key, bwcrypto.iv_for(seed, *base, "wrapped_cek"))
+    if "wrapped_cek" in src.get("tamper", []):
+        wrapped_cek = tamper_mac(wrapped_cek)
+    data = {
+        "format_version": src.get("formatVersion", 1),
+        "wrapped_cek": wrapped_cek,
+        "envelope": bwcrypto.b64(envelope),
+    }
+    out: dict = {"id": src["id"], "type": src["type"]}
+    if "folderId" in src:
+        out["folderId"] = src["folderId"]
+    out.update(name=None, notes=None, login=None, fields=None, passwordHistory=None, key=wrapped_key)
+    out["data"] = json.dumps(data, separators=(",", ":"))
+    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword"):
+        if k in src:
+            out[k] = src[k]
+    return _apply_case(out, src.get("pascalCase", False), src.get("extra", {}))
+
+
 def encrypt_cipher(
     src: dict, account: dict, sid: str, ns: str, fresh: bool = False, same_as: dict | None = None
 ) -> dict:
     """Server-shaped cipher from a plaintext one (``{ns}`` already expanded)."""
+    if src.get("format", "fields") == "blob":
+        return encrypt_blob_cipher(src, account, sid, ns, fresh, same_as)
     seed = base64.b64decode(account["seed"])
     owner = _owner_key(account, src.get("organizationId"))
     e = _Encryptor(seed, sid, ns, src["id"], fresh, src.get("tamper", []))
@@ -536,6 +676,15 @@ def decrypt(cipher: dict, account: dict) -> dict:
         if k in c:
             out[k] = c[k]
     return out
+
+
+def open_blob(cipher: dict, account: dict) -> dict:
+    """The CBOR value (``{"version", "content"}``) sealed in a blob cipher. Fails on a wrong key or a tampered part."""
+    c = _camel(cipher)
+    data = json.loads(c["data"])
+    item_key = bwcrypto.dec_any(c["key"], _owner_key(account, c.get("organizationId")))
+    cek = bwcrypto.dec_string(data["wrapped_cek"], item_key)
+    return bwcrypto.cbor_decode(bwcrypto.open_envelope(base64.b64decode(data["envelope"]), cek))
 
 
 def cmd_build(args: argparse.Namespace) -> int:

@@ -16,6 +16,8 @@ pub struct ScenarioKeys {
     pub profile: Value,
     /// The server's answer to prelogin for this account's KDF.
     pub prelogin: Value,
+    /// The account's security state version: 0 without a signed state.
+    pub security_version: u64,
 }
 
 impl ScenarioKeys {
@@ -73,7 +75,7 @@ pub fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys
         }
     }
 
-    let profile = json!({
+    let mut profile = json!({
         "id": "vectors-user",
         "email": text(&account, "email", name),
         "key": text(&account, "profileKey", name),
@@ -82,6 +84,13 @@ pub fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys
             "id": text(o, "id", name), "name": text(o, "name", name), "key": text(o, "wrapped", name), "enabled": true,
         })).collect::<Vec<_>>(),
     });
+    if let (Some(account_keys), Some(p)) = (account.pointer("/profile/accountKeys"), profile.as_object_mut()) {
+        p.insert("accountKeys".into(), account_keys.clone());
+    }
+    // TODO(Task 4): read the version from `verify_security_state` over the signed state, never from the server's
+    // `securityVersion`; the test `security_version_is_read_from_the_account_file` goes with this line.
+    let security_version =
+        account.pointer("/profile/accountKeys/securityState/securityVersion").and_then(Value::as_u64).unwrap_or(0);
     let kdf = account.get("kdf").unwrap_or_else(|| panic!("{name}: no kdf"));
     let num = |k: &str| kdf.get(k).cloned().unwrap_or(Value::Null);
     let prelogin = match kdf.get("type").and_then(Value::as_str) {
@@ -92,5 +101,5 @@ pub fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys
         }),
         other => panic!("{name}: unknown kdf {other:?}"),
     };
-    ScenarioKeys { user, orgs, profile, prelogin }
+    ScenarioKeys { user, orgs, profile, prelogin, security_version }
 }

@@ -439,3 +439,95 @@ fn unlock_uses_the_server_salt() {
     let out = run_unlock(profile, prelogin, email, password, &Organizations::None);
     assert!(matches!(out.result, Err(ProfileError::WrongPassword)));
 }
+
+// TODO(Task 4): the version comes from `verify_security_state` over the signed state; delete this test with the
+// line in `keys.rs` that reads the server's `securityVersion`.
+#[test]
+fn security_version_is_read_from_the_account_file() {
+    let dir = vectors_dir().unwrap();
+    for (name, version) in [("pbkdf2", 0), ("cose", 0), ("cose-v2", 2)] {
+        assert_eq!(account_keys(&dir, name, false).security_version, version, "{name}");
+    }
+    let v2 = account_keys(&dir, "cose-v2", false);
+    assert!(v2.profile["accountKeys"]["signatureKeyPair"]["wrappedSigningKey"].as_str().unwrap().starts_with("7."));
+    assert!(account_keys(&dir, "cose", false).profile.get("accountKeys").is_none());
+}
+
+// Blob ciphers the generator made for the `cose-v2` account (`encrypt_cipher` with id `b1` or `b2`, scenario
+// `test/blob`, namespace `bwss`); `V2` has its content version set to "2".
+const BLOB_KEY: &str = "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYhw/UtZymRxRaiTwzGseF3YagFG2dNU3UWFDlfTHYXvFKFWla8z3cDZR8Us64K+Y57dUYfMk8EuVlTpIB23gsD41t/om3a9Pd3xN/MVxmjPg9li7dTkJbXcwcvfi0hoHNOrfc9zZd8cgkVA==";
+const BLOB_LOGIN: &str = r#"{"format_version":1,"wrapped_cek":"2.DECH2lF+X/igdEgcaHl4ZQ==|jCc4JIVD19hNG/yvo+d2cE0DZFhiFIUejH1Jmytb9gFLHv8E+ehtflZHPOTYUXPfOWe99r8iNCbA8CJcRl5e0A==|SXlnm0uTajvdcRK6ae8ihKJvm2XK7qFQb6mYyJ2kOpc=","envelope":"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUAExRAbJDG+AlWbvWDy0odA6AAE4gQI6AAE4gAGhBUx/4oeVajl+Klur3g9ZAVDnCW8z0RvWdqBucl0fvUEV7LXNWIlRQrka5usy8Sxx7SAwiYOmTSIZDLVNugEoyYgFfJ+tDEWKM75YGjVNn9oxHOYM5EWJvUyWBqdt9AcqSFOwBOyNaKkC3P2+EjIOcFtWsuGTC94kuO4FDwZCD+lWktLaGiSJ6ScIhsBuII5cdoikaeG3FpTKArHSTUV6gEYLTMiW/e4flZR4XD/DjJe4wKLKV5NDVyEspfKBFv7pQyMa7vK/Q41bHCbWDxx7to++mgZjGRRaBVjyZ+kEeR+86CQGyCQpsOW4ouLOoz98/PaWFP8leDV3p/1GpqLTG+Lkzazt1a+onABzk18xvIl6ijaLfNsM0wBXCVo5GvI9ANNiQoFK1BUJfdDSH1wKFJC0c/3YCuKt3qx4RsdKoUQa8izp9mpbqHhrv6+2uAtvTquKPYBJNmCDdVlWgOVTRk4="}"#;
+const BLOB_V2: &str = r#"{"format_version":1,"wrapped_cek":"2.DECH2lF+X/igdEgcaHl4ZQ==|jCc4JIVD19hNG/yvo+d2cE0DZFhiFIUejH1Jmytb9gFLHv8E+ehtflZHPOTYUXPfOWe99r8iNCbA8CJcRl5e0A==|SXlnm0uTajvdcRK6ae8ihKJvm2XK7qFQb6mYyJ2kOpc=","envelope":"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUAExRAbJDG+AlWbvWDy0odA6AAE4gQI6AAE4gAGhBUx/4oeVajl+Klur3g9ZAVDnCW8z0RvWdqBucV0fvUEV7LXNWIlRQrka5usy8Sxx7SAwiYOmTSIZDLVNugEoyYgFfJ+tDEWKM75YGjVNn9oxHOYM5EWJvUyWBqdt9AcqSFOwBOyNaKkC3P2+EjIOcFtWsuGTC94kuO4FDwZCD+lWktLaGiSJ6ScIhsBuII5cdoikaeG3FpTKArHSTUV6gEYLTMiW/e4flZR4XD/DjJe4wKLKV5NDVyEspfKBFv7pQyMa7vK/Q41bHCbWDxx7to++mgZjGRRaBVjyZ+kEeR+86CQGyCQpsOW4ouLOoz98/PaWFP8leDV3p/1GpqLTG+Lkzazt1a+onABzk18xvIl6ijaLfNsM0wBXCVo5GvI9ANNiQoFK1BUJfdDSH1wKFJC0c/3YCuKt3qx4RsdKoUQa8izp9mpbqHhrv6+2uAtvTk+V1jpno+vZL69KBLCBQlc="}"#;
+const BLOB_NOTE_KEY: &str = "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYLRvsoBE6bITTzkExqa8mZykhbjNhZskIWFCiGzvJESZRSAuknORbwCtT0JgV2vcJlSghs7gEoUXLaWO3gRw3WTyU1U8XIYrlnR1s07t1le/15B0Z4OvX8yxe9IenFYs8Q7qa0eXDbeooQA==";
+const BLOB_NOTE: &str = r#"{"format_version":1,"wrapped_cek":"2.IvG2gWqHNtc3s+4HYozOJg==|9yfRbSBVRtBOMkVfPM72PDUXafIaa1J7ezCRKJT4b1oNf5EzuacPZ+pFPYMyV4vDzsD8DwQ9LavU4kjWQkFOpA==|vDnjg0q/kx99EXipU6/isZgpAuI6ajUYwx+jcmp+Skg=","envelope":"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUDfZOxLzuxqoab5QZ0Jg8yw6AAE4gQI6AAE4gAGhBUzF8bKl8LEjdYkcBRpYkM9dmk3rI9o2COmzNOWmdkjqbU3w96IHhliu1aR7Vzz87Vr8pGaEPREZ/xOoQNRnrKbgGs/i7H29epbwXA2e6ZxkM/SqINCVkB++FCNORBTGXVpRnpaidyOZHb31ek2qIP+HqMUiZrYlpdx137DhGVSsBkSv4SPftgPh8xv5b/WBzdY+ryHHy5lotKZCQFkpMA=="}"#;
+
+fn blob_put(key: &str, data: Value) -> Sent {
+    let body = json!({
+        "type": 1, "name": null, "notes": null, "login": null, "fields": null, "passwordHistory": null,
+        "organizationId": null, "folderId": null, "key": key, "data": data, "lastKnownRevisionDate": NOW,
+    });
+    Sent::Put { cipher: "b1".into(), body }
+}
+
+/// `data` with `f` applied to its parsed JSON.
+fn edited(data: &str, f: impl FnOnce(&mut Value)) -> Value {
+    let mut v: Value = serde_json::from_str(data).unwrap();
+    f(&mut v);
+    Value::String(v.to_string())
+}
+
+#[test]
+fn canonicalize_opens_a_blob_with_the_scenarios_keys() {
+    let dir = vectors_dir().unwrap();
+    let keys = account_keys(&dir, "cose-v2", false);
+    let got = canonicalize(&blob_put(BLOB_KEY, json!(BLOB_LOGIN)), &keys.user, &BTreeMap::new()).unwrap();
+    assert_eq!(
+        got,
+        json!({
+            "method": "PUT", "cipher": "b1", "type": 1, "name": "Blob", "notes": "n",
+            "login": {
+                "username": "u", "password": "pw", "uris": ["https://a.invalid"], "totp": null,
+                "passwordHistory": ["old"],
+            },
+            "fields": [{ "name": "bwss:id", "value": "x", "type": 0 }, { "name": "f", "value": null, "type": 1 }],
+            "organizationId": null, "folderId": null, "lastKnownRevisionDate": "<now>", "hasItemKey": true,
+            "extra": {}, "blob": true,
+        })
+    );
+    let note = canonicalize(&blob_put(BLOB_NOTE_KEY, json!(BLOB_NOTE)), &keys.user, &BTreeMap::new()).unwrap();
+    assert_eq!(
+        (&note["login"], &note["fields"], &note["notes"], &note["blob"]),
+        (&json!(null), &json!([]), &json!(null), &json!(true))
+    );
+}
+
+#[test]
+fn canonicalize_refuses_a_blob_it_cannot_open() {
+    let dir = vectors_dir().unwrap();
+    let keys = account_keys(&dir, "cose-v2", false);
+    let flip = |text: &str| {
+        let mut raw = B64.decode(text).unwrap();
+        *raw.last_mut().unwrap() ^= 1;
+        json!(B64.encode(raw))
+    };
+    let cases = [
+        ("envelope", edited(BLOB_LOGIN, |v| v["envelope"] = flip(v["envelope"].as_str().unwrap()))),
+        (
+            "wrapped_cek",
+            edited(BLOB_LOGIN, |v| {
+                v["wrapped_cek"] = json!("2.AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAA==|AAAA")
+            }),
+        ),
+        ("newer format", edited(BLOB_LOGIN, |v| v["format_version"] = json!(2))),
+        ("newer content", Value::String(BLOB_V2.into())),
+        ("no envelope", edited(BLOB_LOGIN, |v| _ = v.as_object_mut().unwrap().remove("envelope"))),
+        ("not JSON", json!("{")),
+        ("not text", json!(5)),
+    ];
+    for (what, data) in cases {
+        assert!(canonicalize(&blob_put(BLOB_KEY, data), &keys.user, &BTreeMap::new()).is_err(), "{what}");
+    }
+    // The wrong user key does not open the item key.
+    let other = account_keys(&dir, "cose", false);
+    assert!(canonicalize(&blob_put(BLOB_KEY, json!(BLOB_LOGIN)), &other.user, &BTreeMap::new()).is_err());
+}

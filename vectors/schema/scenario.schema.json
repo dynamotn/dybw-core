@@ -349,7 +349,10 @@
           ]
         },
         "name": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
         },
         "notes": {
@@ -407,6 +410,12 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "data": {
+          "type": [
+            "string",
+            "null"
           ]
         },
         "key": {
@@ -649,7 +658,10 @@
           ]
         },
         "Name": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
         },
         "Notes": {
@@ -707,6 +719,12 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "Data": {
+          "type": [
+            "string",
+            "null"
           ]
         },
         "Key": {

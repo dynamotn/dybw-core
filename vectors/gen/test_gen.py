@@ -268,7 +268,7 @@ def test_iv_for_is_deterministic_and_path_sensitive():
 
 
 def test_accounts_exist():
-    assert {p.stem for p in _account_files()} == {"pbkdf2", "argon2id", "org", "cose"}
+    assert {p.stem for p in _account_files()} == {"pbkdf2", "argon2id", "org", "cose", "cose-v2"}
 
 
 def test_accounts_unlock():
@@ -279,7 +279,7 @@ def test_accounts_unlock():
         mk = bwcrypto.master_key(acc["password"], acc["email"], acc["kdf"])
         user_key = bwcrypto.dec_string(acc["profileKey"], bwcrypto.stretch(mk))
         assert user_key == base64.b64decode(acc["userKey"])
-        if acc["name"] != "cose":
+        if not acc["name"].startswith("cose"):
             assert len(user_key) == 64
 
 
@@ -881,3 +881,273 @@ def test_1_6_expectations():
     read = {"items": [], "skipped": [{"cipher": "c", "reason": "invalid-base64"}], "uninspectable": [],
             "duplicates": [{"id": "a", "kept": "c", "left": [], "boundKept": True}]}
     check(with_expect({"read": read}), SOURCE_SCHEMA)
+
+
+# --- blob ciphers and the cose-v2 account (data model 1.6) ----------------------
+
+SDK_M3 = VECTORS / "crypto" / "sdk-m3.json"
+
+
+def _sdk_blob(name: str):
+    """(cek, envelope, plaintext) of one recorded DataEnvelope of the SDK."""
+    entry = load(SDK_M3)["v1"][name]
+    key = next(v["value"] for k, v in entry.items() if k.endswith("_CEK"))
+    env = next(v["value"] for k, v in entry.items() if k.endswith("_ENVELOPE"))
+    return base64.b64decode(key), base64.b64decode(env), entry["plaintext"]
+
+
+def test_envelope_opens_sdk_vector():
+    """The sealed.rs vector's envelope uses XChaCha20-Poly1305 and a 24-byte nonce; ours use AES-256-GCM."""
+    import bwcrypto
+
+    sealed = load(SDK_M3)["sealed"]
+    blob = json.loads(sealed["TEST_VECTOR_SEALED_BLOB"]["value"])
+    wrapping = base64.b64decode(sealed["TEST_VECTOR_WRAPPING_KEY"]["value"])
+    cek = bwcrypto.dec_string(blob["wrapped_cek"], wrapping)
+    assert bwcrypto.cose_alg(cek) == bwcrypto.ALG_XCHACHA
+    env = base64.b64decode(blob["envelope"])
+    assert bwcrypto.cbor_decode(bwcrypto.open_envelope(env, cek)) == sealed["plaintext"]
+    for name in load(SDK_M3)["v1"]:
+        key, env, plain = _sdk_blob(name)
+        assert bwcrypto.cbor_decode(bwcrypto.open_envelope(env, key)) == {"version": "1", "content": plain["content"]}
+    with pytest.raises(ValueError):
+        bwcrypto.open_envelope(env[:-1] + bytes([env[-1] ^ 1]), key)
+
+
+def test_envelope_round_trips_every_algorithm_and_rejects_a_wrong_key():
+    import bwcrypto
+
+    for alg, nonce_len in ((bwcrypto.ALG_AES_GCM, 12), (bwcrypto.ALG_XCHACHA, 24), (bwcrypto.ALG_XAES, 24)):
+        cek = bwcrypto.cek_key(b"k" * 16, b"s" * 32, alg)
+        env = bwcrypto.data_envelope(b"\xa0", cek, b"n" * nonce_len)
+        assert bwcrypto.open_envelope(env, cek) == b"\xa0"
+        other = bwcrypto.cek_key(b"j" * 16, b"s" * 32, alg)
+        with pytest.raises(ValueError, match="another key"):
+            bwcrypto.open_envelope(env, other)
+    with pytest.raises(ValueError, match="unsupported"):
+        bwcrypto.data_envelope(b"\xa0", bwcrypto.cek_key(b"k" * 16, b"s" * 32, 99), b"n" * 12)
+    plain_cose = bwcrypto.cose_encrypt(b"x", bwcrypto.cose_key(b"s" * 32), b"n" * 24, "utf8")
+    with pytest.raises(ValueError, match="not a DataEnvelope"):
+        bwcrypto.open_envelope(base64.b64decode(plain_cose[2:]), bwcrypto.cose_key(b"s" * 32))
+
+
+BLOB_FIXTURE = {
+    "id": "read/blob",
+    "spec": "1.6",
+    "sections": ["§4"],
+    "account": "cose-v2",
+    "namespaces": ["bwss"],
+    "ciphers": [
+        {
+            "id": "b1",
+            "type": 1,
+            "format": "blob",
+            "name": "Blob {ns}",
+            "notes": "n",
+            "login": {
+                "username": "u",
+                "password": "pw-ünï",
+                "uris": ["https://a.invalid", "https://b.invalid"],
+                "totp": None,
+                "passwordHistory": [{"password": "old", "lastUsedDate": "2025-01-01T00:00:00Z"}],
+            },
+            "fields": [{"name": "{ns}:id", "value": "x", "type": 0}, {"name": "f", "value": None, "type": 1}],
+        },
+        {"id": "b2", "type": 2, "format": "blob", "name": "Note", "notes": None, "fields": []},
+    ],
+    "expect": {"read": {"items": [], "skipped": [], "uninspectable": []}},
+}
+
+
+def _blob(**over):
+    account = gen.load_account("cose-v2")
+    src = {**BLOB_FIXTURE["ciphers"][0], **over}
+    return gen.encrypt_cipher(gen.expand_ns(src, "bwss"), account, "read/blob", "bwss"), account
+
+
+def test_blob_round_trip():
+    scenario = gen.render_scenario(BLOB_FIXTURE, "bwss", gen.load_account("cose-v2"))
+    account = gen.load_account("cose-v2")
+    login, note = scenario["ciphers"]
+    assert (login["name"], login["notes"], login["login"], login["fields"], login["passwordHistory"]) == (None,) * 5
+    assert login["key"].startswith("7.")  # an item key under a COSE user key is type 7
+    assert json.loads(login["data"])["wrapped_cek"].startswith("2.")
+    assert list(json.loads(login["data"])) == ["format_version", "wrapped_cek", "envelope"]
+    assert gen.open_blob(login, account) == {
+        "version": "1",
+        "content": {
+            "name": "Blob bwss",
+            "notes": "n",
+            "typeData": {
+                "type": "login",
+                "username": "u",
+                "password": "pw-ünï",
+                "passwordRevisionDate": None,
+                "uris": [{"uri": "https://a.invalid", "match": None}, {"uri": "https://b.invalid", "match": None}],
+                "totp": None,
+                "autofillOnPageLoad": None,
+            },
+            "fields": [
+                {"name": "bwss:id", "value": "x", "type": 0, "linkedId": None},
+                {"name": "f", "value": None, "type": 1, "linkedId": None},
+            ],
+            "passwordHistory": [{"password": "old", "lastUsedDate": "2025-01-01T00:00:00Z"}],
+        },
+    }
+    assert gen.open_blob(note, account)["content"] == {
+        "name": "Note",
+        "notes": None,
+        "typeData": {"type": "secureNote", "secureNoteType": 0},
+    }
+
+
+def test_blob_on_a_legacy_account_wraps_the_item_key_as_type_2():
+    account = gen.load_account("pbkdf2")
+    src = gen.expand_ns(BLOB_FIXTURE["ciphers"][1], "bwss")
+    cipher = gen.encrypt_cipher(src, account, "read/blob", "bwss")
+    assert cipher["key"].startswith("2.")
+    assert gen.open_blob(cipher, account)["content"]["name"] == "Note"
+
+
+def test_blob_pascal_case_and_versions():
+    cipher, account = _blob(pascalCase=True, formatVersion=2, contentVersion="2", extra={"xK": 1})
+    assert "Data" in cipher and "data" not in cipher and cipher["xK"] == 1
+    assert json.loads(cipher["Data"])["format_version"] == 2
+    assert gen.open_blob(cipher, account)["version"] == "2"
+
+
+def test_blob_padding_is_64():
+    import bwcrypto
+
+    account = gen.load_account("cose-v2")
+    for n in (0, 1, 63, 64, 65, 200):
+        cek = bwcrypto.cek_key(b"k" * 16, b"s" * 32)
+        content = b"\x01" * n
+        env = bwcrypto.data_envelope(content, cek, b"n" * 12)
+        _, _, ct = bwcrypto.cbor_decode(env)
+        assert (len(ct) - 16) % 64 == 0 and len(ct) - 16 > n
+        assert bwcrypto.open_envelope(env, cek) == content
+    cipher, _ = _blob()
+    data = json.loads(cipher["data"])
+    _, _, ct = bwcrypto.cbor_decode(base64.b64decode(data["envelope"]))
+    assert (len(ct) - 16) % 64 == 0
+    assert account["name"] == "cose-v2"
+
+
+def test_blob_tamper_breaks_only_the_named_part():
+    for part in ("envelope", "wrapped_cek"):
+        cipher, account = _blob(tamper=[part])
+        with pytest.raises(ValueError):
+            gen.open_blob(cipher, account)
+    cipher, account = _blob()
+    assert gen.open_blob(cipher, account)["content"]["name"] == "Blob bwss"
+
+
+def test_blob_is_rejected_where_it_cannot_be_written():
+    account = gen.load_account("cose-v2")
+    for over, why in (
+        ({"organizationId": "org-a"}, "personal"),
+        ({"type": 3}, "login or a secure note"),
+        ({"tamper": ["name"]}, "not encrypted"),
+    ):
+        src = gen.expand_ns({**BLOB_FIXTURE["ciphers"][0], **over}, "bwss")
+        with pytest.raises(gen.GenError, match=why):
+            gen.encrypt_cipher(src, account, "read/blob", "bwss")
+
+
+def test_blob_fresh_keeps_the_item_key():
+    account = gen.load_account("cose-v2")
+    src = gen.expand_ns(BLOB_FIXTURE["ciphers"][0], "bwss")
+    original = gen.encrypt_cipher(src, account, "read/blob", "bwss")
+    fresh = gen.encrypt_cipher(src, account, "read/blob", "bwss", True, src)
+    other = gen.encrypt_cipher(src, account, "read/blob", "bwss", True)
+    import bwcrypto
+
+    owner = base64.b64decode(account["userKey"])
+    key = lambda c: bwcrypto.dec_any(c["key"], owner)  # noqa: E731
+    assert key(original) == key(fresh) != key(other)
+
+
+def test_blob_schemas_accept_the_generated_scenario():
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        src = Path(d) / "src" / "read"
+        src.mkdir(parents=True)
+        (src / "blob.json").write_text(json.dumps(BLOB_FIXTURE), encoding="utf-8")
+        files = gen.render_all(Path(d) / "src")
+    assert list(files) == ["bwss/read/blob.json"]
+
+
+def test_security_state_signature_verifies():
+    import bwcrypto
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    acc = load(ACCOUNTS / "cose-v2.json")
+    state = acc["profile"]["accountKeys"]["securityState"]
+    verifying = bwcrypto.cbor_decode(base64.b64decode(acc["profile"]["accountKeys"]["signatureKeyPair"]["verifyingKey"]))
+    protected, unprotected, payload, sig = bwcrypto.cbor_decode(base64.b64decode(state["securityState"]))
+    header = bwcrypto.cbor_decode(protected)
+    assert (header[1], header[3], header[4], header[-80000]) == (-8, 60, verifying[2], 2)
+    assert unprotected == {}
+    ed25519.Ed25519PublicKey.from_public_bytes(verifying[-2]).verify(
+        sig, bwcrypto.cbor_encode(["Signature1", protected, b"", payload])
+    )
+    assert bwcrypto.cbor_decode(payload)["version"] == state["securityVersion"] == 2
+    # the signature is over this payload only
+    with pytest.raises(Exception):  # noqa: B017
+        ed25519.Ed25519PublicKey.from_public_bytes(verifying[-2]).verify(
+            sig, bwcrypto.cbor_encode(["Signature1", protected, b"", payload + b"\x00"])
+        )
+
+
+def test_sign1_helper_matches_the_sdk_layout_and_verifies_the_sdk_vector():
+    import bwcrypto
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    sdk = load(SDK_M3)
+    so = bytes.fromhex(sdk["signed_object"]["SIGNED_OBJECT"]["value"])
+    vk = bwcrypto.cbor_decode(bytes.fromhex(sdk["signed_object"]["VERIFYING_KEY"]["value"]))
+    protected, _, payload, sig = bwcrypto.cbor_decode(so)
+    assert bwcrypto.cbor_decode(payload) == sdk["signed_object"]["payload"]
+    assert bwcrypto.cbor_decode(protected)[bwcrypto.LABEL_SIGNING_NAMESPACE] == sdk["signed_object"]["namespace"]
+    ed25519.Ed25519PublicKey.from_public_bytes(vk[-2]).verify(sig, bwcrypto.cbor_encode(["Signature1", protected, b"", payload]))
+    # the SDK's security state parses by the same rules, and our own signer produces the same structure
+    state = base64.b64decode(sdk["security_state"]["TEST_SIGNED_SECURITY_STATE"]["value"])
+    sdk_protected = bwcrypto.cbor_decode(state)[0]
+    mine = bwcrypto.cose_sign1_ed25519(b"\xa0", b"s" * 32, bwcrypto.cbor_decode(sdk_protected)[4], 2)
+    assert bwcrypto.cbor_decode(mine)[0] == sdk_protected
+
+
+def test_cose_v2_unlocks():
+    import bwcrypto
+
+    acc = load(ACCOUNTS / "cose-v2.json")
+    mk = bwcrypto.master_key(acc["password"], acc["email"], acc["kdf"])
+    user_key = bwcrypto.dec_string(acc["profileKey"], bwcrypto.stretch(mk))
+    assert user_key == base64.b64decode(acc["userKey"])
+    assert bwcrypto.cose_alg(user_key) == bwcrypto.ALG_XAES
+    # the signing key is wrapped under the user key and matches the published verifying key
+    keys = acc["profile"]["accountKeys"]["signatureKeyPair"]
+    signing = bwcrypto.cbor_decode(bwcrypto.cose_decrypt(keys["wrappedSigningKey"], user_key))
+    verifying = bwcrypto.cbor_decode(base64.b64decode(keys["verifyingKey"]))
+    assert (signing[1], signing[3], signing[4], signing[-1]) == (1, -8, [1], 6)
+    assert signing[2] == verifying[2]
+    assert len(signing[-4]) == 32
+    want_signing, want_verifying = bwcrypto.ed25519_cose_keys(gen.seed_for("cose-v2/signing"), signing[2])
+    assert bwcrypto.cbor_encode(signing) == want_signing
+    assert base64.b64decode(keys["verifyingKey"]) == want_verifying
+    unlock = acc["userDecryption"]["masterPasswordUnlock"]
+    assert unlock["kdf"] == {"kdfType": 0, "iterations": 600000}
+    assert unlock["masterKeyEncryptedUserKey"] == acc["profileKey"] and unlock["salt"] == acc["email"]
+    assert "userDecryption" not in load(ACCOUNTS / "cose.json")
+
+
+def test_unlock_kdf_covers_argon2id():
+    spec = dict(next(a for a in gen.ACCOUNTS if a["name"] == "cose-v2"), kdf=gen.ACCOUNTS[1]["kdf"])
+    import bwcrypto
+
+    parts = gen.signed_account_parts(spec, b"s" * 32, bwcrypto.cose_key(b"s" * 32), "2.x")
+    assert parts["userDecryption"]["masterPasswordUnlock"]["kdf"] == {
+        "kdfType": 1, "iterations": 3, "memory": 64, "parallelism": 4,
+    }

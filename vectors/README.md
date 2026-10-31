@@ -50,10 +50,13 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | `folderId` | string or `null` | `null` | |
 | `organizationId` | string or `null` | `null` | |
 | `itemKey` | bool | `false` | `true` gives the cipher a per-item key |
+| `format` | `"fields"` or `"blob"` | `"fields"` | `"blob"` (1.6) seals the cipher as Bitwarden's blob form, below. A blob cipher is personal (no `organizationId`), a login (`type` 1) or a secure note (2), and always has an item key (`itemKey` is forced `true`) |
+| `formatVersion` | int | `1` | Blob only: the `format_version` of `data`. A value other than 1 writes a newer format |
+| `contentVersion` | string | `"1"` | Blob only: the `version` of the sealed CBOR content. Another value writes a newer content version |
 | `creationDate`, `revisionDate`, `deletedDate` | ISO 8601 or `null` | `null` | |
 | `edit`, `viewPassword` | bool | `true` | Organization permissions |
 | `pascalCase` | bool | `false` | `true` emits the server keys in PascalCase |
-| `tamper` | array of paths | `[]` | Source only, never emitted: each listed string is encrypted, then the first byte of its MAC is flipped, so it fails the MAC check. Paths are `name`, `notes`, `key` (the wrapped item key), `login.username`, `login.password`, `login.totp`, `login.uris[i].uri`, `login.passwordHistory[i].password`, `fields[i].name`, `fields[i].value`; each must be a string the cipher actually encrypts |
+| `tamper` | array of paths | `[]` | Source only, never emitted: each listed string is encrypted, then the first byte of its MAC is flipped, so it fails the MAC check. Paths are `name`, `notes`, `key` (the wrapped item key), `login.username`, `login.password`, `login.totp`, `login.uris[i].uri`, `login.passwordHistory[i].password`, `fields[i].name`, `fields[i].value`; each must be a string the cipher actually encrypts. A blob cipher accepts only `envelope` (one ciphertext byte of the sealed envelope flipped, so it fails its AEAD) and `wrapped_cek` (the first MAC byte of the wrapped content key flipped) |
 | `extra` | object | `{}` | Unknown properties, passed through verbatim. Every key must match `^x[A-Za-z0-9]+$` (the `x` convention), so it can never collide with a known key |
 
 ### `device`
@@ -184,6 +187,26 @@ The source object with these differences:
     organization key when `organizationId` is set), and all the cipher's
     strings are then encrypted under the item key. A `fresh` cipher with the
     id of a cipher in `ciphers` reuses that cipher's item key;
+  - a `blob` cipher (1.6) has `name`, `notes`, `login`, `fields` and
+    `passwordHistory` all `null`, and `data`: a JSON text (compact, in this key
+    order) `{"format_version": 1, "wrapped_cek": "<EncString>", "envelope":
+    "<base64>"}`. The item key (`key`) is a 64-byte legacy key wrapped under
+    the user key as the account's EncString type (2, or 7 labelled
+    legacy-key). `wrapped_cek` is the content key (CEK), a COSE_Key
+    (AES-256-GCM, `key_ops` `[4]`, padded by one `0x01`), wrapped under the
+    item key as type 2. `envelope` is a DataEnvelope: a COSE_Encrypt0 under the
+    CEK, protected header `alg`, `content type`
+    `application/x.bitwarden.cbor-padded`, `kid`, label `-80002` = 2 (safe
+    object: DataEnvelope) and label `-80001` = 1 (content: VaultItem), the
+    nonce in the unprotected `iv`. Its content is CBOR (definite lengths)
+    `{"version": "1", "content": CipherBlobV1}` padded with N bytes of value N
+    to a multiple of 64 bytes (at least one). `CipherBlobV1` is
+    `{name, notes, typeData: {"type": "login" | "secureNote", ...}, fields?,
+    passwordHistory?}` in camelCase, as the SDK serializes it: an absent value
+    is `null`, an empty `fields`, `passwordHistory` or `uris` is left out. Login
+    `typeData` is `username`, `password`, `passwordRevisionDate`, `uris`
+    (`[{uri, match}]`, `match` an integer or `null`), `totp`,
+    `autofillOnPageLoad`; a field's `type` is an integer, with `linkedId`;
   - the source's `login.passwordHistory` moves to the cipher's top-level
     `passwordHistory` (`PasswordHistory`); `login.uris[].match` is always
     `null`; a type 2 cipher has `secureNote: { type: 0 }`;
@@ -199,6 +222,23 @@ The source object with these differences:
     a cipher is either entirely camelCase or entirely PascalCase, nested
     objects included (the schema is a `oneOf` of the two).
 - `device`, `local` and `expect` stay plaintext.
+
+### Accounts
+
+`pbkdf2`, `argon2id`, `org` and `cose` are described above. `cose-v2` is `cose`
+(XAES-256-GCM user key, PBKDF2 600,000) plus an Ed25519 signing key (the seed
+is SHA-256 of `dybw-vectors:cose-v2/signing`) and a security state of version
+2 signed by it. Its account file carries
+`profile.accountKeys.signatureKeyPair.{wrappedSigningKey, verifyingKey}` (the
+signing key as a COSE_Key wrapped under the user key as type 7, the verifying
+key as a base64 COSE_Key) and
+`profile.accountKeys.securityState.{securityState, securityVersion}` (the
+base64 COSE_Sign1: protected `alg` -8, `content type` 60, `kid`, label
+`-80000` = 2, payload `{"entityId", "version": 2}`; the server's
+`securityVersion` is a convenience and is never trusted), plus
+`userDecryption.masterPasswordUnlock` with `kdf` (`kdfType`, `iterations`),
+`masterKeyEncryptedUserKey` and `salt`; the other accounts keep the older
+shape, so both are covered.
 
 ## Canonical write body
 

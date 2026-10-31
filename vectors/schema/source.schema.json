@@ -225,6 +225,19 @@
         "itemKey": {
           "type": "boolean"
         },
+        "format": {
+          "enum": [
+            "fields",
+            "blob"
+          ]
+        },
+        "formatVersion": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contentVersion": {
+          "type": "string"
+        },
         "creationDate": {
           "type": [
             "string",
@@ -260,7 +273,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^(name|notes|key|login\\.(username|password|totp)|login\\.uris\\[[0-9]+\\]\\.uri|login\\.passwordHistory\\[[0-9]+\\]\\.password|fields\\[[0-9]+\\]\\.(name|value))$"
+            "pattern": "^(name|notes|key|login\\.(username|password|totp)|login\\.uris\\[[0-9]+\\]\\.uri|login\\.passwordHistory\\[[0-9]+\\]\\.password|fields\\[[0-9]+\\]\\.(name|value)|envelope|wrapped_cek)$"
           }
         },
         "extra": {
