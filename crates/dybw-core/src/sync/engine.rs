@@ -12,7 +12,7 @@ use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
 use crate::vault::fields::{decrypt_opt, item_key};
 use crate::vault::scan::{
-    Duplicate, MarkedItem, ScanReport, SkipReason, Uninspectable, UnmarkedCache, scan_vault_with,
+    Duplicate, MarkedItem, ScanReport, SkipReason, Uninspectable, UnmarkedCache, scan_vault_with, trashed,
 };
 use crate::vault::write::{
     FieldSet, HistoryAnswer, HistoryQuestion, NewItem, Patch, ValueChange, WriteError, WriteRecord, record_write,
@@ -179,13 +179,26 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     let mut base = BTreeMap::new();
     let mut rolled_back = BTreeSet::new();
     let mut accepted = BTreeSet::new();
+    // Marked or not: a server restored from before the user marked an item brings the bound cipher back unmarked.
+    let revisions: BTreeMap<&str, &str> = sync
+        .get("ciphers")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .filter(|c| !trashed(c))
+        .map(|c| {
+            let text = |key| c.get(key).and_then(Value::as_str).unwrap_or_default();
+            (text("id"), text("revisionDate"))
+        })
+        .collect();
+    let usable: BTreeSet<&str> = items.values().map(|i| i.cipher_id.as_str()).collect();
     for (id, entry) in &state.base {
-        if !items.contains_key(id) && present.contains(&entry.cipher_id) {
+        let cipher = entry.cipher_id.as_str();
+        let rollback = revisions.get(cipher).is_some_and(|r| is_rollback(&entry.revision_date, r));
+        // A cipher restored under another id no longer holds this one; every other unusable cipher is held.
+        if !items.contains_key(id) && present.contains(cipher) && !(rollback && usable.contains(cipher)) {
             report.held.push((id.clone(), entry.cipher_id.clone()));
-        } else if items
-            .get(id)
-            .is_some_and(|i| i.cipher_id == entry.cipher_id && is_rollback(&entry.revision_date, &i.revision_date))
-        {
+        } else if rollback {
             if ctx.accept_rollback {
                 // Planned as a remote change, never as a push over the server's version.
                 accepted.insert(id.clone());

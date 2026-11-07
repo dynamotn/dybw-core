@@ -1651,3 +1651,95 @@ fn a_rolled_back_item_is_not_created_from_a_pending_create() {
     assert_eq!(plan.report.rollbacks.len(), 1);
     assert!(plan.actions.is_empty());
 }
+
+/// The server is restored from a backup made before the user marked the item.
+fn roll_back_to_unmarked(r: &Rig, cipher: &str) {
+    r.world().cipher(cipher)["fields"] = json!([]);
+    roll_back(r, cipher);
+}
+
+/// The server is restored from a backup in which the cipher held another id.
+fn roll_back_to_id(r: &Rig, cipher: &str, id: &str) {
+    let id = r.enc(&r.keys.user, id);
+    r.world().cipher(cipher)["fields"][0]["value"] = json!(id);
+    roll_back(r, cipher);
+}
+
+#[test]
+fn a_rollback_to_before_the_marker_keeps_the_local_value() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    let before = r.state.base["k"].clone();
+    roll_back_to_unmarked(&r, &c);
+    let report = r.ok();
+    assert!(nothing_moved(&report) && report.errors.is_empty());
+    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c)]);
+    assert_eq!((r.store.value("k").as_deref(), &r.state.base["k"]), (Some("v"), &before));
+}
+
+#[test]
+fn a_rollback_re_marked_under_another_id_keeps_the_local_value() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    let before = r.state.base["k"].clone();
+    roll_back_to_id(&r, &c, "other");
+    let report = r.ok();
+    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c)]);
+    assert!(report.skipped.held.is_empty() && report.cleared.is_empty() && report.pushed.is_empty());
+    assert_eq!((r.store.value("k").as_deref(), &r.state.base["k"]), (Some("v"), &before));
+}
+
+#[test]
+fn an_accepted_rollback_without_the_id_is_a_remote_deletion() {
+    for restore in [roll_back_to_unmarked as fn(&Rig, &str), |r, c| roll_back_to_id(r, c, "other")] {
+        let mut r = Rig::obsidian();
+        r.accept_rollback = true;
+        let c = r.add("k", "v");
+        r.ok();
+        restore(&r, &c);
+        let report = r.ok();
+        assert_eq!((report.cleared.as_slice(), report.skipped.rollbacks.len()), (["k".to_owned()].as_slice(), 0));
+        assert_eq!(r.store.value("k").as_deref(), Some(""));
+        assert!(!r.state.base.contains_key("k"));
+        // A local edit is never cleared: the user's question, never a push.
+        let mut r = Rig::obsidian();
+        r.accept_rollback = true;
+        let c = r.add("k", "v");
+        r.ok();
+        restore(&r, &c);
+        r.store.put("k", "mine");
+        let report = r.ok();
+        assert_eq!(report.conflicts, [conflict("k", ConflictKind::DeletedRemotely, None)]);
+        assert_eq!(r.store.value("k").as_deref(), Some("mine"));
+    }
+}
+
+#[test]
+fn a_trashed_bound_cipher_is_not_a_rollback() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    r.world().trash(&c);
+    roll_back(&r, &c);
+    let report = r.ok();
+    assert_eq!((report.cleared.as_slice(), report.skipped.rollbacks.len()), (["k".to_owned()].as_slice(), 0));
+}
+
+#[test]
+fn a_rolled_back_item_that_cannot_be_used_stays_held() {
+    let mut r = Rig::obsidian();
+    let c = r.add("k", "v");
+    r.ok();
+    require(&r, &c, "obsidian:acl");
+    roll_back(&r, &c);
+    // Accepting moves nothing: it is held until it can be read, then it reports as any rollback.
+    for accept in [false, true] {
+        r.accept_rollback = accept;
+        let report = r.ok();
+        assert!(nothing_moved(&report) && report.skipped.rollbacks.is_empty());
+        assert_eq!(report.skipped.held, [("k".to_owned(), c.clone())]);
+        assert_eq!(r.store.value("k").as_deref(), Some("v"));
+    }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "sync/rollback-unmarked-held",
+  "spec": "1.6",
+  "sections": [
+    "§10"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "policy": "ask"
+  },
+  "local": {
+    "alpha": "old-secret"
+  },
+  "device": {
+    "base": {
+      "alpha": {
+        "cipher": "c1",
+        "revisionDate": "2026-02-01T00:00:00.000Z",
+        "value": "old-secret"
+      }
+    },
+    "pendingCreates": []
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.hGw8ml9bj7BroayCM4KgbQ==|oVcJfOXYLhf61ni0Ht49cQ==|FVrzK3qakQzmgSuZ0uLfjsFh+tsvDEbi3oJnIIQjaRI=",
+      "notes": null,
+      "login": {
+        "username": "2.72RG37yHjjMOWaKiieMS+A==|B2MxwIzSSzh2CJTeKiPw5Q==|ii0MxjzKxuqn6bdvinO/5wKT/GxA0646vZb2v0Gf5+k=",
+        "password": "2.2McJWDN1ugD/lQ1Qba+ciQ==|dabVCua0Q26bobwk3+mzHw==|3OmndHJMHFawrAGMolKftBZ/4gt8pbs57Ql4nwrw62g=",
+        "uris": [
+          {
+            "uri": "2.LctuBnqUH/D5bBbj0+cyEQ==|eB+NR0sRSXF+XXURWW/k2vkk4v4uKlfvtIlg0pptqWw=|7EirUmQuibjJZIVLEv9BaXMUpSYehNtDhiTZZPKDzNM=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [],
+      "passwordHistory": [],
+      "creationDate": "2025-12-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "plan": [
+      {
+        "kind": "rollback",
+        "id": "alpha"
+      }
+    ]
+  }
+}
