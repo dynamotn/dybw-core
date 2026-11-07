@@ -1781,3 +1781,60 @@ fn a_create_whose_reply_has_no_revision_date_is_not_a_rollback() {
     // The first sync learns the server's date.
     assert_eq!(r.state.base["k"].revision_date, r.world().cipher(&c)["revisionDate"].as_str().unwrap());
 }
+
+// --- a create never duplicates a held id ---
+
+#[test]
+fn a_pending_create_of_a_held_id_is_kept_and_not_sent() {
+    for how in ["newer-format", "unreadable", "out-of-scope"] {
+        let mut r = Rig::obsidian();
+        let c = r.add("k", "v");
+        r.ok();
+        match how {
+            "newer-format" => require(&r, &c, "obsidian:acl"),
+            "unreadable" => r.world().cipher(&c)["key"] = json!("2.AAAA|AAAA|AAAA"),
+            _ => r.applies = Box::new(|m| m.id != "k"),
+        }
+        r.state.pending_creates.push("k".into());
+        let report = r.ok();
+        assert!(nothing_moved(&report) && report.errors.is_empty(), "{how}");
+        assert_eq!(report.skipped.held, [("k".to_owned(), c)], "{how}");
+        assert_eq!(r.state.pending_creates, ["k"], "{how}");
+        assert_eq!(r.world().count("Post /api/ciphers"), 0, "{how}");
+    }
+}
+
+#[test]
+fn a_pending_create_of_an_id_only_a_skipped_item_carries_is_kept_and_not_sent() {
+    for how in ["newer-format", "wrong-type", "unreadable-value"] {
+        let mut r = Rig::obsidian();
+        let c = r.add("k", "other");
+        match how {
+            "newer-format" => require(&r, &c, "obsidian:acl"),
+            "wrong-type" => r.world().cipher(&c)["type"] = json!(3),
+            _ => {
+                let mut w = r.world();
+                let value = tamper(&w.cipher(&c)["fields"][1]["value"]);
+                w.cipher(&c)["fields"][1]["value"] = value;
+            }
+        }
+        r.store.put("k", "v");
+        r.state.pending_creates = vec!["k".into()];
+        let report = r.ok();
+        assert!(nothing_moved(&report) && report.errors.is_empty(), "{how}");
+        assert_eq!(r.state.pending_creates, ["k"], "{how}");
+        assert_eq!(r.world().count("Post /api/ciphers"), 0, "{how}");
+        assert_eq!(r.store.value("k").as_deref(), Some("v"), "{how}");
+    }
+}
+
+#[test]
+fn a_skipped_item_does_not_change_the_conflict_of_a_usable_one() {
+    let mut r = Rig::obsidian();
+    r.add("k", "remote");
+    let stopped = r.add("k", "other");
+    require(&r, &stopped, "obsidian:acl");
+    r.store.put("k", "v");
+    r.state.pending_creates = vec!["k".into()];
+    assert_eq!(r.ok().conflicts, [conflict("k", ConflictKind::BothChanged, None)]);
+}

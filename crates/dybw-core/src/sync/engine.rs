@@ -166,7 +166,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     // Reserved ids are refused by the namespace's id rule, so the scan already skips them.
     // The device's bindings, whole: a rolled-back one still keeps its cipher against §7 (ADR 0019).
     let bound: BTreeMap<String, String> = state.base.iter().map(|(id, e)| (id.clone(), e.cipher_id.clone())).collect();
-    let ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present } =
+    let ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present, held_ids } =
         scan_vault_with(&sync, ctx.ns, ctx.keys, ctx.allowed, ctx.applies, ctx.unmarked, &bound);
     // Only a value that fails after the id was read is reported, as the plugin's `readVault`; every other
     // uninspectable cipher (blob, item key, organization key) is silently held.
@@ -177,7 +177,8 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     // A synced secret whose item is still there but cannot be used here any more (newer format, renamed to an
     // invalid id, moved to an organization, re-scoped) is left alone rather than treated as deleted.
     let mut base = BTreeMap::new();
-    let mut rolled_back = BTreeSet::new();
+    // Ids a create must not duplicate; the rolled-back ones are out of the remote side too.
+    let mut kept_out = BTreeSet::new();
     let mut accepted = BTreeSet::new();
     // Marked or not: a server restored from before the user marked an item brings the bound cipher back unmarked.
     let revisions: BTreeMap<&str, &str> = sync
@@ -198,6 +199,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
         // A cipher restored under another id no longer holds this one; every other unusable cipher is held.
         if !items.contains_key(id) && present.contains(cipher) && !(rollback && usable.contains(cipher)) {
             report.held.push((id.clone(), entry.cipher_id.clone()));
+            kept_out.insert(id.clone());
         } else if rollback {
             if ctx.accept_rollback {
                 // Planned as a remote change, never as a push over the server's version.
@@ -206,7 +208,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
             } else {
                 // Out of the plan and the base alike, as held: it must not count toward the mass-clear guard.
                 report.rollbacks.push((id.clone(), entry.cipher_id.clone()));
-                rolled_back.insert(id.clone());
+                kept_out.insert(id.clone());
             }
         } else {
             base.insert(id.clone(), entry.clone());
@@ -214,7 +216,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     }
     let remote: BTreeMap<String, RemoteEntry> = items
         .iter()
-        .filter(|(id, _)| !rolled_back.contains(*id))
+        .filter(|(id, _)| !kept_out.contains(*id))
         .map(|(id, i)| {
             let entry = RemoteEntry {
                 id: id.clone(),
@@ -226,8 +228,9 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
             (id.clone(), entry)
         })
         .collect();
-    let pending: BTreeSet<String> =
-        state.pending_creates.iter().filter(|p| !rolled_back.contains(*p)).cloned().collect();
+    // An item that carries the id but cannot be used holds it, unless a usable one has the id anyway.
+    kept_out.extend(held_ids.into_iter().filter(|id| !items.contains_key(id)));
+    let pending: BTreeSet<String> = state.pending_creates.iter().filter(|p| !kept_out.contains(*p)).cloned().collect();
     let mut values = BTreeMap::new();
     for id in remote.keys().chain(base.keys()).chain(&pending) {
         if let Some(v) = local.get(id) {

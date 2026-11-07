@@ -162,6 +162,9 @@ pub struct ScanReport {
     /// Marked (skipped and duplicate losers included) or uninspectable cipher ids: a readable cipher without its
     /// marker counts as deleted (§8.1), an uninspectable one is held (§4).
     pub present: BTreeSet<String>,
+    /// `{ns}:id`s read from ciphers then skipped or left uninspectable: such an item holds its id (ADR 0020). A cipher
+    /// whose marker cannot be read names no id, so it is not here.
+    pub held_ids: BTreeSet<String>,
 }
 
 /// The cipher's `organizationId` when it is an organization item: any non-null value (bwss), even `""` (which the
@@ -236,17 +239,20 @@ impl Item<'_> {
 }
 
 pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations) -> Scan {
-    scan_noting(cipher, ns, keys, allowed, &mut Vec::new())
+    scan_noting(cipher, ns, keys, allowed, &mut Noted::default())
 }
 
-/// `scan`, also noting the unknown `dybw:requires` names of an item skipped for them.
-fn scan_noting(
-    cipher: &Value,
-    ns: &Namespace,
-    keys: &Keys,
-    allowed: &Organizations,
-    unknown: &mut Vec<String>,
-) -> Scan {
+/// What a scan read of a cipher besides its result.
+#[derive(Default)]
+struct Noted {
+    /// The `{ns}:id`, once read.
+    id: Option<String>,
+    /// The unknown `dybw:requires` names of an item skipped for them.
+    unknown: Vec<String>,
+}
+
+/// `scan`, also filling `noted`.
+fn scan_noting(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations, noted: &mut Noted) -> Scan {
     if trashed(cipher) {
         return Scan::Unmarked;
     }
@@ -264,7 +270,7 @@ fn scan_noting(
             Ok(blob) => blob,
             Err(u) => return Scan::Uninspectable(u),
         };
-        return discover(cipher, ns, keys, &Item::Blob(&blob), &blob.field_names(), None, unknown);
+        return discover(cipher, ns, keys, &Item::Blob(&blob), &blob.field_names(), None, noted);
     }
     let owner = match org {
         None => &keys.user,
@@ -283,7 +289,7 @@ fn scan_noting(
     let Ok(names) = field_names(cipher, &key) else { return Scan::Uninspectable(Uninspectable::FieldNames) };
     let names: Vec<Option<&str>> = names.iter().map(Option::as_deref).collect();
     let org = org.map(|o| o.as_str().unwrap_or_default().to_owned());
-    discover(cipher, ns, keys, &Item::Fields(cipher, &key), &names, org, unknown)
+    discover(cipher, ns, keys, &Item::Fields(cipher, &key), &names, org, noted)
 }
 
 /// Steps 3 and 4 of §4 on the field names: the marker, then the item.
@@ -294,7 +300,7 @@ fn discover(
     item: &Item,
     names: &[Option<&str>],
     org: Option<String>,
-    unknown: &mut Vec<String>,
+    noted: &mut Noted,
 ) -> Scan {
     let Some(id_index) = first_index(names, &ns.field("id")) else { return Scan::Unmarked };
     let Ok(id) = item.value(id_index) else { return Scan::Uninspectable(Uninspectable::Marker) };
@@ -302,11 +308,12 @@ fn discover(
     if id.is_empty() {
         return Scan::Unmarked;
     }
+    noted.id = Some(id.clone());
     // Before any other value is read (ADR 0020).
     match unknown_features(ns, item, names) {
         Ok(found) if found.is_empty() => {}
         Ok(found) => {
-            *unknown = found;
+            noted.unknown = found;
             return Scan::Skipped(SkipReason::NewerFormat);
         }
         Err(_) => return Scan::Uninspectable(Uninspectable::Value),
@@ -505,6 +512,7 @@ pub fn scan_vault_with(
     let mut uninspectable = Vec::new();
     let mut unknown_features = Vec::new();
     let mut present = BTreeSet::new();
+    let mut held_ids = BTreeSet::new();
     let mut unmarked = BTreeSet::new();
     // Every marked cipher's id, `applies` or not: tells a bound cipher that moved to another id from one that
     // still holds its own.
@@ -514,13 +522,13 @@ pub fn scan_vault_with(
         // Without an id and a revision a cipher cannot be told apart: never cached.
         let revision = cipher.get("revisionDate").and_then(Value::as_str).filter(|r| !r.is_empty());
         let seen = revision.filter(|_| !cipher_id.is_empty()).map(|r| (cipher_id.clone(), r.to_owned()));
-        let mut unknown = Vec::new();
+        let mut noted = Noted::default();
         let result = match &seen {
             Some(seen) if cache.0.contains(seen) => Scan::Unmarked,
-            _ => scan_noting(cipher, ns, keys, allowed, &mut unknown),
+            _ => scan_noting(cipher, ns, keys, allowed, &mut noted),
         };
-        if !unknown.is_empty() {
-            unknown_features.push((cipher_id.clone(), unknown));
+        if !noted.unknown.is_empty() {
+            unknown_features.push((cipher_id.clone(), noted.unknown));
         }
         if matches!(result, Scan::Unmarked) {
             unmarked.extend(seen);
@@ -534,8 +542,14 @@ pub fn scan_vault_with(
             Scan::Unmarked => {}
             Scan::Marked(m) if applies(&m) => marked.push(*m),
             Scan::Marked(_) => {}
-            Scan::Skipped(r) => skipped.push((cipher_id, r)),
-            Scan::Uninspectable(u) => uninspectable.push((cipher_id, u)),
+            Scan::Skipped(r) => {
+                held_ids.extend(noted.id);
+                skipped.push((cipher_id, r));
+            }
+            Scan::Uninspectable(u) => {
+                held_ids.extend(noted.id);
+                uninspectable.push((cipher_id, u));
+            }
         }
     }
     cache.0 = unmarked;
@@ -547,5 +561,5 @@ pub fn scan_vault_with(
             *a == i.cipher_id || !present.contains(a) || marked_as.get(a).is_some_and(|other| *other != i.id)
         })
     });
-    ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present }
+    ScanReport { items, skipped, uninspectable, duplicates, unknown_features, present, held_ids }
 }

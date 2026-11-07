@@ -247,8 +247,11 @@ async fn run<H: Http, C: Clock>(
     match op {
         Op::Create(item) => {
             // Never twice: a create whose reply was lost has left its item in the list (bwss `run_create`).
-            if matches!(find(ciphers, ns, keys, &item.id, None), Lookup::Found(_)) {
-                return Step::Done;
+            match find(ciphers, ns, keys, &item.id, None) {
+                Lookup::Found(_) => return Step::Done,
+                // A cipher that cannot be read now might be the item: a create would duplicate it.
+                Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Missing => {}
             }
             match create(client, ns, keys, rng, item).await {
                 Ok(reply) => {

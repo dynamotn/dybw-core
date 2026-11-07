@@ -908,3 +908,25 @@ fn merge_drops_the_earlier_answer() {
     push(&mut queue, answered(later), None);
     assert_eq!((queue.len(), as_patch(&queue[0]).answer), (1, later));
 }
+
+#[test]
+fn a_create_is_kept_while_its_id_may_be_held() {
+    let mut r = Rig::new();
+    let mut stopped = r.note(REV, &[("bwss:id", "y", false), ("dybw:requires", "bwss:acl", false)]);
+    stopped["id"] = json!("c1");
+    let mut unreadable = r.note_under(&r.other, REV, &[("bwss:id", "y", false)]);
+    unreadable["id"] = json!("c2");
+    for held in [stopped, unreadable.clone()] {
+        let mut queue = vec![create_op("y")];
+        let report = r.flush(&mut queue, &[held]);
+        assert_eq!((report.kept.len(), report.done.len(), queue.len()), (1, 0, 1));
+        assert!(report.dropped.is_empty() && report.refused.is_empty());
+        assert!(r.log().is_empty());
+    }
+    // An organization cipher that cannot be read holds nothing without a hint: the create goes.
+    unreadable["organizationId"] = json!("o1");
+    let mut queue = vec![create_op("y")];
+    r.fake.echo();
+    assert_eq!(strs(&r.flush(&mut queue, &[unreadable]).done), ["y"]);
+    assert_eq!(r.log(), ["Post /ciphers"]);
+}
