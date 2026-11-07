@@ -128,13 +128,13 @@ fn resolve(input: &PlanInput, id: &str, kind: ConflictKind) -> Action {
     }
 }
 
-/// Whether a remote revision date is below the base's (ADR 0019). A date that is missing, does not parse or is not
-/// after the epoch cannot show the server moved forward, so it counts as a rollback; equal dates are not one.
+/// Whether a remote revision date is below the base's (ADR 0019). A remote date that is missing, does not parse or is
+/// not after the epoch cannot show the server moved forward, so it counts as a rollback. Equal dates are not one, and
+/// neither is any date against a base without a usable date: there is nothing to go below, and an accepted bad date
+/// stored in the base must not report again.
 pub fn is_rollback(base_revision: &str, remote_revision: &str) -> bool {
-    match (parse_date(base_revision), parse_date(remote_revision)) {
-        (Some(base), Some(remote)) => remote < base,
-        _ => true,
-    }
+    base_revision != remote_revision
+        && parse_date(base_revision).is_some_and(|base| parse_date(remote_revision).is_none_or(|remote| remote < base))
 }
 
 pub fn plan_sync(input: &PlanInput) -> Vec<Action> {

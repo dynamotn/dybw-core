@@ -33,6 +33,8 @@ struct World {
     fail_folders: bool,
     /// Answers a create without the new cipher's id.
     create_without_id: bool,
+    /// Answers a create without the new cipher's revision date.
+    create_without_revision: bool,
     /// The profile's organizations.
     orgs: Vec<Value>,
     /// Runs before every update is looked at, as the plugin's `beforeUpdate`.
@@ -128,6 +130,9 @@ impl Http for Server {
                 c["creationDate"] = json!("2026-04-01T00:00:00.000Z");
                 c["deletedDate"] = Value::Null;
                 w.ciphers.push(c.clone());
+                if w.create_without_revision {
+                    c.as_object_mut().unwrap().remove("revisionDate");
+                }
                 reply(200, &c)
             }
             (Method::Post, ["api", "folders"]) if w.fail_folders => reply(500, &json!({ "message": "down" })),
@@ -1742,4 +1747,37 @@ fn a_rolled_back_item_that_cannot_be_used_stays_held() {
         assert_eq!(report.skipped.held, [("k".to_owned(), c.clone())]);
         assert_eq!(r.store.value("k").as_deref(), Some("v"));
     }
+}
+
+#[test]
+fn an_accepted_rollback_to_a_bad_date_does_not_report_again() {
+    for bad in [json!("r1"), Value::Null] {
+        let mut r = Rig::obsidian();
+        let c = r.add("k", "v");
+        r.ok();
+        r.edit_remote(&c, "old");
+        r.world().cipher(&c)["revisionDate"] = bad.clone();
+        assert_eq!(r.ok().skipped.rollbacks, [("k".to_owned(), c.clone())]);
+        r.accept_rollback = true;
+        assert_eq!(r.ok().pulled, ["k"]);
+        r.accept_rollback = false;
+        let report = r.ok();
+        assert!(nothing_moved(&report) && report.skipped.rollbacks.is_empty(), "{bad}");
+        assert_eq!(r.store.value("k").as_deref(), Some("old"));
+    }
+}
+
+#[test]
+fn a_create_whose_reply_has_no_revision_date_is_not_a_rollback() {
+    let mut r = Rig::obsidian();
+    r.world().create_without_revision = true;
+    r.store.put("k", "v");
+    r.state.pending_creates = vec!["k".into()];
+    assert_eq!(r.ok().created, ["k"]);
+    assert_eq!(r.state.base["k"].revision_date, "");
+    let c = r.state.base["k"].cipher_id.clone();
+    let report = r.ok();
+    assert!(nothing_moved(&report) && report.skipped.rollbacks.is_empty());
+    // The first sync learns the server's date.
+    assert_eq!(r.state.base["k"].revision_date, r.world().cipher(&c)["revisionDate"].as_str().unwrap());
 }

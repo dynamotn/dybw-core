@@ -420,10 +420,24 @@ fn unparseable_remote_date_is_a_rollback() {
     let ok = "2026-05-01T00:00:00.000Z";
     for bad in ["", "r1", "1970-01-01T00:00:00.000Z"] {
         assert!(is_rollback(ok, bad), "remote {bad:?}");
-        assert!(is_rollback(bad, ok), "base {bad:?}");
     }
     assert!(is_rollback(ok, "2026-04-30T23:59:59.999Z"));
     assert!(!is_rollback(ok, "2026-05-01T00:00:00.001Z"));
+}
+
+#[test]
+fn an_unparseable_base_date_knows_no_date_to_go_below() {
+    for bad in ["", "r1", "1970-01-01T00:00:00.000Z"] {
+        assert!(!is_rollback(bad, "2026-05-01T00:00:00.000Z"), "base {bad:?}");
+        assert!(!is_rollback(bad, "other"), "base {bad:?}");
+    }
+}
+
+#[test]
+fn equal_strings_are_not_a_rollback() {
+    for same in ["", "r1", "1970-01-01T00:00:00.000Z"] {
+        assert!(!is_rollback(same, same), "{same:?}");
+    }
 }
 
 #[test]
