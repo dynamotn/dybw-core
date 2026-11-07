@@ -4,6 +4,7 @@
 
 use super::CryptoError;
 use std::collections::HashSet;
+use std::fmt;
 use std::ops::Deref;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -11,8 +12,15 @@ const MAX_DEPTH: usize = 16;
 
 /// A CBOR text, wiped on drop. Under the `testing` feature every live one is counted per thread, so a test can see
 /// that nothing decoded outlives a scan (`testing::cbor_texts_alive`).
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct CborText(Zeroizing<String>);
+
+/// Decoded text can be a decrypted value: only its length is shown, whatever `Zeroizing` itself prints.
+impl fmt::Debug for CborText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<redacted, {} bytes>", self.0.len())
+    }
+}
 
 #[cfg(feature = "testing")]
 thread_local!(static TEXTS_ALIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) });
@@ -58,7 +66,7 @@ impl Zeroize for CborText {
 }
 
 /// Integer and text keys are kept apart, as CBOR does: `Uint(1)` is not `Text("1")`. `Nint(n)` is `-1 - n`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Cbor {
     Uint(u64),
     Nint(u64),
@@ -68,6 +76,22 @@ pub enum Cbor {
     Map(Vec<(Cbor, Cbor)>),
     Bool(bool),
     Null,
+}
+
+/// Texts and bytes are redacted, as they can be decrypted values; the rest of the structure stays visible.
+impl fmt::Debug for Cbor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Cbor::Uint(n) => f.debug_tuple("Uint").field(n).finish(),
+            Cbor::Nint(n) => f.debug_tuple("Nint").field(n).finish(),
+            Cbor::Bytes(b) => f.debug_tuple("Bytes").field(&format_args!("<redacted, {} bytes>", b.len())).finish(),
+            Cbor::Text(t) => f.debug_tuple("Text").field(t).finish(),
+            Cbor::Array(a) => f.debug_tuple("Array").field(a).finish(),
+            Cbor::Map(m) => f.debug_tuple("Map").field(m).finish(),
+            Cbor::Bool(b) => f.debug_tuple("Bool").field(b).finish(),
+            Cbor::Null => f.write_str("Null"),
+        }
+    }
 }
 
 impl Cbor {
@@ -300,5 +324,25 @@ mod tests {
     fn decoded_text_is_zeroizing() {
         assert_eq!(decode(&[0x61, b'a']).unwrap(), Cbor::Text(CborText(Zeroizing::new("a".to_owned()))));
         assert_eq!(decode(&[0x41, 1]).unwrap(), Cbor::Bytes(Zeroizing::new(vec![1])));
+    }
+
+    #[test]
+    fn debug_redacts_text_and_bytes_and_keeps_the_structure() {
+        let value = Cbor::Map(vec![
+            (Cbor::text("key-name"), Cbor::bytes(b"raw-secret".to_vec())),
+            (Cbor::Uint(7), Cbor::text("text-secret")),
+            (Cbor::Nint(8), Cbor::Array(vec![Cbor::Bool(true), Cbor::Null])),
+        ]);
+        let decoded = decode(&encode(&value)).unwrap();
+        for shown in [format!("{decoded:?}"), format!("{decoded:#?}")] {
+            for secret in ["key-name", "raw-secret", "text-secret", "114, 97, 119"] {
+                assert!(!shown.contains(secret), "{shown}");
+            }
+        }
+        assert_eq!(
+            format!("{decoded:?}"),
+            "Map([(Text(<redacted, 8 bytes>), Bytes(<redacted, 10 bytes>)), \
+             (Uint(7), Text(<redacted, 11 bytes>)), (Nint(8), Array([Bool(true), Null]))])"
+        );
     }
 }
