@@ -8,8 +8,8 @@ use dybw_core::crypto::{
 };
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
 use dybw_core::profile::{
-    CachedSync, KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf, unlock,
-    unlock_cached,
+    CachedSync, KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf,
+    accept_security_version, unlock, unlock_cached,
 };
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
@@ -387,6 +387,20 @@ fn lower_version_is_refused() {
     // Nothing changed: the saved version stays and no KDF pin was written.
     assert_eq!(stored_version(&storage).as_deref(), Some(&b"3"[..]));
     assert!(block_on(storage.load("kdf-pin")).unwrap().is_none());
+}
+
+#[test]
+fn accepting_a_security_version_lets_the_unlock_through() {
+    // The profile moved to another account or server, whose state is older: the user accepts its version.
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"3")).unwrap();
+    assert!(unlock_v2(&storage, |_| {}).is_err());
+    block_on(accept_security_version(&storage, 2)).unwrap();
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"2"[..]));
+    assert_eq!(unlock_v2(&storage, |_| {}).unwrap().security_version, 2);
+    // A legacy key after it: 0 is accepted as well.
+    block_on(accept_security_version(&storage, 0)).unwrap();
+    assert_eq!(pbkdf2_account().unlock(Value::Null, &storage).result.unwrap().security_version, 0);
 }
 
 #[test]

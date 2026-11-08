@@ -6,9 +6,9 @@ use super::*;
 use crate::api::ApiError;
 use crate::crypto::SymmetricKey;
 use crate::testing::block_on;
-use crate::vault::scan::ValueSource;
+use crate::vault::scan::{Uninspectable, ValueSource};
 use crate::vault::write::{
-    FieldSet, HistoryAnswer, HistoryQuestion, LineAppend, NewItem, Patch, ValueChange, WriteError,
+    FieldSet, HistoryAnswer, HistoryQuestion, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord,
 };
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
@@ -962,17 +962,148 @@ fn a_create_is_kept_while_its_id_may_be_held() {
     stopped["id"] = json!("c1");
     let mut unreadable = r.note_under(&r.other, REV, &[("bwss:id", "y", false)]);
     unreadable["id"] = json!("c2");
-    for held in [stopped, unreadable.clone()] {
+    for held in [stopped, r.unreadable_value("c2", "y")] {
         let mut queue = vec![create_op("y")];
         let report = r.flush(&mut queue, &[held]);
         assert_eq!((report.kept.len(), report.done.len(), queue.len()), (1, 0, 1));
         assert!(report.dropped.is_empty() && report.refused.is_empty());
         assert!(r.log().is_empty());
     }
-    // An organization cipher that cannot be read holds nothing without a hint: the create goes.
+    // A cipher whose marker cannot be read names no id, so it holds nothing: the create goes.
     unreadable["organizationId"] = json!("o1");
     let mut queue = vec![create_op("y")];
     r.fake.echo();
     assert_eq!(strs(&r.flush(&mut queue, &[unreadable]).done), ["y"]);
     assert_eq!(r.log(), ["Post /ciphers"]);
+}
+
+// ---- holds, stalls and records (M4) ----
+
+impl Rig {
+    /// A personal note `cid` carrying `bwss:id` `id` whose value does not decrypt: uninspectable after its id was read.
+    fn unreadable_value(&self, cid: &str, id: &str) -> Value {
+        let mut c = self.item(cid, id, "s");
+        c["fields"][1]["value"] = json!("2.bad|bad|bad");
+        c
+    }
+}
+
+#[test]
+fn a_create_is_held_only_by_its_own_id() {
+    let mut r = Rig::new();
+    // A cipher whose value cannot be read but whose marker names y holds the create of y.
+    let mut queue = vec![create_op("y")];
+    let report = r.flush(&mut queue, &[r.unreadable_value("c1", "y")]);
+    assert_eq!((report.kept.len(), queue.len()), (1, 1));
+    assert!(r.log().is_empty());
+    // Of another id, or whose marker cannot be read (no id known), it holds nothing: the create goes.
+    let no_marker = r.note_under(&r.other, REV, &[("bwss:id", "y", false)]);
+    for other in [r.unreadable_value("c1", "z"), no_marker] {
+        let mut queue = vec![create_op("y")];
+        r.fake.echo();
+        assert_eq!(strs(&r.flush(&mut queue, &[other]).done), ["y"]);
+    }
+    assert_eq!(r.log(), ["Post /ciphers", "Post /ciphers"]);
+}
+
+#[test]
+fn a_newer_format_item_of_another_id_does_not_hold_a_create() {
+    let mut r = Rig::new();
+    let mut stopped = r.note(REV, &[("bwss:id", "z", false), ("dybw:requires", "bwss:acl", false)]);
+    stopped["id"] = json!("c1");
+    let mut queue = vec![create_op("y")];
+    r.fake.echo();
+    assert_eq!(strs(&r.flush(&mut queue, std::slice::from_ref(&stopped)).done), ["y"]);
+    assert_eq!(r.log(), ["Post /ciphers"]);
+    // Of its own id, it holds it, organization item or not.
+    let fields = [("bwss:id", "y", false), ("dybw:requires", "bwss:acl", false)];
+    let mut own = r.note(REV, &fields);
+    own["id"] = json!("c2");
+    let org = SymmetricKey::generate(&r.rng).unwrap();
+    let mut own_org = r.note_under(&org, REV, &fields);
+    own_org["organizationId"] = json!("o1");
+    r.keys.orgs.insert("o1".into(), org);
+    for held in [own, own_org, r.unreadable_value("c3", "y")] {
+        let mut queue = vec![create_op("y")];
+        let report = r.flush(&mut queue, &[stopped.clone(), held]);
+        assert_eq!((report.kept.len(), queue.len()), (1, 1));
+    }
+    assert_eq!(r.log().len(), 1);
+}
+
+/// `c` grown past `MAX_CIPHER`: never decrypted.
+fn too_large(c: &Value) -> Value {
+    let mut c = c.clone();
+    c["notes"] = json!("a".repeat(crate::vault::scan::MAX_CIPHER));
+    c
+}
+
+#[test]
+fn flush_goes_on_past_a_too_large_target() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    let w = r.item("c2", "w", "s");
+    let mut org_blob = w.clone();
+    org_blob["organizationId"] = json!("o1");
+    org_blob["data"] = json!(r#"{"format_version":1}"#);
+    let mut queue = vec![r.change(&c1, None), delete_of("c2", "w"), r.change(&w, None), create_op("y")];
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[too_large(&c1), org_blob]);
+    assert_eq!(
+        report.stuck.iter().map(|(i, u)| (i.as_str(), *u)).collect::<Vec<_>>(),
+        [("x", Uninspectable::TooLarge), ("w", Uninspectable::NewerFormat)]
+    );
+    assert_eq!(strs(&report.done), ["y"]);
+    assert!(report.kept.is_empty() && report.dropped.is_empty());
+    assert_eq!(ids(&queue), ["patch x", "delete w", "patch w"]);
+    assert_eq!(r.log(), ["Post /ciphers"]);
+    // A personal blob of a newer format may be read by a newer core: it still stops the flush.
+    let mut newer = c1.clone();
+    newer["data"] = json!(r#"{"format_version":2}"#);
+    let mut queue = vec![r.change(&c1, None), create_op("y")];
+    let report = r.flush(&mut queue, &[newer]);
+    assert!(report.stuck.is_empty() && report.done.is_empty());
+    assert_eq!((report.kept.len(), queue.len()), (1, 2));
+}
+
+#[test]
+fn flush_keeps_order_within_an_id() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    // A later op of x would go on its own (its cipher c2 is readable), but waits behind the stuck one.
+    let c2 = r.item("c2", "x", "s");
+    let mut queue = vec![r.change(&c1, None), r.change(&c2, None), create_op("y")];
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[too_large(&c1), c2]);
+    assert_eq!(report.stuck.len(), 1);
+    assert_eq!(strs(&report.done), ["y"]);
+    assert_eq!(ids(&queue), ["patch x", "patch x"]);
+    assert_eq!(r.log(), ["Post /ciphers"]);
+}
+
+#[test]
+fn a_record_resets_when_the_cipher_changes() {
+    let mut r = Rig::new();
+    let c2 = r.login_item("c2", "x", "old");
+    // A record of what this device wrote to c1: the item is now c2, so the first write-back asks again.
+    let mut old = WriteRecord { written: vec![[7; 32]], confirmed: true, cipher_id: Some("c1".into()) };
+    r.records.insert("x".into(), old.clone());
+    let mut queue = vec![r.login_change(&c2, b"new")];
+    let report = r.flush(&mut queue, std::slice::from_ref(&c2));
+    assert_eq!(report.questions.iter().map(|(_, q)| *q).collect::<Vec<_>>(), [HistoryQuestion::FirstWriteBack]);
+    assert!(r.log().is_empty());
+    // A record of c2 itself, or one saved before records named their cipher, is kept and grows with the write.
+    for cipher_id in [Some("c2".to_owned()), None] {
+        old.cipher_id = cipher_id;
+        r.records.insert("x".into(), old.clone());
+        let mut queue = vec![r.login_change(&c2, b"new")];
+        r.fake.echo();
+        assert_eq!(strs(&r.flush(&mut queue, std::slice::from_ref(&c2)).done), ["x"]);
+        let record = &r.records["x"];
+        assert_eq!(record.written, [r.keys.marker.mark("x", "new"), [7; 32]]);
+        assert_eq!(record.cipher_id.as_deref(), Some("c2"));
+    }
+    // An older record file reads without the cipher.
+    let back: WriteRecord = serde_json::from_value(json!({ "written": [], "confirmed": true })).unwrap();
+    assert_eq!(back.cipher_id, None);
 }

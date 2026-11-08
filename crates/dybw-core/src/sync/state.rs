@@ -55,7 +55,8 @@ pub fn parse_plugin_state(raw: &Value, ns: &Namespace, fresh_id: impl FnOnce() -
             // A mark that is not 32 bytes of base64 is dropped: it can only make a write ask, never skip a question.
             let marks = e.get("writtenMarks").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str);
             let written = marks.filter_map(|m| B64.decode(m).ok()?.try_into().ok()).take(RECORD_MAX).collect();
-            let record = WriteRecord { written, confirmed: e.get("writeBackConfirmed") == Some(&Value::Bool(true)) };
+            let confirmed = e.get("writeBackConfirmed") == Some(&Value::Bool(true));
+            let record = WriteRecord { written, confirmed, cipher_id: None };
             let entry = BaseEntry { cipher_id, revision_date, fingerprint, scope, push_confirmed, record };
             state.base.insert(id.clone(), entry);
         }

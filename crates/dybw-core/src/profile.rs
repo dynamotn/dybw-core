@@ -239,6 +239,12 @@ pub async fn accept_kdf(storage: &impl Storage, params: KdfParams, origin: &str)
     save_pin(storage, params, origin).await
 }
 
+/// The user's confirmation, on this device, of a security state version (ADR 0019), lower or equal included: for a
+/// profile moved to another server or account, whose state is older than the one this device saw.
+pub async fn accept_security_version(storage: &impl Storage, version: u64) -> Result<(), ProfileError> {
+    Ok(storage.save(SECURITY_VERSION, version.to_string().as_bytes()).await?)
+}
+
 /// bwss `BitwardenBackend::unlock`: the API-key login and `/sync` first, then the KDF, so the password never leaves
 /// this process. One source per unlock, never mixed (ADR 0022): `masterPasswordUnlock` when its KDF, wrapped user key
 /// and salt are all well formed, else `profile.key` with the email as salt and the KDF from prelogin (called only
@@ -355,7 +361,7 @@ async fn finish_unlock(
         return Err(ProfileError::SecurityDowngrade { seen, offered: version });
     }
     if version > seen {
-        storage.save(SECURITY_VERSION, version.to_string().as_bytes()).await?;
+        accept_security_version(storage, version).await?;
     }
     if pinned != Some(params) {
         save_pin(storage, params, origin).await?;

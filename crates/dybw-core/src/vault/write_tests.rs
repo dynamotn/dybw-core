@@ -1717,7 +1717,7 @@ fn seven_own_writes_in_a_row_ask_nothing() {
     let k = fx();
     let mut c = k.login(&[("bwss:id", "x", false)], Some("p0"), None);
     c["passwordHistory"] = json!([]);
-    let mut record = WriteRecord { written: vec![k.keys.marker.mark("x", "p0")], confirmed: true };
+    let mut record = WriteRecord { written: vec![k.keys.marker.mark("x", "p0")], confirmed: true, cipher_id: None };
     for i in 1..=7 {
         let out = guarded(&k, &c, format!("p{i}").as_bytes(), None, &record).unwrap();
         record_write(&mut record, out.wrote_login.unwrap());
@@ -1749,10 +1749,10 @@ fn a_full_history_asks_before_evicting_a_foreign_password() {
     let mut c = k.login(&[("bwss:id", "x", false)], Some("old"), None);
     c["passwordHistory"] = k.history(5);
     let mark = |t: &str| k.keys.marker.mark("x", t);
-    let foreign = WriteRecord { written: vec![mark("h0"), mark("old")], confirmed: true };
+    let foreign = WriteRecord { written: vec![mark("h0"), mark("old")], confirmed: true, cipher_id: None };
     assert_eq!(guarded(&k, &c, b"new", None, &foreign).err(), ask(EvictsForeign));
     // The oldest entry is this device's: it may go.
-    let own = WriteRecord { written: vec![mark("h4")], confirmed: true };
+    let own = WriteRecord { written: vec![mark("h4")], confirmed: true, cipher_id: None };
     assert_eq!(history_of(&k, &sent_body(guarded(&k, &c, b"new", None, &own))), ["old", "h0", "h1", "h2", "h3"]);
     // "Write to the login", given to this question, evicts a foreign one.
     let answered = guarded(&k, &c, b"new", Some((EvictsForeign, WriteToLogin)), &foreign);
@@ -1760,7 +1760,7 @@ fn a_full_history_asks_before_evicting_a_foreign_password() {
     // Over the cap, every entry that goes must be this device's.
     c["passwordHistory"] = k.history(6);
     assert_eq!(guarded(&k, &c, b"new", None, &own).err(), ask(EvictsForeign));
-    let both = WriteRecord { written: vec![mark("h4"), mark("h5")], confirmed: true };
+    let both = WriteRecord { written: vec![mark("h4"), mark("h5")], confirmed: true, cipher_id: None };
     assert!(guarded(&k, &c, b"new", None, &both).is_ok());
     // No password: nothing goes into the history, so nothing leaves it.
     let mut empty = k.login(&[("bwss:id", "x", false)], None, None);
@@ -1841,9 +1841,9 @@ fn blob_history_is_protected_too() {
     let c = blob_with_history(&k, Some("cur"), Some(full()));
     assert_eq!(write(&c, &WriteRecord::default()).err(), ask(EvictsForeign));
     assert_eq!(write(&blob_with_history(&k, Some("cur"), None), &WriteRecord::default()).err(), ask(FirstWriteBack));
-    let foreign = WriteRecord { written: vec![], confirmed: true };
+    let foreign = WriteRecord { written: vec![], confirmed: true, cipher_id: None };
     assert_eq!(write(&c, &foreign).err(), ask(EvictsForeign));
-    let own = WriteRecord { written: vec![mark("h4")], confirmed: true };
+    let own = WriteRecord { written: vec![mark("h4")], confirmed: true, cipher_id: None };
     let out = write(&c, &own).unwrap();
     assert_eq!(out.wrote_login, Some(mark("next")));
     let blob = sent(&k, &out.body.unwrap());
@@ -1853,7 +1853,7 @@ fn blob_history_is_protected_too() {
     let odd = Cbor::Array(vec![t("x"), t("x"), t("x"), t("x"), Cbor::Map(vec![])]);
     let c = blob_with_history(&k, Some("cur"), Some(odd));
     assert_eq!(write(&c, &own).err(), ask(EvictsForeign));
-    assert!(write(&c, &WriteRecord { written: vec![mark("")], confirmed: true }).is_ok());
+    assert!(write(&c, &WriteRecord { written: vec![mark("")], confirmed: true, cipher_id: None }).is_ok());
     // No password or no history: nothing leaves.
     assert!(write(&blob_with_history(&k, None, Some(full())), &foreign).is_ok());
     assert!(write(&blob_with_history(&k, Some("cur"), Some(Cbor::Null)), &foreign).is_ok());

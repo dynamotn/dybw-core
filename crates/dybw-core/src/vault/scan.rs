@@ -244,15 +244,21 @@ pub fn scan(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations
 
 /// What a scan read of a cipher besides its result.
 #[derive(Default)]
-struct Noted {
+pub(crate) struct Noted {
     /// The `{ns}:id`, once read.
-    id: Option<String>,
+    pub(crate) id: Option<String>,
     /// The unknown `dybw:requires` names of an item skipped for them.
     unknown: Vec<String>,
 }
 
 /// `scan`, also filling `noted`.
-fn scan_noting(cipher: &Value, ns: &Namespace, keys: &Keys, allowed: &Organizations, noted: &mut Noted) -> Scan {
+pub(crate) fn scan_noting(
+    cipher: &Value,
+    ns: &Namespace,
+    keys: &Keys,
+    allowed: &Organizations,
+    noted: &mut Noted,
+) -> Scan {
     if trashed(cipher) {
         return Scan::Unmarked;
     }

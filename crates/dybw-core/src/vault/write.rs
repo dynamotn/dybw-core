@@ -91,6 +91,10 @@ pub struct Patch {
 pub struct WriteRecord {
     pub written: Vec<[u8; 32]>,
     pub confirmed: bool,
+    /// The cipher the marks were written to: a record belongs to that one item. `None` where the cipher is kept
+    /// beside it (the engine's base entry), and in a record saved before this was recorded.
+    #[serde(default)]
+    pub cipher_id: Option<String>,
 }
 
 /// The marks a record keeps: the login password and every history entry may all be this device's.

@@ -1535,14 +1535,14 @@ fn a_push_that_asks_is_held_with_the_base_unchanged() {
     assert_eq!(r.ok().pushed, ["k"]);
     r.answers.clear();
     let (m2, m3) = (r.keys.marker.mark("k", "p2"), r.keys.marker.mark("k", "p3"));
-    let want = WriteRecord { written: vec![m2], confirmed: true };
+    let want = WriteRecord { written: vec![m2], confirmed: true, cipher_id: None };
     assert_eq!((&r.state.base["k"].record, r.remote(&c).as_str()), (&want, "p2"));
     // Confirmed: the next push asks nothing. An edit elsewhere, adopted or pulled, keeps the record.
     r.store.put("k", "p3");
     assert_eq!(r.ok().pushed, ["k"]);
     r.world().bump(&c);
     assert!(r.ok().skipped.questions.is_empty());
-    let want = WriteRecord { written: vec![m3, m2], confirmed: true };
+    let want = WriteRecord { written: vec![m3, m2], confirmed: true, cipher_id: None };
     assert_eq!(r.state.base["k"].record, want);
     // The record belongs to its cipher: the id on a new cipher asks again.
     r.world().cipher(&c)["deletedDate"] = json!("2026-01-01T00:00:00Z");

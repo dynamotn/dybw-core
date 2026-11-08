@@ -268,6 +268,7 @@ fn device_state(s: &Scenario, keys: &Keys) -> DeviceState {
             let record = WriteRecord {
                 written: e.written.iter().map(|w| marker.mark(id, w)).collect(),
                 confirmed: e.write_back_confirmed,
+                cipher_id: None,
             };
             let entry = BaseEntry {
                 cipher_id: e.cipher.clone(),

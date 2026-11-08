@@ -4,14 +4,17 @@
 use super::write::{DeleteOutcome, SyncWriteError, create, delete, update};
 use crate::api::{ApiError, Client};
 use crate::ports::{Clock, Http, Random};
-use crate::vault::scan::{MarkedItem, Scan, SkipReason, ValueSource, duplicate_order, organization, scan, trashed};
+use crate::vault::scan::{
+    MarkedItem, Noted, Scan, SkipReason, Uninspectable, ValueSource, duplicate_order, organization, scan_noting,
+    trashed,
+};
 use crate::vault::write::{
     FieldSet, HistoryQuestion, NewItem, Patch, ValueChange, WriteError, WriteRecord, record_write,
 };
 use crate::vault::{Keys, Namespace, Organizations};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// One queued write. Secrets inside are `Zeroizing`, so they are wiped when the op is dropped.
 #[derive(Clone, Serialize, Deserialize)]
@@ -49,6 +52,9 @@ pub struct FlushReport {
     pub refused: Vec<(String, ApiError)>,
     /// Still queued, like `kept`: the write needs the user's answer first (ADR 0016). The flush stopped at it.
     pub questions: Vec<(String, HistoryQuestion)>,
+    /// Still queued, without stopping the flush: the op's own cipher can never be read by this tool (too large, an
+    /// organization blob). The later ops of the id wait behind it; the user must hear about these.
+    pub stuck: Vec<(String, Uninspectable)>,
 }
 
 fn target(op: &Op) -> &str {
@@ -160,6 +166,8 @@ pub(super) enum Step {
     Refuse(ApiError),
     Keep(String),
     Ask(HistoryQuestion),
+    /// Kept, but the flush goes on with the other ids: the target can never be read.
+    Stuck(Uninspectable),
 }
 
 /// Errors that pass with time or a new login (bwss `api_failure` treats 401 as transient): the op waits.
@@ -191,21 +199,31 @@ enum Lookup {
     Found(Value),
     /// Not found, but a live cipher that cannot be read now might be it (bwss `Held`).
     Held,
+    /// The op's own cipher, which this tool can never read.
+    Stuck(Uninspectable),
     Missing,
+}
+
+/// A cipher no flush will ever read: too large (ADR 0019), or an organization blob (ADR 0021).
+fn never_readable(u: Uninspectable, cipher: &Value) -> bool {
+    u == Uninspectable::TooLarge || (u == Uninspectable::NewerFormat && organization(cipher).is_some())
 }
 
 /// The copy of the item the op is for. The op's own cipher (`cipher_id`) is the target when it still carries the
 /// marker, and the op is held, whatever its owner, when that cipher is present but cannot be used now (an organization
 /// whose key failed this unlock, as the engine holds it). Only when it is gone or no longer carries the marker, or there is no
 /// `cipher_id`, §7 picks among the live ciphers carrying it (bwss `locate`). With no `cipher_id` and no such cipher, any personal
-/// cipher that cannot be read holds the op; every other case is a target that is gone.
-fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
+/// cipher that cannot be read holds the op; every other case is a target that is gone. A `create` is held only by an
+/// unusable cipher whose marker names its id: one whose marker could not be read names none.
+fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>, create: bool) -> Lookup {
     let mut held = false;
     let mut hinted: Option<Box<MarkedItem>> = None;
     let mut hint_held = false;
+    let mut stuck = None;
     let mut winner: Option<Box<MarkedItem>> = None;
     for c in ciphers.iter().filter(|c| !trashed(c)) {
-        match scan(c, ns, keys, &Organizations::All) {
+        let mut noted = Noted::default();
+        match scan_noting(c, ns, keys, &Organizations::All, &mut noted) {
             // The op's own cipher is the target, whatever §7 would pick: a forged clone cannot take it over.
             Scan::Marked(m) if m.id == id && cipher_id == Some(server_id(c)) => hinted = Some(m),
             // With duplicates the §7 winner is the item, as in the scan.
@@ -214,6 +232,8 @@ fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Opt
                     winner = Some(m);
                 }
             }
+            Scan::Uninspectable(_) | Scan::Skipped(_) if create => held |= noted.id.as_deref() == Some(id),
+            Scan::Uninspectable(u) if cipher_id == Some(server_id(c)) && never_readable(u, c) => stuck = Some(u),
             // The op's own cipher is there but cannot be used now: held, never moved to a copy.
             Scan::Uninspectable(_) | Scan::Skipped(_) if cipher_id == Some(server_id(c)) => hint_held = true,
             // Without a hint, an item stopped for `dybw:requires` is held like an unreadable one: its change waits,
@@ -226,6 +246,7 @@ fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Opt
     }
     match (hinted, winner) {
         (Some(h), _) => Lookup::Found(h.cipher),
+        _ if let Some(u) = stuck => Lookup::Stuck(u),
         _ if hint_held => Lookup::Held,
         (None, Some(w)) => Lookup::Found(w.cipher),
         (None, None) if held => Lookup::Held,
@@ -259,10 +280,10 @@ async fn run<H: Http, C: Clock>(
     match op {
         Op::Create(item) => {
             // Never twice: a create whose reply was lost has left its item in the list (bwss `run_create`).
-            match find(ciphers, ns, keys, &item.id, None) {
+            match find(ciphers, ns, keys, &item.id, None, true) {
                 Lookup::Found(_) => return Step::Done,
                 // A cipher that cannot be read now might be the item: a create would duplicate it.
-                Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Held | Lookup::Stuck(_) => return Step::Keep(HELD.into()),
                 Lookup::Missing => {}
             }
             match create(client, ns, keys, rng, item).await {
@@ -274,23 +295,31 @@ async fn run<H: Http, C: Clock>(
             }
         }
         Op::Patch(p) => {
-            let cipher = match find(ciphers, ns, keys, &p.id, p.cipher_id.as_deref()) {
+            let cipher = match find(ciphers, ns, keys, &p.id, p.cipher_id.as_deref(), false) {
                 Lookup::Found(c) => c,
                 Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Stuck(u) => return Step::Stuck(u),
                 Lookup::Missing => return Step::Drop(WriteError::Gone),
             };
             if moved(&cipher, p.organization_id.as_deref()) {
                 return classify(SyncWriteError::OwnerChanged);
+            }
+            let target = server_id(&cipher);
+            // A record belongs to the cipher it was written to, as the engine's base entry (one without is older).
+            if records.get(&p.id).is_some_and(|r| r.cipher_id.as_deref().is_some_and(|c| c != target)) {
+                records.remove(&p.id);
             }
             let record = records.get(&p.id).cloned().unwrap_or_default();
             match update(client, ns, keys, &record, rng, now_ms, &cipher, p).await {
                 Ok(reply) => {
                     // The next op for this item reads the server's answer, not the snapshot.
                     if let Some((reply, wrote_login)) = reply {
-                        ciphers.retain(|c| server_id(c) != server_id(&cipher));
+                        ciphers.retain(|c| server_id(c) != target);
                         ciphers.push(reply);
                         if let Some(mark) = wrote_login {
-                            record_write(records.entry(p.id.clone()).or_default(), mark);
+                            let record = records.entry(p.id.clone()).or_default();
+                            record.cipher_id = Some(target.to_owned());
+                            record_write(record, mark);
                         }
                     }
                     Step::Done
@@ -299,9 +328,10 @@ async fn run<H: Http, C: Clock>(
             }
         }
         Op::Delete { id, cipher_id, organization_id, .. } => {
-            let cipher = match find(ciphers, ns, keys, id, cipher_id.as_deref()) {
+            let cipher = match find(ciphers, ns, keys, id, cipher_id.as_deref(), false) {
                 Lookup::Found(c) => c,
                 Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Stuck(u) => return Step::Stuck(u),
                 Lookup::Missing => return Step::Done,
             };
             if moved(&cipher, organization_id.as_deref()) {
@@ -327,7 +357,9 @@ async fn run<H: Http, C: Clock>(
 /// the op and stop the flush; everything else removes the op and goes on, and says so in the report.
 /// `Gone` and `Unmarked` drop an op (the item left the tool); `SourceChanged` drops the value
 /// and sends the patch's other changes (bwss). A write that asks a history question (ADR 0016) is kept and stops the
-/// flush too. `records` holds this device's write records by `{ns}:id`, updated by every write to a login password.
+/// flush too. An op whose own cipher can never be read is `stuck`: kept, and the flush goes on with the ops of other
+/// ids, while the later ops of its id stay queued behind it, in order. `records` holds this device's write records by
+/// `{ns}:id`, updated by every write to a login password and reset when the item is another cipher than the one written.
 /// The caller saves the queue and the records afterwards.
 #[expect(clippy::too_many_arguments, reason = "the writer's inputs, each the caller's")]
 pub async fn flush<H: Http, C: Clock>(
@@ -342,14 +374,21 @@ pub async fn flush<H: Http, C: Clock>(
 ) -> FlushReport {
     let mut report = FlushReport::default();
     let mut ciphers = sync.get("ciphers").and_then(Value::as_array).cloned().unwrap_or_default();
-    while let Some(op) = queue.first() {
+    // Ids with a stuck op, and the queue position of the op to run next.
+    let mut stuck = BTreeSet::new();
+    let mut at = 0;
+    while let Some(op) = queue.get(at) {
         let id = target(op).to_owned();
+        if stuck.contains(&id) {
+            at += 1;
+            continue;
+        }
         match run(op, client, ns, keys, records, rng, now_ms, &mut ciphers).await {
             Step::Done => report.done.push(id),
             Step::Drop(e) => report.dropped.push((id, e)),
             Step::DropValue => {
                 report.dropped.push((id, WriteError::SourceChanged));
-                match queue.first_mut() {
+                match queue.get_mut(at) {
                     Some(Op::Patch(p)) if !(p.set.is_empty() && p.remove.is_empty() && p.append_lines.is_empty()) => {
                         p.value = ValueChange::Keep;
                         continue;
@@ -361,7 +400,7 @@ pub async fn flush<H: Http, C: Clock>(
                 let stop = waits(&e);
                 report.refused.push((id, e));
                 if stop {
-                    queue.remove(0);
+                    queue.remove(at);
                     break;
                 }
             }
@@ -373,8 +412,14 @@ pub async fn flush<H: Http, C: Clock>(
                 report.questions.push((id, q));
                 break;
             }
+            Step::Stuck(u) => {
+                report.stuck.push((id.clone(), u));
+                stuck.insert(id);
+                at += 1;
+                continue;
+            }
         }
-        queue.remove(0);
+        queue.remove(at);
     }
     report
 }
