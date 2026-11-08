@@ -21,7 +21,8 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
 | `bwss/vectors.json` | bwss | `tests/fixtures/vectors.json` | `dc65284` | `29f34bf25c50a8f75a27aa568ffa5e0d505ca919a52f5a86c85696f37c20858f` |
 | `bwss/gen_vectors.py` | bwss | `tests/fixtures/gen_vectors.py` | `dc65284` | `c5fb2e57d917f4daf2a01421ae6802e95130540a816234f4cb24a57bb310df16` |
 | `marks.json` | dybw-core | `vectors/crypto/marks.json` | written for M2; checked against bwss `6a0bc62` and plugin `409d2a4` | `37035135df1e65740837db6bd3b06ff85e577fb72486f6356165ba48a1607a92` |
-| `../gen/gen_marks.py` | dybw-core | `vectors/gen/gen_marks.py` | written for M2 | `a3797a42eeccfc8ec70c8bd038aaebf3130d6a6bdf120f3d31700ea9e5462fc1` |
+| `bwss-subkeys.json` | dybw-core | `vectors/crypto/bwss-subkeys.json` | written for M4 (ADR 0023); the `pbkdf2` rows checked against bwss `79ac1c1` | `596cb95198b679a70601e838e0b6099ef9e238dce10b74df0f60e9dbf7b0cee4` |
+| `../gen/gen_marks.py` | dybw-core | `vectors/gen/gen_marks.py` | written for M2 | `2026f804983228c0d3f3c320a61cd7f394498220fef6ee2d098ee37265bcb307` |
 | `sdk-m3.json` | sdk-internal | constants of `bitwarden-vault` `cipher/blob/sealed.rs` and `cipher/blob/v1.rs`, `bitwarden-core` `key_management/security_state.rs`, `bitwarden-crypto` `signing/signing_key.rs` and `signing/signed_object.rs` (the file and line of each are inside) | `3d16437` | `8f8817b95d912846513099f3a5502c023aac27f2ed1e19a69274046aa2f19e0b` |
 
 ## What each fixture covers
@@ -45,6 +46,13 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
   with a throwaway test. bwss has no COSE keys, so the `cose` `bwss` rows (the
   owner-approved formula: PRK = the secret, info `bwss value-mark enc/mac`,
   the MAC half) are pinned by the core only.
+- `bwss-subkeys.json`: ADR 0023 known answers. For the `pbkdf2` and `cose-v2`
+  user keys, the `enc` and `mac` halves of `derive_bwss("queue")` and
+  `derive_bwss("acl-confirm")`, and for `acl-confirm` one `tag` (HMAC-SHA256
+  under the `mac` half) over `tagData` (`item-1 ‖ 0x00 ‖ /usr/bin/tool`). Written
+  by `../gen/gen_marks.py`. The `pbkdf2` rows were checked against bwss `79ac1c1`
+  (`derive` and `acl_confirm_tag`) with a throwaway test; the `cose-v2` rows are
+  pinned by the core only (bwss has no COSE keys).
 - `sdk-m3.json`: recorded SDK vectors for data model 1.6, each constant with
   its source `file` and `line` at `3d16437`, as strings (a Rust byte array is
   written as hex). `sealed` is a sealed blob (the `data` of a blob cipher) with

@@ -1,0 +1,30 @@
+[
+  {
+    "account": "pbkdf2",
+    "purpose": "queue",
+    "enc": "sYr0lkIMDEMGjNCu/bvxpNgxxgDIy1DMG2QtaR2gLIo=",
+    "mac": "JffVHg7bTa6EMadj1n4ZctdgaZZFv1Dp4EKt8L7Zaks="
+  },
+  {
+    "account": "pbkdf2",
+    "purpose": "acl-confirm",
+    "enc": "l4l8Uj2WZn3BY6s1rlDTBumyULNvVsE3M+mkOErPseg=",
+    "mac": "LI6hcZ8+ZjJ31fIGtH004gBG4ifNewH5TNmciBRp04A=",
+    "tagData": "aXRlbS0xAC91c3IvYmluL3Rvb2w=",
+    "tag": "iNKOFYggjlj10+fWlMCnjdf35vLJMn7bQTZED59KvAA="
+  },
+  {
+    "account": "cose-v2",
+    "purpose": "queue",
+    "enc": "Q8QRW0Y8iEQs1N2VK9USqrQ0J5521/hw635GksDuhu0=",
+    "mac": "0ta0v4x4GofsMeJS2TtBoNEcG3d98JM0d1iEeWfBTN4="
+  },
+  {
+    "account": "cose-v2",
+    "purpose": "acl-confirm",
+    "enc": "lr3svzwvfQkiC+KDNtomH2TqDr0nvIVpNGIZ7LRy6QE=",
+    "mac": "ybTe5p03GDz5Ei0CGAh9b6QZ4HXyo3CvPOQRAG1XAYQ=",
+    "tagData": "aXRlbS0xAC91c3IvYmluL3Rvb2w=",
+    "tag": "qUN+RzmZxym24AlGTVpVbVKfLhExBnHEepTOJjQP+Ic="
+  }
+]

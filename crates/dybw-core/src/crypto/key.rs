@@ -132,6 +132,15 @@ impl SymmetricKey {
         Zeroizing::new(hmac(prk, &[info.as_bytes(), &[1]]))
     }
 
+    /// HMAC-SHA256 of `data` under the MAC half of a legacy key (a COSE key: under its secret), bwss's `acl-confirm`
+    /// tag when called on `derive_bwss("acl-confirm")`. A MAC, not a secret, so it is returned bare like `Marker::mark`.
+    pub fn tag(&self, data: &[u8]) -> [u8; 32] {
+        match self {
+            SymmetricKey::Legacy(k) => hmac(k.parts().1, &[data]),
+            SymmetricKey::Cose(c) => hmac(c.secret(), &[data]),
+        }
+    }
+
     /// The plugin's `deriveSubKey`: HKDF-Expand over the MAC half of a legacy key, or over a COSE key.
     pub(super) fn expand_obsidian(&self, purpose: &str) -> Zeroizing<[u8; 32]> {
         let prk: &[u8] = match self {

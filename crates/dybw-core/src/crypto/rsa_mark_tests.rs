@@ -36,6 +36,41 @@ fn marks_match_kat() {
     }
 }
 
+fn halves(k: &SymmetricKey) -> (Vec<u8>, Vec<u8>) {
+    let b = k.to_bytes();
+    (b[..32].to_vec(), b[32..64].to_vec())
+}
+
+#[test]
+fn bwss_subkeys_known_answers() {
+    let rows = read("crypto/bwss-subkeys.json");
+    assert_eq!(rows.as_array().unwrap().len(), 4);
+    for r in rows.as_array().unwrap() {
+        let user = SymmetricKey::from_bytes(&b64(
+            &read(&format!("accounts/{}.json", r["account"].as_str().unwrap()))["userKey"]
+        ))
+        .unwrap();
+        let sub = user.derive_bwss(r["purpose"].as_str().unwrap());
+        assert_eq!(halves(&sub), (b64(&r["enc"]), b64(&r["mac"])), "{r}");
+    }
+}
+
+#[test]
+fn tag_known_answers() {
+    for r in read("crypto/bwss-subkeys.json").as_array().unwrap().iter().filter(|r| r.get("tag").is_some()) {
+        let user = SymmetricKey::from_bytes(&b64(
+            &read(&format!("accounts/{}.json", r["account"].as_str().unwrap()))["userKey"]
+        ))
+        .unwrap();
+        let confirm = user.derive_bwss("acl-confirm");
+        assert_eq!(confirm.tag(&b64(&r["tagData"])).to_vec(), b64(&r["tag"]), "{r}");
+    }
+    // A COSE key tags under its secret.
+    let cose = SymmetricKey::from_bytes(&b64(&read("accounts/cose-v2.json")["userKey"])).unwrap();
+    let SymmetricKey::Cose(c) = &cose else { unreachable!() };
+    assert_eq!(cose.tag(b"x"), hmac(c.secret(), &[b"x"]));
+}
+
 #[test]
 fn marks_on_cose_keys_and_subkeys() {
     let acc = &read("crypto/cose-vectors.json")["accounts"][0];

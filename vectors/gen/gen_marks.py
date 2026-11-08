@@ -3,7 +3,8 @@
 # requires-python = ">=3.12"
 # dependencies = []
 # ///
-"""Writes vectors/crypto/marks.json: value-mark known answers for bwss and the Obsidian plugin."""
+"""Writes vectors/crypto/marks.json (value-mark known answers for bwss and the Obsidian plugin) and
+vectors/crypto/bwss-subkeys.json (ADR 0023: the halves of bwss's subkeys and keyed tags)."""
 
 from __future__ import annotations
 
@@ -43,7 +44,39 @@ def mark_key(user: bytes, scheme: str) -> bytes:
     return expand32(user[32:], "obsidian-keychain-bitwarden:value-fingerprint")
 
 
+def subkeys(user: bytes) -> dict:
+    """ADR 0023: derive_bwss(purpose) halves. A legacy key's PRK is enc || mac; a COSE key's is its secret."""
+    prk = user if len(user) == 64 else user[-33:-1]
+    out = {}
+    for purpose in ["queue", "acl-confirm"]:
+        enc = expand32(prk, f"bwss {purpose} enc")
+        mac_half = expand32(prk, f"bwss {purpose} mac")
+        out[purpose] = (enc, mac_half)
+    return out
+
+
+def write_subkeys() -> None:
+    rows = []
+    for account in ["pbkdf2", "cose-v2"]:
+        user = base64.b64decode(json.loads((VECTORS / "accounts" / f"{account}.json").read_text())["userKey"])
+        for purpose, (enc, mac_half) in subkeys(user).items():
+            row = {
+                "account": account,
+                "purpose": purpose,
+                "enc": base64.b64encode(enc).decode(),
+                "mac": base64.b64encode(mac_half).decode(),
+            }
+            if purpose == "acl-confirm":
+                # bwss acl_confirm_tag(id, exe): HMAC-SHA256 of id || 0x00 || exe under the MAC half.
+                row["tagData"] = base64.b64encode(b"item-1\x00/usr/bin/tool").decode()
+                row["tag"] = base64.b64encode(mac(mac_half, b"item-1\x00/usr/bin/tool")).decode()
+            rows.append(row)
+    out = VECTORS / "crypto" / "bwss-subkeys.json"
+    out.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> None:
+    write_subkeys()
     rows = []
     for account in ["pbkdf2", "org", "cose"]:
         user = base64.b64decode(json.loads((VECTORS / "accounts" / f"{account}.json").read_text())["userKey"])
