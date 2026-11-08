@@ -7,7 +7,10 @@ use dybw_core::crypto::{
     unwrap_signing_key, verify_security_state,
 };
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
-use dybw_core::profile::{KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf, unlock};
+use dybw_core::profile::{
+    CachedSync, KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf, unlock,
+    unlock_cached,
+};
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
 use dybw_vectors::canonical::{NOW, canonicalize, drop_tool_defined};
@@ -1015,4 +1018,100 @@ fn below_floor_warning_names_the_prelogin_source() {
     let unlocked = acc.unlock(Value::Null, &MemStorage::default()).result.unwrap();
     let low = KdfParams::Pbkdf2 { iterations: 5000 };
     assert_eq!(unlocked.warnings, [UnlockWarning::KdfBelowFloor { params: low, kdf_source: KdfSource::Prelogin }]);
+}
+
+// Offline unlock from a cached `/sync`: the same checks as online, with no network.
+
+fn cached_unlock(
+    sync: Value,
+    prelogin_kdf: Option<KdfParams>,
+    email: &str,
+    password: &str,
+    storage: &MemStorage,
+) -> Result<Unlocked, ProfileError> {
+    let cached = CachedSync { sync, prelogin_kdf, email: email.to_owned() };
+    let password = Zeroizing::new(password.to_owned());
+    let (rsa, ns) = (AwsLcRsa, Namespace::BWSS);
+    block_on(unlock_cached(cached, storage, &origin(), password, &NativeArgon2, &rsa, &ns, &Organizations::None))
+}
+
+/// Unlocks `name` online, then again from the sync it was given.
+fn online_then_cached(name: &str) -> (Unlocked, Result<Unlocked, ProfileError>) {
+    let keys = account_keys(&vectors_dir().unwrap(), name, false);
+    let acc = account(name);
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let online = run_unlock(keys.profile, keys.prelogin, email, password, &Organizations::None).result.unwrap();
+    let cached = cached_unlock(online.sync.clone(), Some(PBKDF2_600K), email, password, &MemStorage::default());
+    (online, cached)
+}
+
+#[test]
+fn cached_unlock_matches_online_unlock() {
+    for name in ["pbkdf2", "cose-v2"] {
+        let (online, cached) = online_then_cached(name);
+        let cached = cached.unwrap();
+        assert_eq!(cached.keys.user.to_bytes(), online.keys.user.to_bytes(), "{name}");
+        assert_eq!(cached.keys.marker.mark_b64("id", "text"), online.keys.marker.mark_b64("id", "text"), "{name}");
+        assert_eq!(cached.security_version, online.security_version, "{name}");
+        assert_eq!(cached.keys.security_version, online.keys.security_version, "{name}");
+    }
+}
+
+#[test]
+fn cached_unlock_checks_the_pin() {
+    let acc = pbkdf2_account();
+    let online = acc.unlock(Value::Null, &MemStorage::default()).result.unwrap();
+    // A stronger pin for this origin refuses the cached KDF; another origin's pin does not.
+    let stronger = KdfParams::Pbkdf2 { iterations: 900_000 };
+    let storage = MemStorage::default();
+    pin(&storage, stronger, &origin());
+    let err = cached_unlock(online.sync.clone(), Some(PBKDF2_600K), &acc.email, &acc.password, &storage).err().unwrap();
+    assert!(
+        matches!(err, ProfileError::KdfWeakened { pinned, offered, kdf_source: KdfSource::Prelogin }
+            if pinned == stronger && offered == PBKDF2_600K),
+        "{err:?}"
+    );
+    let storage = MemStorage::default();
+    pin(&storage, stronger, "https://other.invalid");
+    cached_unlock(online.sync.clone(), Some(PBKDF2_600K), &acc.email, &acc.password, &storage).unwrap();
+    assert_eq!(pin_of(&storage).unwrap(), KdfPin { params: PBKDF2_600K, origin: origin() });
+    // A wrong password is a wrong password.
+    let err = cached_unlock(online.sync, Some(PBKDF2_600K), &acc.email, "nope", &MemStorage::default()).err().unwrap();
+    assert!(matches!(err, ProfileError::WrongPassword), "{err:?}");
+}
+
+#[test]
+fn cached_unlock_refuses_a_security_downgrade() {
+    let (online, _) = online_then_cached("cose-v2");
+    let acc = account("cose-v2");
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"3")).unwrap();
+    let err = cached_unlock(online.sync.clone(), Some(PBKDF2_600K), email, password, &storage).err().unwrap();
+    assert!(matches!(err, ProfileError::SecurityDowngrade { seen: 3, offered: 2 }), "{err:?}");
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"3"[..]));
+    // A lower saved version is raised, as online.
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"1")).unwrap();
+    cached_unlock(online.sync, Some(PBKDF2_600K), email, password, &storage).unwrap();
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"2"[..]));
+}
+
+#[test]
+fn cached_unlock_without_prelogin_kdf_needs_source_one() {
+    let acc = pbkdf2_account();
+    let online = acc.unlock(Value::Null, &MemStorage::default()).result.unwrap();
+    let err = cached_unlock(online.sync.clone(), None, &acc.email, &acc.password, &MemStorage::default());
+    assert!(matches!(err, Err(ProfileError::IncompleteUnlockData)));
+    // Without `profile.key` either, it is incomplete whatever the KDF.
+    let mut bare = online.sync.clone();
+    bare["profile"].as_object_mut().unwrap().remove("key");
+    let err = cached_unlock(bare, Some(PBKDF2_600K), &acc.email, &acc.password, &MemStorage::default());
+    assert!(matches!(err, Err(ProfileError::IncompleteUnlockData)));
+    // Source 1 in the sync needs no prelogin KDF, and its own salt and KDF win.
+    let mut one = online.sync;
+    let wrapped = one["profile"].as_object_mut().unwrap().remove("key").unwrap();
+    one["userDecryption"] = unlock_data(&wrapped, 600_000, &acc.email)["userDecryption"].clone();
+    let unlocked = cached_unlock(one, None, &acc.email, &acc.password, &MemStorage::default()).unwrap();
+    assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&account("pbkdf2")["userKey"]));
 }

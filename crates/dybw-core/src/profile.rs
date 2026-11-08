@@ -264,18 +264,79 @@ pub async fn unlock<H: Http, C: Clock>(
 ) -> Result<Unlocked, ProfileError> {
     client.login(key).await?;
     let sync = client.sync().await?;
-    let (source, params, protected, salt) = match unlock_data(&sync) {
-        Some((params, protected, salt)) => (KdfSource::SyncUnlockData, params, protected.to_owned(), salt.to_owned()),
+    let picked = match source_one(&sync) {
+        Some(picked) => picked,
         None => {
-            let protected = sync.pointer("/profile/key").and_then(Value::as_str).filter(|s| !s.is_empty());
-            let protected = protected.ok_or(ProfileError::IncompleteUnlockData)?.to_owned();
+            let protected = profile_key(&sync)?;
             (KdfSource::Prelogin, client.prelogin(email).await?, protected, email.to_owned())
         }
     };
+    finish_unlock(sync, picked, storage, &key.origin, password, kdf, rsa, ns, allowed).await
+}
+
+/// A `/sync` kept by the host, with what an unlock needs beside it: the KDF `prelogin` gave when it was cached
+/// (source 2 only) and the account's email (source 2's salt).
+pub struct CachedSync {
+    pub sync: Value,
+    pub prelogin_kdf: Option<KdfParams>,
+    pub email: String,
+}
+
+/// `unlock` without the network: the same source choice, bounds, pin, KDF, user key and security checks, on a cached
+/// `/sync`. `origin` is the identity origin the pin is bound to. Source 2 without `prelogin_kdf` is
+/// `IncompleteUnlockData`.
+#[expect(clippy::too_many_arguments, reason = "the brief's signature: each port is the host's")]
+pub async fn unlock_cached(
+    cached: CachedSync,
+    storage: &impl Storage,
+    origin: &str,
+    password: Zeroizing<String>,
+    kdf: &impl KdfRunner,
+    rsa: &impl RsaOaep,
+    ns: &Namespace,
+    allowed: &Organizations,
+) -> Result<Unlocked, ProfileError> {
+    let CachedSync { sync, prelogin_kdf, email } = cached;
+    let picked = match source_one(&sync) {
+        Some(picked) => picked,
+        None => {
+            let protected = profile_key(&sync)?;
+            let params = prelogin_kdf.ok_or(ProfileError::IncompleteUnlockData)?;
+            (KdfSource::Prelogin, params, protected, email)
+        }
+    };
+    finish_unlock(sync, picked, storage, origin, password, kdf, rsa, ns, allowed).await
+}
+
+/// Source 1 as (source, KDF, wrapped user key, salt).
+fn source_one(sync: &Value) -> Option<(KdfSource, KdfParams, String, String)> {
+    let (params, protected, salt) = unlock_data(sync)?;
+    Some((KdfSource::SyncUnlockData, params, protected.to_owned(), salt.to_owned()))
+}
+
+/// Source 2's wrapped user key.
+fn profile_key(sync: &Value) -> Result<String, ProfileError> {
+    let key = sync.pointer("/profile/key").and_then(Value::as_str).filter(|s| !s.is_empty());
+    Ok(key.ok_or(ProfileError::IncompleteUnlockData)?.to_owned())
+}
+
+/// Everything after the network, shared by `unlock` and `unlock_cached`.
+#[expect(clippy::too_many_arguments, reason = "the ports of unlock, plus the chosen source")]
+async fn finish_unlock(
+    sync: Value,
+    (source, params, protected, salt): (KdfSource, KdfParams, String, String),
+    storage: &impl Storage,
+    origin: &str,
+    password: Zeroizing<String>,
+    kdf: &impl KdfRunner,
+    rsa: &impl RsaOaep,
+    ns: &Namespace,
+    allowed: &Organizations,
+) -> Result<Unlocked, ProfileError> {
     if let Err(CryptoError::Kdf(why)) = params.validate() {
         return Err(CryptoError::Kdf(format!("{source}: {why}")).into());
     }
-    let pinned = load_pin(storage).await?.filter(|p| p.origin == key.origin).map(|p| p.params);
+    let pinned = load_pin(storage).await?.filter(|p| p.origin == origin).map(|p| p.params);
     if let Some(pinned) = pinned.filter(|p| params.weaker_than(p)) {
         return Err(ProfileError::KdfWeakened { pinned, offered: params, kdf_source: source });
     }
@@ -297,7 +358,7 @@ pub async fn unlock<H: Http, C: Clock>(
         storage.save(SECURITY_VERSION, version.to_string().as_bytes()).await?;
     }
     if pinned != Some(params) {
-        save_pin(storage, params, &key.origin).await?;
+        save_pin(storage, params, origin).await?;
     }
     let warnings =
         if params.meets_floors() { vec![] } else { vec![UnlockWarning::KdfBelowFloor { params, kdf_source: source }] };
