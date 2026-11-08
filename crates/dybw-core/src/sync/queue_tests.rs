@@ -392,16 +392,20 @@ fn a_write_that_keeps_changing_or_cannot_be_read_stays_queued() {
         r.fake.out_of_date();
         r.fake.reply(200, r.item("c1", "x", "old"));
     }
+    // Only x waits: y goes.
+    r.fake.echo();
     let report = r.flush(&mut queue, &[c1]);
     assert_eq!(report.kept.len(), 1);
-    assert_eq!(ids(&queue), ["patch x", "create y"]);
-    assert!(report.done.is_empty() && report.dropped.is_empty());
+    assert_eq!(ids(&queue), ["patch x"]);
+    assert!(report.dropped.is_empty());
+    assert_eq!(strs(&report.done), ["y"]);
 
     // A copy that cannot be read now is held, not dropped.
     let mut r = Rig::new();
     let readable = r.item("c1", "x", "old");
     let unreadable = r.note_under(&r.other, REV, &[("bwss:id", "x", false)]);
     let mut queue = vec![r.change(&readable, None), create_op("y")];
+    r.fake.echo();
     let report = r.flush(
         &mut queue,
         &[{
@@ -411,8 +415,8 @@ fn a_write_that_keeps_changing_or_cannot_be_read_stays_queued() {
         }],
     );
     assert_eq!(report.kept.len(), 1);
-    assert_eq!(queue.len(), 2);
-    assert!(r.log().is_empty());
+    assert_eq!(ids(&queue), ["patch x"]);
+    assert_eq!(r.log(), ["Post /ciphers"]);
 }
 
 #[test]
@@ -607,16 +611,18 @@ fn an_expired_session_keeps_the_whole_queue() {
 #[test]
 fn errors_that_may_pass_keep_the_op() {
     use crate::crypto::CryptoError;
-    assert!(matches!(classify(SyncWriteError::Write(WriteError::Crypto(CryptoError::BadMac))), Step::Keep(_)));
+    // One item's: only its id waits.
+    assert!(matches!(classify(SyncWriteError::Write(WriteError::Crypto(CryptoError::BadMac))), Step::Defer(_)));
+    // The device clock is every op's: the flush stops.
     assert!(matches!(classify(SyncWriteError::Write(WriteError::BadClock)), Step::Keep(_)));
     assert!(matches!(classify(SyncWriteError::Write(WriteError::TooLong)), Step::Drop(_)));
     // The item changed owner under the write: kept, and re-read on the next flush.
-    assert!(matches!(classify(SyncWriteError::OwnerChanged), Step::Keep(_)));
+    assert!(matches!(classify(SyncWriteError::OwnerChanged), Step::Defer(_)));
 }
 
 #[test]
 fn unsupported_write_stays_queued() {
-    assert!(matches!(classify(SyncWriteError::Write(WriteError::Unsupported)), Step::Keep(_)));
+    assert!(matches!(classify(SyncWriteError::Write(WriteError::Unsupported)), Step::Defer(_)));
     // An item stopped by `dybw:requires` is held like an unreadable one: the change waits, nothing is sent.
     let mut r = Rig::new();
     let mut c1 = r
@@ -727,9 +733,11 @@ fn an_unreadable_target_is_held_not_gone() {
     }
     for op in [by_marker, delete_op("x")] {
         let mut queue = vec![op, create_op("y")];
+        r.fake.echo();
         let report = r.flush(&mut queue, std::slice::from_ref(&unreadable));
-        assert_eq!((report.kept.len(), queue.len()), (1, 2));
-        assert!(report.dropped.is_empty() && report.done.is_empty());
+        assert_eq!((report.kept.len(), queue.len()), (1, 1));
+        assert!(report.dropped.is_empty());
+        assert_eq!(strs(&report.done), ["y"]);
     }
     // Without a cipher id naming it, an organization cipher we cannot read is not ours to hold for: the target is
     // gone (`an_organization_target_named_by_its_cipher_id_is_held` covers the hinted case).
@@ -903,24 +911,25 @@ fn flush_keeps_a_write_that_asks() {
     let mut r = Rig::new();
     let c1 = r.login_item("c1", "x", "old");
     let mut queue = vec![r.login_change(&c1, b"new"), create_op("y")];
+    r.fake.echo();
     let report = r.flush(&mut queue, std::slice::from_ref(&c1));
-    // Nothing written, nothing dropped: the write waits for the answer, and the flush stops at it.
+    // Nothing written to x, nothing dropped: the write waits for the answer, and only x waits.
     assert_eq!(
         report.questions.iter().map(|(i, q)| (i.as_str(), *q)).collect::<Vec<_>>(),
         [("x", HistoryQuestion::FirstWriteBack)]
     );
-    assert!(report.done.is_empty() && report.kept.is_empty() && report.dropped.is_empty() && report.refused.is_empty());
-    assert_eq!(ids(&queue), ["patch x", "create y"]);
-    assert!(r.log().is_empty());
+    assert!(report.kept.is_empty() && report.dropped.is_empty() && report.refused.is_empty());
+    assert_eq!(strs(&report.done), ["y"]);
+    assert_eq!(ids(&queue), ["patch x"]);
+    assert_eq!(r.log(), ["Post /ciphers"]);
     assert!(r.records.is_empty());
     // Answered, it goes, and the record learns what this device wrote.
     if let Op::Patch(p) = &mut queue[0] {
         p.answer = Some((HistoryQuestion::FirstWriteBack, HistoryAnswer::WriteToLogin));
     }
     r.fake.echo();
-    r.fake.echo();
     let report = r.flush(&mut queue, &[c1]);
-    assert_eq!(strs(&report.done), ["x", "y"]);
+    assert_eq!(strs(&report.done), ["x"]);
     assert!(queue.is_empty());
     let record = &r.records["x"];
     assert_eq!((record.written.as_slice(), record.confirmed), (&[r.keys.marker.mark("x", "new")][..], true));
@@ -969,7 +978,8 @@ fn a_create_is_kept_while_its_id_may_be_held() {
         assert!(report.dropped.is_empty() && report.refused.is_empty());
         assert!(r.log().is_empty());
     }
-    // A cipher whose marker cannot be read names no id, so it holds nothing: the create goes.
+    // An organization cipher without its key: the create goes. This passes under the M3 rule too (it held only for
+    // personal ciphers); `a_create_is_held_only_by_its_own_id` tells the rules apart.
     unreadable["organizationId"] = json!("o1");
     let mut queue = vec![create_op("y")];
     r.fake.echo();
@@ -1057,13 +1067,14 @@ fn flush_goes_on_past_a_too_large_target() {
     assert!(report.kept.is_empty() && report.dropped.is_empty());
     assert_eq!(ids(&queue), ["patch x", "delete w", "patch w"]);
     assert_eq!(r.log(), ["Post /ciphers"]);
-    // A personal blob of a newer format may be read by a newer core: it still stops the flush.
+    // A personal blob of a newer format may be read by a newer core: held (kept), not stuck.
     let mut newer = c1.clone();
     newer["data"] = json!(r#"{"format_version":2}"#);
     let mut queue = vec![r.change(&c1, None), create_op("y")];
+    r.fake.echo();
     let report = r.flush(&mut queue, &[newer]);
-    assert!(report.stuck.is_empty() && report.done.is_empty());
-    assert_eq!((report.kept.len(), queue.len()), (1, 2));
+    assert!(report.stuck.is_empty());
+    assert_eq!((report.kept.len(), ids(&queue)), (1, vec!["patch x".to_owned()]));
 }
 
 #[test]
@@ -1106,4 +1117,79 @@ fn a_record_resets_when_the_cipher_changes() {
     // An older record file reads without the cipher.
     let back: WriteRecord = serde_json::from_value(json!({ "written": [], "confirmed": true })).unwrap();
     assert_eq!(back.cipher_id, None);
+}
+
+// ---- a held op defers only its own id ----
+
+fn kept_ids(report: &FlushReport) -> Vec<&str> {
+    report.kept.iter().map(|(i, _)| i.as_str()).collect()
+}
+
+#[test]
+fn a_held_op_does_not_block_other_ids() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    // x's own cipher now requires a feature the tool lacks: held.
+    let mut required =
+        r.note(REV, &[("bwss:id", "x", false), ("bwss:password", "s", true), ("dybw:requires", "bwss:acl", false)]);
+    required["id"] = json!("c1");
+    let c2 = r.item("c2", "z", "s");
+    let mut queue = vec![r.change(&c1, Some(b"new")), delete_of("c1", "x"), r.change(&c2, Some(b"new"))];
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[required, c2]);
+    assert_eq!(kept_ids(&report), ["x"]);
+    assert_eq!(strs(&report.done), ["z"]);
+    assert_eq!(ids(&queue), ["patch x", "delete x"]);
+    assert_eq!(r.log(), ["Put /ciphers/c2"]);
+}
+
+#[test]
+fn a_question_does_not_block_other_ids() {
+    let mut r = Rig::new();
+    let c1 = r.login_item("c1", "x", "old");
+    let c2 = r.item("c2", "z", "s");
+    let mut queue = vec![r.login_change(&c1, b"new"), r.change(&c2, Some(b"new"))];
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[c1, c2]);
+    assert_eq!(report.questions.iter().map(|(i, _)| i.as_str()).collect::<Vec<_>>(), ["x"]);
+    assert!(report.kept.is_empty());
+    assert_eq!(strs(&report.done), ["z"]);
+    assert_eq!(ids(&queue), ["patch x"]);
+    assert_eq!(r.log(), ["Put /ciphers/c2"]);
+}
+
+#[test]
+fn a_transient_failure_still_stops_the_flush() {
+    for (status, body) in [(503, json!({ "message": "busy" })), (401, json!({}))] {
+        let mut r = Rig::new();
+        let (c1, c2) = (r.item("c1", "x", "s"), r.item("c2", "z", "s"));
+        let mut queue = vec![r.change(&c1, None), r.change(&c2, None), create_op("y")];
+        r.fake.reply(status, body);
+        let report = r.flush(&mut queue, &[c1, c2]);
+        assert_eq!(kept_ids(&report), ["x"]);
+        assert!(report.done.is_empty());
+        assert_eq!(ids(&queue), ["patch x", "patch z", "create y"]);
+        assert_eq!(r.log()[0], "Put /ciphers/c1");
+        assert!(!r.log().iter().any(|l| l.contains("c2") || l == "Post /ciphers"), "{:?}", r.log());
+    }
+}
+
+#[test]
+fn a_no_hint_patch_held_by_a_too_large_cipher_does_not_block_other_ids() {
+    let mut r = Rig::new();
+    let c1 = r.item("c1", "x", "s");
+    let mut by_marker = r.change(&c1, None);
+    if let Op::Patch(p) = &mut by_marker {
+        p.cipher_id = None;
+    }
+    let c2 = r.item("c2", "z", "s");
+    let mut queue = vec![by_marker, r.change(&c2, Some(b"new"))];
+    r.fake.echo();
+    let report = r.flush(&mut queue, &[too_large(&c1), c2]);
+    // No hint names the large cipher as x's, so x is held (kept), not stuck; z still goes.
+    assert_eq!(kept_ids(&report), ["x"]);
+    assert!(report.stuck.is_empty());
+    assert_eq!(strs(&report.done), ["z"]);
+    assert_eq!(ids(&queue), ["patch x"]);
+    assert_eq!(r.log(), ["Put /ciphers/c2"]);
 }

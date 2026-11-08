@@ -39,9 +39,9 @@ pub enum Op {
 pub struct FlushReport {
     /// Sent and accepted, or nothing left to send (an empty patch, a delete of what is no longer the tool's).
     pub done: Vec<String>,
-    /// Still queued, with why: the flush stopped at the first of these. Not sent because the server or network
-    /// is unavailable or the session expired (401), the item keeps changing, its copy cannot be read now, or it
-    /// changed owner since the op was read from it (`OwnerChanged`).
+    /// Still queued, with why. Not sent because the server or network is unavailable, the session expired (401) or
+    /// the clock is off, which stop the flush; or, deferring only the ops of that id, because the item keeps changing,
+    /// its copy cannot be read now, or it changed owner since the op was read from it (`OwnerChanged`).
     pub kept: Vec<(String, String)>,
     /// Removed without being sent (or without finishing): `Gone`, `Unmarked`, `SourceChanged`, size and other
     /// write errors, and a delete whose reply could not be read (`Unreadable`: the item stays stripped).
@@ -50,7 +50,7 @@ pub struct FlushReport {
     /// (retrying cannot trash it: it is no longer the tool's, so the delete is not kept). A transient cause
     /// of the latter also stops the flush. The user must hear about these.
     pub refused: Vec<(String, ApiError)>,
-    /// Still queued, like `kept`: the write needs the user's answer first (ADR 0016). The flush stopped at it.
+    /// Still queued: the write needs the user's answer first (ADR 0016). Only the ops of that id wait.
     pub questions: Vec<(String, HistoryQuestion)>,
     /// Still queued, without stopping the flush: the op's own cipher can never be read by this tool (too large, an
     /// organization blob). The later ops of the id wait behind it; the user must hear about these.
@@ -164,9 +164,12 @@ pub(super) enum Step {
     /// Only the value changed elsewhere: the other changes of the patch still go.
     DropValue,
     Refuse(ApiError),
+    /// Kept, and the flush stops: the cause (network, login, clock) is every op's.
     Keep(String),
+    /// Kept, with the later ops of its id; the flush goes on with the other ids: the cause is this target's.
+    Defer(String),
     Ask(HistoryQuestion),
-    /// Kept, but the flush goes on with the other ids: the target can never be read.
+    /// Deferred like `Defer`, but the target can never be read.
     Stuck(Uninspectable),
 }
 
@@ -177,10 +180,12 @@ fn waits(e: &ApiError) -> bool {
 
 pub(super) fn classify(e: SyncWriteError) -> Step {
     match e {
+        // The device's clock is every op's: it stops the flush.
+        SyncWriteError::Write(e @ WriteError::BadClock) => Step::Keep(e.to_string()),
         // May pass (a copy that cannot be read now, bwss `Wait`): the change must not be lost.
-        SyncWriteError::Write(
-            e @ (WriteError::Uninspectable(_) | WriteError::Unsupported | WriteError::Crypto(_) | WriteError::BadClock),
-        ) => Step::Keep(e.to_string()),
+        SyncWriteError::Write(e @ (WriteError::Uninspectable(_) | WriteError::Unsupported | WriteError::Crypto(_))) => {
+            Step::Defer(e.to_string())
+        }
         SyncWriteError::Write(WriteError::SourceChanged) => Step::DropValue,
         // Nothing was written: the change waits for the user's answer, never dropped.
         SyncWriteError::Write(WriteError::Ask(q)) => Step::Ask(q),
@@ -188,7 +193,7 @@ pub(super) fn classify(e: SyncWriteError) -> Step {
         SyncWriteError::Api(e) if waits(&e) => Step::Keep(e.to_string()),
         SyncWriteError::Api(e) => Step::Refuse(e),
         // Changed under the write (bwss `Wait`): the next flush re-reads the item and decides again.
-        SyncWriteError::StillChanging | SyncWriteError::OwnerChanged => Step::Keep(e.to_string()),
+        SyncWriteError::StillChanging | SyncWriteError::OwnerChanged => Step::Defer(e.to_string()),
         // A cipher without an id cannot be addressed, so for the queue it is gone.
         SyncWriteError::MissingId => Step::Drop(WriteError::Gone),
     }
@@ -283,7 +288,7 @@ async fn run<H: Http, C: Clock>(
             match find(ciphers, ns, keys, &item.id, None, true) {
                 Lookup::Found(_) => return Step::Done,
                 // A cipher that cannot be read now might be the item: a create would duplicate it.
-                Lookup::Held | Lookup::Stuck(_) => return Step::Keep(HELD.into()),
+                Lookup::Held | Lookup::Stuck(_) => return Step::Defer(HELD.into()),
                 Lookup::Missing => {}
             }
             match create(client, ns, keys, rng, item).await {
@@ -297,7 +302,7 @@ async fn run<H: Http, C: Clock>(
         Op::Patch(p) => {
             let cipher = match find(ciphers, ns, keys, &p.id, p.cipher_id.as_deref(), false) {
                 Lookup::Found(c) => c,
-                Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Held => return Step::Defer(HELD.into()),
                 Lookup::Stuck(u) => return Step::Stuck(u),
                 Lookup::Missing => return Step::Drop(WriteError::Gone),
             };
@@ -330,7 +335,7 @@ async fn run<H: Http, C: Clock>(
         Op::Delete { id, cipher_id, organization_id, .. } => {
             let cipher = match find(ciphers, ns, keys, id, cipher_id.as_deref(), false) {
                 Lookup::Found(c) => c,
-                Lookup::Held => return Step::Keep(HELD.into()),
+                Lookup::Held => return Step::Defer(HELD.into()),
                 Lookup::Stuck(u) => return Step::Stuck(u),
                 Lookup::Missing => return Step::Done,
             };
@@ -353,12 +358,12 @@ async fn run<H: Http, C: Clock>(
 }
 
 /// Sends the queued ops in order against `sync` (the `/sync` reply the ops were made from; later ops see the
-/// replies of earlier ones). A transient failure, an item that keeps changing and a copy that cannot be read keep
-/// the op and stop the flush; everything else removes the op and goes on, and says so in the report.
+/// replies of earlier ones). A cause every op shares (the network, a transient server error, the login, the clock)
+/// keeps the op and stops the flush. A cause of one target (a copy that cannot be read now or ever, an item that keeps
+/// changing or changed owner, a history question of ADR 0016) keeps the op and the later ops of its id, in order, and
+/// the flush goes on with the other ids. Everything else removes the op and goes on, and says so in the report.
 /// `Gone` and `Unmarked` drop an op (the item left the tool); `SourceChanged` drops the value
-/// and sends the patch's other changes (bwss). A write that asks a history question (ADR 0016) is kept and stops the
-/// flush too. An op whose own cipher can never be read is `stuck`: kept, and the flush goes on with the ops of other
-/// ids, while the later ops of its id stay queued behind it, in order. `records` holds this device's write records by
+/// and sends the patch's other changes (bwss). `records` holds this device's write records by
 /// `{ns}:id`, updated by every write to a login password and reset when the item is another cipher than the one written.
 /// The caller saves the queue and the records afterwards.
 #[expect(clippy::too_many_arguments, reason = "the writer's inputs, each the caller's")]
@@ -374,18 +379,25 @@ pub async fn flush<H: Http, C: Clock>(
 ) -> FlushReport {
     let mut report = FlushReport::default();
     let mut ciphers = sync.get("ciphers").and_then(Value::as_array).cloned().unwrap_or_default();
-    // Ids with a stuck op, and the queue position of the op to run next.
-    let mut stuck = BTreeSet::new();
+    // Ids with a deferred op, and the queue position of the op to run next.
+    let mut deferred = BTreeSet::new();
     let mut at = 0;
     while let Some(op) = queue.get(at) {
         let id = target(op).to_owned();
-        if stuck.contains(&id) {
+        if deferred.contains(&id) {
             at += 1;
             continue;
         }
-        match run(op, client, ns, keys, records, rng, now_ms, &mut ciphers).await {
-            Step::Done => report.done.push(id),
-            Step::Drop(e) => report.dropped.push((id, e)),
+        // Only this id waits when it is deferred: its op and later ones stay queued, in order.
+        let defer = match run(op, client, ns, keys, records, rng, now_ms, &mut ciphers).await {
+            Step::Done => {
+                report.done.push(id);
+                false
+            }
+            Step::Drop(e) => {
+                report.dropped.push((id, e));
+                false
+            }
             Step::DropValue => {
                 report.dropped.push((id, WriteError::SourceChanged));
                 match queue.get_mut(at) {
@@ -393,7 +405,7 @@ pub async fn flush<H: Http, C: Clock>(
                         p.value = ValueChange::Keep;
                         continue;
                     }
-                    _ => {}
+                    _ => false,
                 }
             }
             Step::Refuse(e) => {
@@ -403,23 +415,30 @@ pub async fn flush<H: Http, C: Clock>(
                     queue.remove(at);
                     break;
                 }
+                false
             }
             Step::Keep(why) => {
                 report.kept.push((id, why));
                 break;
             }
+            Step::Defer(why) => {
+                report.kept.push((id.clone(), why));
+                deferred.insert(id)
+            }
             Step::Ask(q) => {
-                report.questions.push((id, q));
-                break;
+                report.questions.push((id.clone(), q));
+                deferred.insert(id)
             }
             Step::Stuck(u) => {
                 report.stuck.push((id.clone(), u));
-                stuck.insert(id);
-                at += 1;
-                continue;
+                deferred.insert(id)
             }
+        };
+        if defer {
+            at += 1;
+        } else {
+            queue.remove(at);
         }
-        queue.remove(at);
     }
     report
 }
