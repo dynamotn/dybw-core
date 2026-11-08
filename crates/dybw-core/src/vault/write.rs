@@ -445,7 +445,9 @@ impl<B: Body> Edit<'_, B> {
         let mut lines: Vec<&str> =
             current.as_deref().map(|s| s.lines().filter(|l| !l.trim().is_empty()).collect()).unwrap_or_default();
         let before = lines.len();
-        for line in add.lines.iter().map(|l| l.as_str()).filter(|l| !l.trim().is_empty()) {
+        // A line with a break would read back as several and defeat the exact-match dedupe: skipped.
+        let fit = |l: &&str| !l.trim().is_empty() && !l.contains(['\n', '\r']);
+        for line in add.lines.iter().map(|l| l.as_str()).filter(fit) {
             if !lines.contains(&line) {
                 lines.push(line);
             }

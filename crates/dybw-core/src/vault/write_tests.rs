@@ -1860,6 +1860,15 @@ fn blob_history_is_protected_too() {
 }
 
 #[test]
+fn append_lines_skips_lines_with_line_breaks() {
+    let k = fx();
+    let c = k.login(&[("bwss:id", "x", false), ("bwss:acl", "a", true)], Some("pw"), None);
+    let p = Patch { append_lines: vec![la("bwss:acl", &["b\nc", "d\re", "f"])], ..k.keep(&c, B) };
+    let body = k.apply(&c, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("a\nf".into(), 1)));
+}
+
+#[test]
 fn acl_merges_as_a_union() {
     let k = fx();
     let c = k.login(&[("bwss:id", "x", false), ("bwss:acl", "a\nb", true)], Some("pw"), None);

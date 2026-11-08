@@ -129,6 +129,24 @@ fn append_lines_merge_in_queue() {
 }
 
 #[test]
+fn merge_drops_earlier_lines_for_a_field_the_later_patch_touches() {
+    for removes in [true, false] {
+        let mut first = patch("a", ValueChange::Keep);
+        first.append_lines = vec![acl(&["old"]), LineAppend { name: "bwss:other".into(), ..acl(&["o"]) }];
+        let mut later = patch("a", ValueChange::Keep);
+        if removes {
+            later.remove = vec!["bwss:acl".into()];
+        } else {
+            later.set = vec![field("bwss:acl", "s")];
+        }
+        later.append_lines = vec![acl(&["new"])];
+        let mut queue = vec![Op::Patch(first)];
+        push(&mut queue, Op::Patch(later), None);
+        assert_eq!(lines(as_patch(&queue[0])), [("bwss:other", vec!["o"]), ("bwss:acl", vec!["new"])]);
+    }
+}
+
+#[test]
 fn a_later_attribute_removal_drops_earlier_attribute_sets() {
     let mut first = patch("a", ValueChange::Keep);
     first.set = vec![field("bwss:attr:k", "v"), field("bwss:label", "L")];

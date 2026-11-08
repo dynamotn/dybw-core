@@ -77,11 +77,13 @@ fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option
             || later.set.iter().any(|f| f.name == name)
             || later.remove.iter().any(|n| n == name)
     };
+    // A field the later patch sets or removes starts over: its earlier lines would otherwise come back after it.
+    let kept_lines: Vec<_> = first.append_lines.iter().filter(|a| !touched(&a.name)).cloned().collect();
     let mut remove: Vec<String> = first.remove.iter().filter(|n| !touched(n)).cloned().collect();
     let mut set: Vec<FieldSet> = first.set.iter().filter(|f| !touched(&f.name)).cloned().collect();
     remove.append(&mut later.remove);
     set.append(&mut later.set);
-    let mut append_lines = first.append_lines.clone();
+    let mut append_lines = kept_lines;
     for add in later.append_lines {
         match append_lines.iter_mut().find(|a| a.name == add.name) {
             Some(a) => {
