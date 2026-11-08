@@ -183,10 +183,11 @@ enum Lookup {
     Missing,
 }
 
-/// The copy of the item the op is for: the live cipher carrying its marker, whatever its cipher id (bwss `locate`).
-/// Only when none does, `cipher_id` is a hint: the live cipher with that id, when it cannot be read now, might be the
-/// item, so the op is held whatever its owner (an organization whose key failed this unlock, as the engine holds
-/// it); every other case is a target that is gone. With no hint, any personal cipher that cannot be read holds it.
+/// The copy of the item the op is for. The op's own cipher (`cipher_id`) is the target when it still carries the
+/// marker, and the op is held, whatever its owner, when that cipher is present but cannot be used now (an organization
+/// whose key failed this unlock, as the engine holds it). Only when it is gone or no longer carries the marker, or there is no
+/// `cipher_id`, §7 picks among the live ciphers carrying it (bwss `locate`). With no `cipher_id` and no such cipher, any personal
+/// cipher that cannot be read holds the op; every other case is a target that is gone.
 fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Option<&str>) -> Lookup {
     let mut held = false;
     let mut hinted: Option<Box<MarkedItem>> = None;
