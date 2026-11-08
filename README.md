@@ -49,6 +49,19 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
 - `crates/dybw-vectors`: runs the conformance vectors against the core.
   `expected-failures.txt` lists no vector at the end of M3.
 
+M4 Part A adds what bwss needs from the core:
+
+- `vault::append_lines` unions lines into a tool field (an ACL), skipping those
+  already there, and creates the field when it is missing.
+- `profile::unlock_cached` unlocks from a cached sync, without the network.
+- `vault::item_meta` reads an item's name, username and URI.
+- The write queue holds, stalls and records as bwss expects, and older queue
+  files stay readable.
+- `profile::accept_security_version` records a security-state version the user
+  accepted.
+- `SymmetricKey::tag` is the keyed HMAC-SHA256 behind bwss's ACL confirmations,
+  with the ADR 0023 known answers in `vectors/crypto/bwss-subkeys.json`.
+
 Its futures are `!Send`: run them on a `current_thread` runtime or a `LocalSet`.
 
 ## Checks
