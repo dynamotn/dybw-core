@@ -281,7 +281,8 @@ pub async fn unlock<H: Http, C: Clock>(
 }
 
 /// A `/sync` kept by the host, with what an unlock needs beside it: the KDF `prelogin` gave when it was cached
-/// (source 2 only) and the account's email (source 2's salt).
+/// (source 2 only) and the account's email (source 2's salt). `sync` must be an earlier `Unlocked.sync`, already
+/// normalized by the client, never a raw server response.
 pub struct CachedSync {
     pub sync: Value,
     pub prelogin_kdf: Option<KdfParams>,

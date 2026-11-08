@@ -445,8 +445,6 @@ fn read_marked(
     })))
 }
 
-/// The §7 order of two copies of one item: the smaller wins. Shared by the scan and by queued ops, so both pick
-/// the same cipher.
 /// An item's name, login username and first URI, for labels and derived attributes. `Debug` shows none of them.
 #[derive(Default)]
 pub struct ItemMeta {
@@ -489,6 +487,8 @@ fn meta_under(cipher: &Value, owner: &SymmetricKey) -> Option<ItemMeta> {
     Some(ItemMeta { name: part("/name"), username: part("/login/username"), uri: part("/login/uris/0/uri") })
 }
 
+/// The §7 order of two copies of one item: the smaller wins. Shared by the scan and by queued ops, so both pick
+/// the same cipher.
 pub(crate) fn duplicate_order(a: &MarkedItem, b: &MarkedItem) -> std::cmp::Ordering {
     let rank = |m: &MarkedItem| (m.organization_id.is_some(), m.creation_date.is_none(), m.creation_date);
     rank(a).cmp(&rank(b)).then_with(|| a.cipher_id.cmp(&b.cipher_id))
