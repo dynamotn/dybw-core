@@ -251,13 +251,19 @@ fn find(ciphers: &[Value], ns: &Namespace, keys: &Keys, id: &str, cipher_id: Opt
             _ => {}
         }
     }
-    match (hinted, winner) {
-        (Some(h), _) => Lookup::Found(h.cipher),
-        _ if let Some(u) = stuck => Lookup::Stuck(u),
-        _ if hint_held => Lookup::Held,
-        (None, Some(w)) => Lookup::Found(w.cipher),
-        (None, None) if held => Lookup::Held,
-        (None, None) => Lookup::Missing,
+    if let Some(h) = hinted {
+        return Lookup::Found(h.cipher);
+    }
+    if let Some(u) = stuck {
+        return Lookup::Stuck(u);
+    }
+    if hint_held {
+        return Lookup::Held;
+    }
+    match winner {
+        Some(w) => Lookup::Found(w.cipher),
+        None if held => Lookup::Held,
+        None => Lookup::Missing,
     }
 }
 

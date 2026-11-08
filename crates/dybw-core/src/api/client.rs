@@ -70,7 +70,7 @@ pub fn resolve_server_urls(server_url: &str) -> Result<ServerUrls, ApiError> {
     let host = url.host_str().unwrap_or_default();
     let loopback = matches!(host, "localhost" | "127.0.0.1" | "[::1]");
     if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
-        return Err(ApiError::Protocol(
+        return Err(ApiError::Invalid(
             "the server URL must use https:// (plain http is only allowed for localhost)".into(),
         ));
     }

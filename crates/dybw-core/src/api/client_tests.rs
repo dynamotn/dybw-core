@@ -123,7 +123,8 @@ fn resolve_urls() {
     assert_eq!(resolve_server_urls("http://localhost:8080").unwrap().api, "http://localhost:8080/api");
     assert_eq!(resolve_server_urls("http://[::1]:8080").unwrap().api, "http://[::1]:8080/api");
     for bad in ["http://bw.example.org", "ftp://localhost", "mailto:a@b.c"] {
-        assert!(resolve_server_urls(bad).unwrap_err().to_string().contains("https://"), "{bad}");
+        let e = resolve_server_urls(bad).unwrap_err().to_string();
+        assert!(e.starts_with("the server URL must use https://"), "{bad}: {e}");
     }
     let e = resolve_server_urls("https://u:hunter2@bw.example.org").unwrap_err().to_string();
     assert!(e.contains("credentials") && !e.contains("hunter2"));
