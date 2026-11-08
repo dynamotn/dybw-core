@@ -7,7 +7,7 @@ use crate::crypto::{MarkScheme, Marker, SymmetricKey};
 use crate::ports::{Http, HttpRequest, HttpResponse, Method, PortError};
 use crate::testing::{FixedClock, SeededRandom, block_on};
 use crate::vault::scan::{Scan, ValueSource, scan};
-use crate::vault::write::{FieldSet, NewItem, Patch, ValueChange, WriteError, WriteRecord};
+use crate::vault::write::{FieldSet, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use crate::vault::{Keys, Namespace, Organizations, Uninspectable};
 use serde_json::{Value, json};
 use std::cell::RefCell;
@@ -129,6 +129,7 @@ impl Rig {
             base_revision: m.revision_date.clone(),
             set: vec![FieldSet { name: "bwss:label".into(), value: Zeroizing::new("l".into()), hidden: false }],
             remove: Vec::new(),
+            append_lines: Vec::new(),
             value: ValueChange::Set {
                 source: ValueSource::Field,
                 secret: Zeroizing::new(secret.to_vec()),
@@ -501,6 +502,11 @@ fn an_empty_patch_sends_nothing() {
     r.fake.echo();
     let set = Patch { set: r.patch_for(&c, b"x").set, ..keep_patch(&r, &c) };
     assert!(r.update(&c, &set).unwrap().is_some());
+    // and so is a line to add, even beside the value the copy already holds
+    r.fake.echo();
+    let lines = LineAppend { name: "bwss:acl".into(), lines: vec![Zeroizing::new("/bin/a".into())], hidden: true };
+    let add = Patch { append_lines: vec![lines], ..keep_patch(&r, &c) };
+    assert!(r.update(&c, &add).unwrap().is_some());
 }
 
 #[test]

@@ -9,7 +9,7 @@ use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom, block_on};
 use dybw_core::vault::fields::{field_names, field_value, first_index, item_key};
-use dybw_core::vault::write::{HistoryAnswer, NewItem, Patch, ValueChange, WriteError, WriteRecord};
+use dybw_core::vault::write::{HistoryAnswer, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use dybw_core::vault::{
     Keys, Namespace, Organizations, SkipReason, UnmarkedCache, ValueSource, scan_vault, scan_vault_with,
 };
@@ -143,7 +143,7 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
         let item = |id: &str| report.items.iter().find(|i| i.id == id).ok_or(format!("no item {id}"));
         *server.fresh.borrow_mut() = op.fresh().cloned();
         Ok::<_, String>(match op {
-            Operation::SetValue { id, value, answer, .. } => {
+            Operation::SetValue { id, value, answer, append_lines, .. } => {
                 // An item skipped for `dybw:requires` is not among the items: the write is tried on its cipher, as
                 // an app holding a stale copy would (the vector's one `newer-format` cipher).
                 let (cipher, found) = match item(id) {
@@ -177,6 +177,14 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                     base_revision: found.2,
                     set: Vec::new(),
                     remove: Vec::new(),
+                    append_lines: append_lines
+                        .iter()
+                        .map(|a| LineAppend {
+                            name: a.name.clone(),
+                            lines: a.lines.iter().map(|l| Zeroizing::new(l.clone())).collect(),
+                            hidden: a.hidden,
+                        })
+                        .collect(),
                     value: ValueChange::Set {
                         source: found.3,
                         secret: op_value(value)?,

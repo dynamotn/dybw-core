@@ -1,4 +1,4 @@
-//! Ported from bwss `src/bw/write.rs` (except the ACL union and the registry note, M4) and the plugin's
+//! Ported from bwss `src/bw/write.rs` (except the registry note, M4) and the plugin's
 //! `newSecretRequest` / `updateValueRequest` cases (`test/sync.test.ts`).
 
 use super::blob::{BLOB_SECURITY_VERSION, OpenBlob, open_blob};
@@ -145,6 +145,7 @@ impl Fx {
             base_revision: m.revision_date.clone(),
             set: Vec::new(),
             remove: Vec::new(),
+            append_lines: Vec::new(),
             value: ValueChange::Keep,
             answer: None,
         }
@@ -172,6 +173,10 @@ impl Fx {
 
 fn dec_with(key: &SymmetricKey, v: &Value) -> String {
     key.decrypt_str(v.as_str().unwrap()).unwrap().to_string()
+}
+
+fn la(name: &str, lines: &[&str]) -> LineAppend {
+    LineAppend { name: name.into(), lines: lines.iter().map(|l| Zeroizing::new((*l).into())).collect(), hidden: true }
 }
 
 fn fs(name: &str, value: &str, hidden: bool) -> FieldSet {
@@ -379,6 +384,7 @@ fn response_only_keys_are_stripped_and_history_always_sent() {
     c["deletedDate"] = Value::Null;
     let mut p = k.set_secret(&c, B, b"new");
     p.set = vec![fs("bwss:attr:a", "1", false)];
+    p.append_lines = vec![la("bwss:acl", &["/bin/x"])];
     let body = k.apply(&c, &p, B).unwrap();
     for key in RESPONSE_ONLY {
         assert!(!body.contains_key(key), "{key} was sent");
@@ -388,6 +394,7 @@ fn response_only_keys_are_stripped_and_history_always_sent() {
     assert_eq!(body["key"], c["key"]);
     assert_eq!(field(&body, &item_key, "bwss:password"), Some(("new".into(), 1)));
     assert_eq!(field(&body, &item_key, "bwss:attr:a"), Some(("1".into(), 0)));
+    assert_eq!(field(&body, &item_key, "bwss:acl"), Some(("/bin/x".into(), 1)));
     assert_eq!(dec_with(&item_key, &body["notes"]), "body");
     assert_eq!(k.marked(&as_server(&body), B).value.as_slice(), b"new");
 }
@@ -838,6 +845,8 @@ fn oversize_tool_field_values_never_reach_the_server() {
         let p = Patch { set: vec![fs(name, &long, hidden)], ..k.keep(&c, B) };
         assert_eq!(k.apply(&c, &p, B), Err(WriteError::TooLong), "{name}");
     }
+    let p = Patch { append_lines: vec![la("bwss:acl", &[&long])], ..k.keep(&c, B) };
+    assert_eq!(k.apply(&c, &p, B), Err(WriteError::TooLong));
     // Just under the limit is fine.
     let p = Patch { set: vec![fs("bwss:label", &"x".repeat(3_000), false)], ..k.keep(&c, B) };
     assert!(k.apply(&c, &p, B).is_ok());
@@ -1207,6 +1216,10 @@ fn patch_round_trips_for_the_queue() {
     let json = serde_json::to_string(&p).unwrap();
     assert!(json.contains("\"login-password\""), "{json}");
     let back: Patch = serde_json::from_str(&json).unwrap();
+    // A queue written before `append_lines` still reads.
+    let mut old: Value = serde_json::from_str(&json).unwrap();
+    assert!(old.as_object_mut().unwrap().remove("append_lines").is_some());
+    assert!(serde_json::from_value::<Patch>(old).unwrap().append_lines.is_empty());
     assert_eq!(k.apply(&c, &back, B).unwrap()["fields"].as_array().unwrap().len(), 4);
     let keep: Patch = serde_json::from_str(&serde_json::to_string(&k.keep(&c, B)).unwrap()).unwrap();
     assert!(matches!(keep.value, ValueChange::Keep));
@@ -1248,6 +1261,7 @@ fn bx_patch(k: &Bx, c: &Value, secret: Option<&[u8]>) -> Patch {
         base_revision: m.revision_date.clone(),
         set: Vec::new(),
         remove: Vec::new(),
+        append_lines: Vec::new(),
         value,
         answer: None,
     }
@@ -1843,4 +1857,90 @@ fn blob_history_is_protected_too() {
     // No password or no history: nothing leaves.
     assert!(write(&blob_with_history(&k, None, Some(full())), &foreign).is_ok());
     assert!(write(&blob_with_history(&k, Some("cur"), Some(Cbor::Null)), &foreign).is_ok());
+}
+
+#[test]
+fn acl_merges_as_a_union() {
+    let k = fx();
+    let c = k.login(&[("bwss:id", "x", false), ("bwss:acl", "a\nb", true)], Some("pw"), None);
+    let mut p = Patch { append_lines: vec![la("bwss:acl", &["c", "a"])], ..k.keep(&c, B) };
+    let body = k.apply(&c, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("a\nb\nc".into(), 1)));
+
+    // nothing new: the field is left as it was
+    p.append_lines = vec![la("bwss:acl", &["b"])];
+    assert_eq!(k.apply(&c, &p, B).unwrap()["fields"], c["fields"]);
+
+    // an ACL field holding null counts as empty and keeps its kind
+    let mut null_acl = k.login(&[("bwss:id", "x", false), ("bwss:acl", "", true)], Some("pw"), None);
+    null_acl["fields"][1]["value"] = Value::Null;
+    p.append_lines = vec![la("bwss:acl", &["/bin/y"])];
+    let body = k.apply(&null_acl, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("/bin/y".into(), 1)));
+    assert_eq!(body["fields"].as_array().unwrap().len(), 2);
+
+    // no ACL yet: a hidden field is added
+    let c = k.login(&[("bwss:id", "x", false)], Some("pw"), None);
+    p.append_lines = vec![la("bwss:acl", &["/bin/x"])];
+    let body = k.apply(&c, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("/bin/x".into(), 1)));
+}
+
+#[test]
+fn append_lines_union_keeps_order() {
+    let k = fx();
+    // Existing order stays, blank lines (either side) are dropped, only the first copy of the field is read, and
+    // a repeated new line is added once.
+    let c = k.login(
+        &[("bwss:id", "x", false), ("bwss:acl", "b\n\n  \na", true), ("bwss:acl", "other", true)],
+        Some("pw"),
+        None,
+    );
+    // (and an identical value does not make the union "nothing to send")
+    let p = Patch { append_lines: vec![la("bwss:acl", &["z", "", "a", "y", "z", " "])], ..k.set_secret(&c, B, b"pw") };
+    let body = k.apply(&c, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("b\na\nz\ny".into(), 1)));
+    assert_eq!(names(&body, &k.keys.user), ["bwss:id", "bwss:acl", "bwss:acl"]);
+    // Absent, and nothing but blank lines: the (empty) field is still created.
+    let c2 = k.login(&[("bwss:id", "x", false)], Some("pw"), None);
+    let p = Patch { append_lines: vec![la("bwss:acl", &[" "])], ..k.keep(&c2, B) };
+    let body = k.apply(&c2, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some((String::new(), 1)));
+    // It runs after `remove` and `set`: a removed field is created anew, a set one is added to.
+    let p = Patch { remove: vec!["bwss:acl".into()], append_lines: vec![la("bwss:acl", &["n"])], ..k.keep(&c, B) };
+    let body = k.apply(&c, &p, B).unwrap();
+    assert_eq!(names(&body, &k.keys.user), ["bwss:id", "bwss:acl"]);
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("n".into(), 1)));
+    let p = Patch { set: vec![fs("bwss:acl", "s", true)], append_lines: vec![la("bwss:acl", &["n"])], ..k.keep(&c, B) };
+    let body = k.apply(&c, &p, B).unwrap();
+    assert_eq!(field(&body, &k.keys.user, "bwss:acl"), Some(("s\nn".into(), 1)));
+}
+
+#[test]
+fn append_lines_too_long_is_refused() {
+    let k = fx();
+    let c = k.login(&[("bwss:id", "x", false), ("bwss:acl", "a", true)], Some("pw"), None);
+    // Each line fits, the union does not.
+    let line = "x".repeat(2_000);
+    let p = Patch { append_lines: vec![la("bwss:acl", &[&line, &line.replace('x', "y")])], ..k.keep(&c, B) };
+    assert_eq!(k.apply(&c, &p, B), Err(WriteError::TooLong));
+}
+
+#[test]
+fn append_lines_on_a_blob() {
+    let k = Bx::new();
+    let c = k.cipher(blob_login(&[("bwss:id", "a"), ("bwss:acl", "p\nq")], Some("pw"), None));
+    let p = Patch { append_lines: vec![la("bwss:acl", &["q", "r"])], ..bx_patch(&k, &c, None) };
+    let blob = sent(&k, &apply(&c, &p, B, &k.keys, &k.rng, NOW).unwrap());
+    let Some(Cbor::Array(fields)) = blob.get("fields") else { panic!("no fields") };
+    // Changed in place, its kind kept.
+    let (value, kind) = (super::blob::get(&fields[1], "value"), super::blob::get(&fields[1], "type"));
+    assert_eq!((value, kind), (Some(&t("p\nq\nr")), Some(&Cbor::Uint(0))));
+    // Absent: created hidden. Over the limit, on the plaintext length.
+    let c = k.cipher(blob_login(&[("bwss:id", "a")], Some("pw"), None));
+    let p = Patch { append_lines: vec![la("bwss:acl", &["r"])], ..bx_patch(&k, &c, None) };
+    let blob = sent(&k, &apply(&c, &p, B, &k.keys, &k.rng, NOW).unwrap());
+    assert_eq!(names_of(&blob), [Some("bwss:id"), Some("bwss:acl")]);
+    let p = Patch { append_lines: vec![la("bwss:acl", &[&"x".repeat(5_001)])], ..bx_patch(&k, &c, None) };
+    assert_eq!(apply(&c, &p, B, &k.keys, &k.rng, NOW), Err(WriteError::TooLong));
 }

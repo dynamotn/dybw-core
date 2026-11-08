@@ -62,7 +62,7 @@ fn target(op: &Op) -> &str {
 /// One patch with the changes of `first` and then `later`, for the same item. `server` is the cached server copy's
 /// base: a later value change read from it (the first one could not be shown, for example because the value
 /// changed elsewhere) replaces the first one; a later change read from the first one's result keeps the first
-/// one's base, so the value check still compares against what the server holds. bwss's `acl_add` is M4.
+/// one's base, so the value check still compares against what the server holds.
 fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option<(ValueSource, [u8; 32])>) -> Patch {
     let attr = ns.field("attr:");
     let replaces_attributes = later.remove.contains(&attr);
@@ -75,6 +75,16 @@ fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option
     let mut set: Vec<FieldSet> = first.set.iter().filter(|f| !touched(&f.name)).cloned().collect();
     remove.append(&mut later.remove);
     set.append(&mut later.set);
+    let mut append_lines = first.append_lines.clone();
+    for add in later.append_lines {
+        match append_lines.iter_mut().find(|a| a.name == add.name) {
+            Some(a) => {
+                let new: Vec<_> = add.lines.into_iter().filter(|l| !a.lines.contains(l)).collect();
+                a.lines.extend(new);
+            }
+            None => append_lines.push(add),
+        }
+    }
     let value = merged_value(&first.value, later.value, server);
     Patch {
         id: first.id.clone(),
@@ -84,6 +94,7 @@ fn merge_patches(first: &Patch, mut later: Patch, ns: &Namespace, server: Option
         base_revision: first.base_revision.clone(),
         set,
         remove,
+        append_lines,
         value,
         // An answer belongs to the value it was given for: never carried onto a later one.
         answer: later.answer,
@@ -339,7 +350,7 @@ pub async fn flush<H: Http, C: Clock>(
             Step::DropValue => {
                 report.dropped.push((id, WriteError::SourceChanged));
                 match queue.first_mut() {
-                    Some(Op::Patch(p)) if !(p.set.is_empty() && p.remove.is_empty()) => {
+                    Some(Op::Patch(p)) if !(p.set.is_empty() && p.remove.is_empty() && p.append_lines.is_empty()) => {
                         p.value = ValueChange::Keep;
                         continue;
                     }

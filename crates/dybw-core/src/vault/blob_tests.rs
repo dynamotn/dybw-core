@@ -173,6 +173,7 @@ fn marked_blob_is_written_as_a_blob() {
         base_revision: m.revision_date.clone(),
         set: Vec::new(),
         remove: Vec::new(),
+        append_lines: Vec::new(),
         value: write::ValueChange::Keep,
         answer: None,
     };

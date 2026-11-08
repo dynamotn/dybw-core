@@ -7,7 +7,9 @@ use crate::api::ApiError;
 use crate::crypto::SymmetricKey;
 use crate::testing::block_on;
 use crate::vault::scan::ValueSource;
-use crate::vault::write::{FieldSet, HistoryAnswer, HistoryQuestion, NewItem, Patch, ValueChange, WriteError};
+use crate::vault::write::{
+    FieldSet, HistoryAnswer, HistoryQuestion, LineAppend, NewItem, Patch, ValueChange, WriteError,
+};
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
@@ -28,6 +30,7 @@ fn patch(id: &str, v: ValueChange) -> Patch {
         base_revision: "r".into(),
         set: vec![],
         remove: vec![],
+        append_lines: Vec::new(),
         value: v,
         answer: None,
     }
@@ -82,6 +85,8 @@ fn queued_patches_of_one_item_merge_on_the_server_base() {
     later.base_revision = "r2".into();
     later.set = vec![field("bwss:label", "Two"), field("bwss:attr:k", "v")];
     later.remove = vec!["bwss:attr:".into(), "bwss:collection".into()];
+    first.append_lines = vec![acl(&["/bin/a"])];
+    later.append_lines = vec![acl(&["/bin/a", "/bin/b"])];
     let mut queue = vec![Op::Patch(first), delete_op("other")];
     // The server still holds what the first change was based on.
     push(&mut queue, Op::Patch(later), Some((ValueSource::LoginPassword, [1; 32])));
@@ -92,7 +97,35 @@ fn queued_patches_of_one_item_merge_on_the_server_base() {
     assert_eq!(m.remove, ["bwss:content-type", "bwss:attr:", "bwss:collection"]);
     let set_names: Vec<(&str, &str)> = m.set.iter().map(|f| (f.name.as_str(), f.value.as_str())).collect();
     assert_eq!(set_names, [("bwss:label", "Two"), ("bwss:attr:k", "v")]);
+    assert_eq!(lines(m), [("bwss:acl", vec!["/bin/a", "/bin/b"])]);
     assert_eq!(value(&m.value), (ValueSource::LoginPassword, b"2".to_vec(), [1; 32], false));
+}
+
+fn acl(lines: &[&str]) -> LineAppend {
+    LineAppend {
+        name: "bwss:acl".into(),
+        lines: lines.iter().map(|l| Zeroizing::new((*l).into())).collect(),
+        hidden: true,
+    }
+}
+
+fn lines(p: &Patch) -> Vec<(&str, Vec<&str>)> {
+    p.append_lines.iter().map(|a| (a.name.as_str(), a.lines.iter().map(|l| l.as_str()).collect())).collect()
+}
+
+#[test]
+fn append_lines_merge_in_queue() {
+    let mut first = patch("a", ValueChange::Keep);
+    first.append_lines = vec![acl(&["c", "a"]), LineAppend { name: "bwss:other".into(), ..acl(&["o"]) }];
+    let mut later = patch("a", ValueChange::Keep);
+    later.append_lines = vec![acl(&["a", "d"]), LineAppend { name: "bwss:new".into(), ..acl(&["n"]) }];
+    let mut queue = vec![Op::Patch(first)];
+    push(&mut queue, Op::Patch(later), None);
+    // The earlier list first, a repeated line once, a new field after.
+    assert_eq!(
+        lines(as_patch(&queue[0])),
+        [("bwss:acl", vec!["c", "a", "d"]), ("bwss:other", vec!["o"]), ("bwss:new", vec!["n"])]
+    );
 }
 
 #[test]
@@ -321,6 +354,19 @@ fn a_changed_secret_is_dropped_but_the_other_changes_go() {
     let report = r.flush(&mut queue, std::slice::from_ref(&now));
     assert!(queue.is_empty() && report.done.is_empty() && report.dropped.len() == 1);
     assert!(r.log().is_empty());
+
+    // Lines to add are a field change too: they go.
+    let mut r = Rig::new();
+    let mut op = r.change(&old, Some(b"new"));
+    if let Op::Patch(p) = &mut op {
+        p.set.clear();
+        p.append_lines = vec![acl(&["/bin/a"])];
+    }
+    r.fake.echo();
+    let mut queue = vec![op];
+    let report = r.flush(&mut queue, std::slice::from_ref(&now));
+    assert_eq!((strs(&report.done), report.dropped.len()), (vec!["x"], 1));
+    assert_eq!(r.log(), ["Put /ciphers/c1"]);
 }
 
 #[test]

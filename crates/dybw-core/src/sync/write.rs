@@ -83,7 +83,11 @@ pub async fn update<H: Http, C: Clock>(
     cipher: &Value,
     patch: &Patch,
 ) -> Result<Option<(Value, Option<[u8; 32]>)>, SyncWriteError> {
-    if matches!(patch.value, ValueChange::Keep) && patch.set.is_empty() && patch.remove.is_empty() {
+    if matches!(patch.value, ValueChange::Keep)
+        && patch.set.is_empty()
+        && patch.remove.is_empty()
+        && patch.append_lines.is_empty()
+    {
         return Ok(None);
     }
     let id = cipher_id(cipher)?;

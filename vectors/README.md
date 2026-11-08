@@ -84,7 +84,7 @@ of ADR 0019.
 
 One of:
 
-- `{ "kind": "set-value", "id", "value" }`;
+- `{ "kind": "set-value", "id", "value", "appendLines"? }`;
 - `{ "kind": "create", "id", "value", "folderId": string | null }`;
 - `{ "kind": "delete", "id" }`.
 
@@ -119,6 +119,16 @@ change to `fresh`.
     no id: it is the vector's single planned push. An answer applies to
     the question the copy raises, so the default `"write-to-login"` answers
     whichever one it is.
+
+- **Line union (1.6).** `appendLines` on `set-value` is an array of
+  `{ "name", "lines": [string], "hidden": bool }`: after the value is written,
+  for each entry the first field called `name` is split on `\n`, every line of
+  `lines` that is not blank and not already there (exact match) is appended in
+  order, and the result is joined with `\n` and written back to that field,
+  keeping its kind; a missing field is created with `hidden` as its kind.
+  Nothing is written when no line is new. It adds to the copy being written
+  over, so after `fresh` the lines of another device stay. The value of the
+  operation may equal the current one: the union alone is then still sent.
 
 ### `expect`
 

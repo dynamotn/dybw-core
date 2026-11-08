@@ -68,6 +68,9 @@
             "fresh": {
               "$ref": "#/$defs/serverCipher"
             },
+            "appendLines": {
+              "$ref": "source.schema.json#/$defs/appendLines"
+            },
             "answer": {
               "enum": [
                 "write-to-login",

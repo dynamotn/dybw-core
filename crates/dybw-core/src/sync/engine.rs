@@ -447,6 +447,7 @@ async fn apply<H: Http, C: Clock, R: Random>(
                 base_revision: rec.revision_date.clone(),
                 set: Vec::new(),
                 remove: Vec::new(),
+                append_lines: Vec::new(),
                 value: ValueChange::Set {
                     source: rec.source,
                     secret: Zeroizing::new(value.as_bytes().to_vec()),

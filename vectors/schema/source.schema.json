@@ -69,6 +69,9 @@
             "fresh": {
               "$ref": "#/$defs/cipher"
             },
+            "appendLines": {
+              "$ref": "#/$defs/appendLines"
+            },
             "answer": {
               "enum": [
                 "write-to-login",
@@ -694,6 +697,33 @@
         "type": [
           "string",
           "null"
+        ]
+      }
+    },
+    "appendLines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hidden": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "lines",
+          "hidden"
         ]
       }
     },

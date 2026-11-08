@@ -49,6 +49,16 @@ pub struct FieldSet {
     pub hidden: bool,
 }
 
+/// Lines to add to a tool field (`bwss:acl`): the field's first copy is split on `\n`, every line not already there
+/// (exact match, blank ones ignored) is appended in order, and the result is written back; a missing field is created.
+/// Unlike `FieldSet` it adds to what the server holds now, so a refetched copy keeps another device's lines.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct LineAppend {
+    pub name: String,
+    pub lines: Vec<Zeroizing<String>>,
+    pub hidden: bool,
+}
+
 /// A tool's own changes to one item, kept so they can be re-applied to a fresh copy when the server rejects a write
 /// as out of date (§6.5).
 #[derive(Clone, Serialize, Deserialize)]
@@ -65,6 +75,9 @@ pub struct Patch {
     pub set: Vec<FieldSet>,
     /// Field names; every copy goes (ADR 0014). `{ns}:attr:` removes every attribute field.
     pub remove: Vec<String>,
+    /// Applied after `remove` and `set`, to the copy being written over.
+    #[serde(default)]
+    pub append_lines: Vec<LineAppend>,
     pub value: ValueChange,
     /// The user's answer to a history question about this change, with the question it answers (ADR 0016); none in
     /// a patch queued before M3.
@@ -421,6 +434,25 @@ impl<B: Body> Edit<'_, B> {
         self.body.remove_fields(remove);
     }
 
+    /// The line union of `add` (see `LineAppend`). Nothing is written when every line is there already.
+    fn append_lines(&mut self, add: &LineAppend) -> Result<(), CryptoError> {
+        let at = first_index(&self.body.names(), &add.name);
+        let current = at.map(|i| self.body.value(i)).transpose()?;
+        let mut lines: Vec<&str> =
+            current.as_deref().map(|s| s.lines().filter(|l| !l.trim().is_empty()).collect()).unwrap_or_default();
+        let before = lines.len();
+        for line in add.lines.iter().map(|l| l.as_str()).filter(|l| !l.trim().is_empty()) {
+            if !lines.contains(&line) {
+                lines.push(line);
+            }
+        }
+        if lines.len() != before || at.is_none() {
+            let joined = Zeroizing::new(lines.join("\n"));
+            self.set(&add.name, &joined, add.hidden)?;
+        }
+        Ok(())
+    }
+
     /// Stores `stored` (text, or base64 of bytes) where the tool owns the storage: `{ns}:password`, or the notes
     /// when it does not fit a field and the notes are empty or already the tool's (§6.4).
     fn write_owned_field(&mut self, stored: &str) -> Result<(), WriteError> {
@@ -558,6 +590,9 @@ impl<B: Body> Edit<'_, B> {
         for f in &patch.set {
             self.set(&f.name, &f.value, f.hidden)?;
         }
+        for a in &patch.append_lines {
+            self.append_lines(a)?;
+        }
         self.check_sizes()?;
         Ok(wrote)
     }
@@ -639,6 +674,7 @@ pub fn apply(
     if let ValueChange::Set { secret, .. } = &patch.value
         && patch.set.is_empty()
         && patch.remove.is_empty()
+        && patch.append_lines.is_empty()
         && **secret == *fresh.value
     {
         return Ok(ApplyOutcome { body: None, wrote_login: None });

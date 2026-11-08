@@ -88,6 +88,8 @@ pub enum Operation {
         id: String,
         value: String,
         #[serde(default)]
+        append_lines: Vec<AppendLines>,
+        #[serde(default)]
         fresh: Option<Value>,
         #[serde(default)]
         answer: Answer,
@@ -110,6 +112,14 @@ pub enum Operation {
         #[serde(default)]
         answer: Answer,
     },
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AppendLines {
+    pub name: String,
+    pub lines: Vec<String>,
+    pub hidden: bool,
 }
 
 impl Operation {
