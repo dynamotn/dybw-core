@@ -2,8 +2,9 @@
 //! (`test/sync.test.ts`, `test/organizations.test.ts`) that no vector covers.
 
 use super::fields::{Mark, field_names, field_value, first_index, item_key};
-use super::scan::{Duplicate, MarkedItem, Scan, SkipReason, Uninspectable, ValueSource, resolve_duplicates};
+use super::scan::{Duplicate, MarkedItem, Scan, SkipReason, Uninspectable, ValueSource, item_meta, resolve_duplicates};
 use super::*;
+use crate::crypto::Cbor;
 use crate::crypto::{MarkScheme, Marker, SymmetricKey};
 use crate::testing::SeededRandom;
 use serde_json::{Value, json};
@@ -777,4 +778,94 @@ fn unknown_required_features_skip_the_item() {
     let c =
         k.login(&[("bwss:id", "x"), ("dybw:requires ", "bwss:new"), ("DYBW:requires", "bwss:new")], Some("pw"), None);
     assert!(matches!(k.scan(&c), Scan::Marked(_)));
+}
+
+fn meta(item: &MarkedItem, k: &Fx) -> [Option<String>; 3] {
+    let m = item_meta(item, &k.keys);
+    [m.name, m.username, m.uri].map(|p| p.map(|p| p.as_str().to_owned()))
+}
+
+fn some(parts: [Option<&str>; 3]) -> [Option<String>; 3] {
+    parts.map(|p| p.map(str::to_owned))
+}
+
+#[test]
+fn meta_reads_field_level_items() {
+    let k = bwss();
+    let mut m = marked(k.scan(&k.login(&[("bwss:id", "x")], Some("pw"), None)));
+    assert_eq!(meta(&m, &k), some([Some("GitHub"), Some("me"), Some("https://github.com")]));
+    // An organization item is read under the organization's key; a missing key reads nothing.
+    let org = &k.keys.orgs["org1"];
+    m.cipher["name"] = json!(org.encrypt_str("Org", &k.rng).unwrap());
+    m.cipher["login"] = json!({ "username": null, "uris": [] });
+    m.organization_id = Some("org1".to_owned());
+    assert_eq!(meta(&m, &k), some([Some("Org"), None, None]));
+    m.organization_id = Some("org2".to_owned());
+    assert_eq!(meta(&m, &k), some([None, None, None]));
+    // An item key that does not unwrap reads nothing.
+    m.organization_id = None;
+    m.cipher["key"] = json!(BAD);
+    assert_eq!(meta(&m, &k), some([None, None, None]));
+}
+
+#[test]
+fn meta_reads_blob_items() {
+    let k = super::blob_tests::Bx::new();
+    let t = super::blob_tests::t;
+    let login = |uris: Cbor| {
+        let data = Cbor::Map(vec![(t("type"), t("login")), (t("username"), t("me")), (t("uris"), uris)]);
+        Cbor::Map(vec![(t("name"), t("Blob")), (t("typeData"), data)])
+    };
+    let uri = |u: &str| Cbor::Map(vec![(t("uri"), t(u)), (t("match"), Cbor::Null)]);
+    let scan = |c: &Value| marked(scan::scan(c, &Namespace::BWSS, &k.keys, &Organizations::All));
+    let fields = Cbor::Array(vec![Cbor::Map(vec![(t("name"), t("bwss:id")), (t("value"), t("x"))])]);
+    let with_marker = |mut c: Cbor| {
+        let Cbor::Map(e) = &mut c else { unreachable!() };
+        e.push((t("fields"), fields.clone()));
+        let Some((_, Cbor::Map(td))) = e.iter_mut().find(|(n, _)| *n == t("typeData")) else { unreachable!() };
+        td.push((t("password"), t("pw")));
+        c
+    };
+    let item = |c| scan(&k.cipher(c));
+    let two = Cbor::Array(vec![uri("https://a"), uri("https://b")]);
+    let m = item(with_marker(login(two)));
+    let got = item_meta(&m, &k.keys);
+    assert_eq!(
+        [got.name, got.username, got.uri].map(|p| p.map(|p| p.as_str().to_owned())),
+        some([Some("Blob"), Some("me"), Some("https://a")])
+    );
+    // No uris, an empty list, or a uris that is no list: none.
+    for uris in [Cbor::Array(vec![]), Cbor::Null] {
+        let m = item(with_marker(login(uris)));
+        assert!(item_meta(&m, &k.keys).uri.is_none());
+    }
+    // A blob that no longer opens reads nothing.
+    let mut m = item(with_marker(login(Cbor::Null)));
+    m.cipher = super::blob_tests::tampered(&m.cipher);
+    let got = item_meta(&m, &k.keys);
+    assert!(got.name.is_none() && got.username.is_none() && got.uri.is_none());
+}
+
+#[test]
+fn a_part_that_does_not_decrypt_is_none() {
+    let k = bwss();
+    let mut m = marked(k.scan(&k.login(&[("bwss:id", "x")], Some("pw"), None)));
+    m.cipher["name"] = json!(BAD);
+    m.cipher["login"]["uris"][0]["uri"] = json!("not an encstring");
+    assert_eq!(meta(&m, &k), some([None, Some("me"), None]));
+}
+
+#[test]
+fn meta_of_a_secure_note_has_no_login_parts() {
+    let k = bwss();
+    let m = marked(k.scan(&k.note(&[("bwss:id", "x")], Some("body"))));
+    assert_eq!(meta(&m, &k), some([Some("Note"), None, None]));
+}
+
+#[test]
+fn meta_debug_is_redacted() {
+    let k = bwss();
+    let m = marked(k.scan(&k.login(&[("bwss:id", "x")], Some("pw"), None)));
+    let shown = format!("{:?}", item_meta(&m, &k.keys));
+    assert!(!shown.contains("GitHub") && !shown.contains("me") && shown.contains("redacted"), "{shown}");
 }

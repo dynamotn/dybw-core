@@ -197,6 +197,23 @@ impl OpenBlob {
         text(find(&self.0, "typeData").and_then(|t| get(t, "password")))
     }
 
+    pub(crate) fn name(&self) -> Option<&str> {
+        text(find(&self.0, "name"))
+    }
+
+    /// `typeData.username`; none for a secure note.
+    pub(crate) fn login_username(&self) -> Option<&str> {
+        text(find(&self.0, "typeData").and_then(|t| get(t, "username")))
+    }
+
+    /// The first `typeData.uris` entry's `uri`.
+    pub(crate) fn login_uri(&self) -> Option<&str> {
+        match find(&self.0, "typeData").and_then(|t| get(t, "uris")) {
+            Some(Cbor::Array(uris)) => text(uris.first().and_then(|u| get(u, "uri"))),
+            _ => None,
+        }
+    }
+
     fn take_fields(&mut self) -> Vec<Cbor> {
         match take(&mut self.0, "fields") {
             Cbor::Array(fields) => fields,

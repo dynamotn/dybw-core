@@ -441,6 +441,48 @@ fn read_marked(
 
 /// The §7 order of two copies of one item: the smaller wins. Shared by the scan and by queued ops, so both pick
 /// the same cipher.
+/// An item's name, login username and first URI, for labels and derived attributes. `Debug` shows none of them.
+#[derive(Default)]
+pub struct ItemMeta {
+    pub name: Option<Zeroizing<String>>,
+    pub username: Option<Zeroizing<String>>,
+    pub uri: Option<Zeroizing<String>>,
+}
+
+impl fmt::Debug for ItemMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ItemMeta(<redacted>)")
+    }
+}
+
+/// Reads the name, username and first URI of a marked item from its encrypted copy (the blob opened again, nothing
+/// else of it kept). A part that is absent or does not decrypt is `None`; the secret value is never read.
+pub fn item_meta(item: &MarkedItem, keys: &Keys) -> ItemMeta {
+    let owner = match &item.organization_id {
+        None => Some(&keys.user),
+        Some(org) => keys.orgs.get(org),
+    };
+    owner.and_then(|owner| meta_under(&item.cipher, owner)).unwrap_or_default()
+}
+
+fn meta_under(cipher: &Value, owner: &SymmetricKey) -> Option<ItemMeta> {
+    let own = |s: Option<&str>| s.map(|s| Zeroizing::new(s.to_owned()));
+    if is_blob(cipher) {
+        let blob = open_blob(cipher, owner).ok()?;
+        return Some(ItemMeta {
+            name: own(blob.name()),
+            username: own(blob.login_username()),
+            uri: own(blob.login_uri()),
+        });
+    }
+    let key = item_key(cipher, owner).ok()?;
+    let part = |pointer: &str| {
+        let sealed = cipher.pointer(pointer)?.as_str()?;
+        key.decrypt_str(sealed).ok()
+    };
+    Some(ItemMeta { name: part("/name"), username: part("/login/username"), uri: part("/login/uris/0/uri") })
+}
+
 pub(crate) fn duplicate_order(a: &MarkedItem, b: &MarkedItem) -> std::cmp::Ordering {
     let rank = |m: &MarkedItem| (m.organization_id.is_some(), m.creation_date.is_none(), m.creation_date);
     rank(a).cmp(&rank(b)).then_with(|| a.cipher_id.cmp(&b.cipher_id))

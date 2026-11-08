@@ -11,8 +11,8 @@ pub mod write;
 pub use namespace::{Encodings, IdProblem, Namespace};
 pub use orgs::{OrgProblem, unlock_organizations};
 pub use scan::{
-    Duplicate, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, UnmarkedCache, ValueSource, scan, scan_vault,
-    scan_vault_with,
+    Duplicate, ItemMeta, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, UnmarkedCache, ValueSource,
+    item_meta, scan, scan_vault, scan_vault_with,
 };
 
 use crate::crypto::{Marker, SymmetricKey};
