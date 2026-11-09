@@ -4,3 +4,7 @@ deny = [{ name = "rsa" }, { name = "openssl" }]
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+
+# Only what the tree uses (`cargo deny list -l license`); the core itself is MIT.
+[licenses]
+allow = ["Apache-2.0", "BSD-3-Clause", "ISC", "MIT", "Unicode-3.0"]

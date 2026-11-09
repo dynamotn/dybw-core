@@ -216,11 +216,12 @@ cargo test --workspace --all-features --locked
 uv run vectors/gen/gen.py check
 ```
 
-`cargo deny check bans sources` and `cargo audit` need the advisory database and
-are run locally, not in CI:
+`cargo deny check` (advisories, bans, licences and sources; `deny.toml` allows
+only the licences the tree uses) and `cargo audit` need the advisory database
+and are run locally, not in CI:
 
 ```bash
-cargo deny check bans sources
+cargo deny check
 cargo audit
 ```
 
