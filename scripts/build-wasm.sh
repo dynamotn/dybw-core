@@ -29,6 +29,7 @@ FORBIDDEN=('require(' 'process.' 'Buffer.' 'eval(' 'new Function(' 'import.meta'
 function _build {
   local _opt="${WASM_OPT:-wasm-opt}"
   dybatpho::require cargo
+  dybatpho::require rustc
   dybatpho::require wasm-bindgen
   dybatpho::require "${_opt}"
   dybatpho::require node
@@ -37,6 +38,11 @@ function _build {
   if [[ -n "${FEATURES}" ]]; then
     _features=(--features "${FEATURES}")
   fi
+  # No absolute build path in the module (panic locations): the repository, the registry sources and the sysroot.
+  local _registry="${CARGO_HOME:-${HOME}/.cargo}/registry/src" _sysroot
+  _sysroot="$(rustc --print sysroot)" || dybatpho::die "rustc cannot print its sysroot"
+  export RUSTFLAGS="${RUSTFLAGS:+${RUSTFLAGS} }--remap-path-prefix=${ROOT}=dybw-core \
+--remap-path-prefix=${_registry}=registry --remap-path-prefix=${_sysroot}=rustc"
   dybatpho::info "Building dybw-core-wasm"
   cargo build -p dybw-core-wasm --profile wasm --target wasm32-unknown-unknown --locked \
     --manifest-path "${ROOT}/Cargo.toml" ${_features[@]+"${_features[@]}"}
