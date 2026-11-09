@@ -113,60 +113,20 @@ struct Profile {
     prelogin_kdf: Option<Kdf>,
 }
 
-/// A `ConflictKind` by its code.
-#[derive(Deserialize, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
-pub(crate) enum Kind {
-    BothChanged,
-    LocalUnsynced,
-    DeletedRemotely,
-    OrganizationClaim,
-    OrganizationPush,
-}
+const KINDS: [ConflictKind; 5] = [
+    ConflictKind::BothChanged,
+    ConflictKind::LocalUnsynced,
+    ConflictKind::DeletedRemotely,
+    ConflictKind::OrganizationClaim,
+    ConflictKind::OrganizationPush,
+];
+const QUESTIONS: [HistoryQuestion; 2] = [HistoryQuestion::FirstWriteBack, HistoryQuestion::EvictsForeign];
+const ANSWERS: [(&str, HistoryAnswer); 2] =
+    [("write-to-login", HistoryAnswer::WriteToLogin), ("keep-separate", HistoryAnswer::KeepSeparate)];
 
-impl From<Kind> for ConflictKind {
-    fn from(k: Kind) -> Self {
-        match k {
-            Kind::BothChanged => ConflictKind::BothChanged,
-            Kind::LocalUnsynced => ConflictKind::LocalUnsynced,
-            Kind::DeletedRemotely => ConflictKind::DeletedRemotely,
-            Kind::OrganizationClaim => ConflictKind::OrganizationClaim,
-            Kind::OrganizationPush => ConflictKind::OrganizationPush,
-        }
-    }
-}
-
-/// A `HistoryQuestion` by its code.
-#[derive(Deserialize, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
-pub(crate) enum Ask {
-    FirstWriteBack,
-    EvictsForeignHistory,
-}
-
-impl From<Ask> for HistoryQuestion {
-    fn from(a: Ask) -> Self {
-        match a {
-            Ask::FirstWriteBack => HistoryQuestion::FirstWriteBack,
-            Ask::EvictsForeignHistory => HistoryQuestion::EvictsForeign,
-        }
-    }
-}
-
-#[derive(Deserialize, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
-pub(crate) enum Answer {
-    WriteToLogin,
-    KeepSeparate,
-}
-
-impl From<Answer> for HistoryAnswer {
-    fn from(a: Answer) -> Self {
-        match a {
-            Answer::WriteToLogin => HistoryAnswer::WriteToLogin,
-            Answer::KeepSeparate => HistoryAnswer::KeepSeparate,
-        }
-    }
+/// The one of `all` whose code is `code`.
+fn by_code<T: Copy>(all: &[T], name: impl Fn(T) -> &'static str, code: &str) -> Result<T, Error> {
+    all.iter().copied().find(|t| name(*t) == code).ok_or_else(|| Error::invalid("unknown option value"))
 }
 
 /// The user's decision about one conflict: it holds only while the conflict is still of `kind`.
@@ -174,15 +134,15 @@ impl From<Answer> for HistoryAnswer {
 #[serde(deny_unknown_fields)]
 struct Override {
     policy: Policy,
-    kind: Kind,
+    kind: String,
 }
 
 /// The user's answer to one history question (ADR 0016): it covers only `question`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Answered {
-    question: Ask,
-    answer: Answer,
+    question: String,
+    answer: String,
 }
 
 #[derive(Deserialize, Default)]
@@ -215,20 +175,30 @@ struct Options {
     upload_folder: Option<String>,
 }
 
-impl From<SyncOptions> for Options {
-    fn from(o: SyncOptions) -> Self {
-        let overrides = o.overrides.into_iter();
-        let answers = o.answers.into_iter();
-        Options {
-            policy: o.policy.into(),
-            accept_rollback: o.accept_rollback,
-            overrides: overrides
-                .map(|(id, v)| (id, ConflictOverride { policy: v.policy.into(), kind: v.kind.into() }))
-                .collect(),
-            answers: answers.map(|(id, a)| (id, (a.question.into(), a.answer.into()))).collect(),
+impl TryFrom<SyncOptions> for Options {
+    type Error = Error;
+    fn try_from(o: SyncOptions) -> Result<Self, Error> {
+        let mut overrides = BTreeMap::new();
+        for (id, v) in o.overrides {
+            overrides.insert(
+                id,
+                ConflictOverride { policy: v.policy.into(), kind: by_code(&KINDS, ConflictKind::code, &v.kind)? },
+            );
+        }
+        let mut answers = BTreeMap::new();
+        for (id, a) in o.answers {
+            let question = by_code(&QUESTIONS, HistoryQuestion::code, &a.question)?;
+            answers.insert(id, (question, by_code(&ANSWERS, |(c, _)| c, &a.answer)?.1));
+        }
+        let (policy, accept_rollback) = (o.policy.into(), o.accept_rollback);
+        Ok(Options {
+            policy,
+            accept_rollback,
+            overrides,
+            answers,
             vault_name: o.vault_name,
             upload_folder: o.upload_folder,
-        }
+        })
     }
 }
 
@@ -492,7 +462,7 @@ impl<H: Host> Session<H> {
     /// Plans one pass (`sync::plan_pass`) over the local values `ids[i]` = `values[i]`; applies nothing.
     pub async fn plan_pass(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, Error> {
         let values = wrap(values);
-        let o: Options = parse::<SyncOptions>(options)?.into();
+        let o = Options::try_from(parse::<SyncOptions>(options)?)?;
         let local = Local::new(ids, values)?;
         let (mut open, generation) = self.take()?;
         let device_id = open.state.device_id.clone();
@@ -512,7 +482,7 @@ impl<H: Host> Session<H> {
     /// their state would be pushed over the newer ones. What it pulled is pulled again; what it pushed is adopted.
     pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, Error> {
         let values = wrap(values);
-        let o: Options = parse::<SyncOptions>(options)?.into();
+        let o = Options::try_from(parse::<SyncOptions>(options)?)?;
         let mut local = Local::new(ids, values)?;
         let (mut open, generation) = self.take()?;
         let before = open.state.clone();
@@ -568,7 +538,8 @@ impl<H: Host> Session<H> {
     }
 
     /// Queues the local secret `id` for upload by the next sync, with `scope` (`upload_scope`). The host checks that
-    /// it holds a value for `id`.
+    /// it holds a value for `id`. A failed save keeps the id queued in memory: the next successful save writes it, as
+    /// the plugin does today.
     pub async fn queue_upload(&self, id: &str, scope: &str) -> Result<(), Error> {
         let device_id = self.with_hub(|h| h.device_id.clone()).ok_or_else(Error::locked)?;
         (self.ns.id_rule)(id).map_err(|_| Error::invalid("not a secret id this tool syncs"))?;
@@ -601,11 +572,14 @@ impl<H: Host> Session<H> {
             }
             Err(e) if e.code() == crate::error::BUSY => Err(e),
             Err(_) => {
+                // Stops an unlock in flight, which would load the state from before the reset; an unlock that ends
+                // before the save makes the reset refuse with `locked` instead.
+                let generation = self.lock();
                 let device_id = self.device_id().await?;
                 let raw = Storage::load(&self.ports, STATE).await?;
                 let saved = raw.and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
                 let state = parse_plugin_state(&saved, self.ns, || device_id).reset();
-                Ok(Storage::save(&self.ports, STATE, to_plugin_json(&state).to_string().as_bytes()).await?)
+                self.save_state(generation, &state).await
             }
         }
     }

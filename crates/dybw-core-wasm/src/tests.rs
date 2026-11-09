@@ -640,25 +640,6 @@ mod session {
         assert_eq!(policy(r#""ask""#), Some(dybw_core::sync::Policy::Ask));
         assert_eq!(policy(r#""prefer-remote""#), Some(dybw_core::sync::Policy::PreferRemote));
         assert_eq!(policy(r#""prefer-local""#), Some(dybw_core::sync::Policy::PreferLocal));
-        use crate::session::{Answer, Ask, Kind};
-        use dybw_core::vault::write::HistoryAnswer;
-        let kind = |j: &str| serde_json::from_str::<Kind>(&format!("{j:?}")).ok().map(ConflictKind::from);
-        for k in [
-            ConflictKind::BothChanged,
-            ConflictKind::LocalUnsynced,
-            ConflictKind::DeletedRemotely,
-            ConflictKind::OrganizationClaim,
-            ConflictKind::OrganizationPush,
-        ] {
-            assert_eq!(kind(k.code()), Some(k));
-        }
-        let ask = |j: &str| serde_json::from_str::<Ask>(&format!("{j:?}")).ok().map(HistoryQuestion::from);
-        for q in [HistoryQuestion::FirstWriteBack, HistoryQuestion::EvictsForeign] {
-            assert_eq!(ask(q.code()), Some(q));
-        }
-        let answer = |j: &str| serde_json::from_str::<Answer>(j).ok().map(HistoryAnswer::from);
-        assert_eq!(answer(r#""write-to-login""#), Some(HistoryAnswer::WriteToLogin));
-        assert_eq!(answer(r#""keep-separate""#), Some(HistoryAnswer::KeepSeparate));
     }
 
     #[test]
@@ -1196,6 +1177,13 @@ mod session {
         assert_eq!(plan.map(|p| p["actions"].clone()), Ok(json!([{ "kind": "pull", "id": "alpha" }])));
         let unknown = block_on(s.plan_pass(r#"{"massClear":true}"#, vec![], vec![]));
         assert_eq!(unknown.map_err(code), Err(INVALID.into()));
+        for bad in [
+            json!({ "answers": { "a": { "question": "first-write-back", "answer": "cancel" } } }),
+            json!({ "answers": { "a": { "question": "why", "answer": "keep-separate" } } }),
+        ] {
+            let out = block_on(s.plan_pass(&bad.to_string(), vec![], vec![]));
+            assert_eq!(out.map_err(code), Err(INVALID.into()), "{bad}");
+        }
     }
 
     #[test]
@@ -1384,6 +1372,76 @@ mod session {
         assert_eq!(saved_state(&fresh)["deviceId"], json!(block_on(s.device_id()).unwrap_or_default()));
         fresh.fail.set(true);
         assert_eq!(block_on(s.reset_state()).map_err(code), Err("port".into()));
+    }
+
+    #[test]
+    fn a_locked_reset_wins_over_an_unlock_in_flight() {
+        let pushed = scenario("history-question-holds-push");
+        let host = host("pbkdf2", ciphers(&pushed));
+        seed_state(&host, &pushed);
+        let s = session(&host);
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let (pw, profile) = (password("pbkdf2"), profile("pbkdf2"));
+        let mut unlocking = pin!(s.unlock(&profile, Zeroizing::new("v".into()), pw));
+        assert!(unlocking.as_mut().poll(&mut cx).is_pending());
+        assert_eq!(block_on(s.reset_state()), Ok(()));
+        // The unlock would load the state from before the reset: it is stopped instead.
+        assert_eq!(block_on(unlocking).map_err(code), Err(LOCKED.into()));
+        assert_eq!(saved_state(&host)["base"], json!({}));
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert_eq!(json_of(s.synced_ids()), Ok(json!({ "base": [], "pendingCreates": [] })));
+    }
+
+    /// `pull-new`'s item under the cipher id `cipher` and the secret id `id`, scoped `scope`.
+    fn scoped(cipher: &str, id: &str, scope: &str) -> Value {
+        let keys = block_on(dybw_vectors::keys::account_keys(&files(), "pbkdf2", false, &AwsLcRsa));
+        let rng = dybw_core::testing::SeededRandom::new(1);
+        let enc = |t: &str| keys.user.encrypt_str(t, &rng).unwrap_or_default();
+        let mut c = pull_new()[0].clone();
+        c["id"] = json!(cipher);
+        c["fields"][0]["value"] = json!(enc(id));
+        let field = json!({ "name": enc("obsidian:scope"), "value": enc(scope), "type": 0 });
+        if let Some(f) = c["fields"].as_array_mut() {
+            f.push(field);
+        }
+        c
+    }
+
+    #[test]
+    fn an_item_applies_by_its_vault_and_device_scope() {
+        let mut ciphers = pull_new();
+        ciphers.extend([
+            scoped("c2", "other", "vault:Other"),
+            scoped("c3", "notes", "vault:Notes"),
+            scoped("c4", "mine", "device:d"),
+            scoped("c5", "theirs", "device:e"),
+        ]);
+        let host = host("pbkdf2", ciphers);
+        let state = json!({ "version": 1, "deviceId": "d", "base": {}, "pendingCreates": [], "pendingScopes": {} });
+        host.store.borrow_mut().insert(STATE.into(), state.to_string().into_bytes());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let plan = json_of(block_on(s.plan_pass(r#"{"vaultName":"Notes"}"#, vec![], vec![])));
+        let pulls = ["alpha", "mine", "notes"].map(|id| json!({ "kind": "pull", "id": id }));
+        assert_eq!(plan.map(|p| p["actions"].clone()), Ok(json!(pulls)));
+    }
+
+    #[test]
+    fn a_create_goes_to_the_upload_folder() {
+        let host = host("pbkdf2", vec![]);
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert_eq!(block_on(s.queue_upload("new", "global")), Ok(()));
+        let options = r#"{"uploadFolder":"Secrets"}"#;
+        let report = json_of(block_on(s.run_sync(options, vec!["new".into()], vec!["v".into()])));
+        assert_eq!(report.map(|r| r["created"].clone()), Ok(json!(["new"])));
+        let seen = host.http_seen.borrow();
+        let posted = |path: &str| seen.iter().find(|(m, u, _, _)| m == "POST" && u.ends_with(path)).cloned();
+        assert!(posted("/api/folders").is_some(), "the folder was created");
+        let body = posted("/api/ciphers").and_then(|(_, _, _, b)| b).unwrap_or_default();
+        let body: Value = serde_json::from_slice(&body).unwrap_or_default();
+        assert_eq!(body["folderId"], "folder-created");
     }
 }
 

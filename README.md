@@ -159,13 +159,25 @@ it before showing it. `skipped` reasons are the vectors' codes (`wrong-type`,
 `newer-format`, …). `warnings` are the core's sentences for the notice, with
 counts only. No field carries a value.
 
-The state calls: `queueUpload(id, scope)` (unlocked; `scope` is `"global"`,
-`"vault:<name>"` or `"device"`, which is always this device; the host checks it
-holds a value for `id`), `syncedIds()` answering `{base: [id], pendingCreates:
-[id]}` (unlocked), and `resetState()`, which works locked (on the saved state)
-or unlocked. All three answer `busy` while another call has the keys out.
-`runHub` keeps the device id, the notifications URL and the access token beside
-the keys, so it keeps running during a sync; `lock` stops it at its next check.
+The state calls:
+
+- `queueUpload(id, scope): Promise<void>`, unlocked only. `scope` is
+  `"global"`, `"vault:<name>"` or `"device"`, which is always this device. A
+  reserved or malformed id, or an unknown scope, is refused with `invalid`. The
+  host checks that it holds a value for `id`. A failed save keeps the id queued
+  in memory; the next successful save writes it.
+- `syncedIds(): string`, synchronous, unlocked only: the JSON text
+  `{"base": [id], "pendingCreates": [id]}`.
+- `resetState(): Promise<void>` works unlocked (on the session's state) or
+  locked (on the saved state). Locked, it first locks again, so an unlock in
+  flight answers `locked` rather than loading the state from before the reset,
+  and an unlock that ends before the reset saves makes the reset refuse with
+  `locked`.
+
+All three answer `busy` while another call has the keys out. `runHub` keeps the
+device id, the notifications URL and the access token beside the keys, so it
+keeps running during a sync; it answers `locked` (never `busy`) when there are
+no keys, and `lock` stops it at its next check.
 
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit:
