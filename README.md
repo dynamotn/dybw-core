@@ -104,6 +104,7 @@ Calls the plugin uses (`new WasmSession(ports, namespace)`, after the glue's
 ```text
 unlock(profile: string, clientSecret: string, password: string): Promise<string>
 unlockWithKey(profile: string, clientSecret: string, userKeyB64: string): Promise<string>
+unlockCached(profile: string, password: string): Promise<string>   // offline unlock; the plugin does not use it in M6
 exportUserKey(): string
 lock(): void
 deviceId(): Promise<string>
