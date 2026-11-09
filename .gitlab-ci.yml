@@ -73,8 +73,11 @@ wasm:
   extends: .cargo-cache
   script:
     - rustup target add wasm32-unknown-unknown
+    - rustup component add clippy
     - cargo build -p dybw-core --no-default-features --locked --target wasm32-unknown-unknown
     - cargo build -p dybw-core-wasm --locked --target wasm32-unknown-unknown
+    # bindings.rs compiles only for wasm32: the workspace clippy never sees it.
+    - cargo clippy -p dybw-core-wasm --target wasm32-unknown-unknown --all-features --locked -- -D warnings
 
 # The core in WASM (M5): the conformance vectors and crypto known answers under Node, Chromium and WebKit, and the
 # size budget of the build without `vectors`. build-wasm.sh's size report imports esbuild, so `npm ci` comes first.
