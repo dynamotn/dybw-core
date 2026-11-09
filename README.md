@@ -98,6 +98,31 @@ a fresh glue module): the glue caches its instance, so calling its init again
 is no recovery. The buffers of the call that trapped are not wiped; they stay
 in the dead instance's memory until it is dropped.
 
+Calls the plugin uses (`new WasmSession(ports, namespace)`, after the glue's
+`init` and the export `init(ports)`):
+
+```text
+unlock(profile: string, clientSecret: string, password: string): Promise<string>
+unlockWithKey(profile: string, clientSecret: string, userKeyB64: string): Promise<string>
+exportUserKey(): string
+lock(): void
+deviceId(): Promise<string>
+acceptKdf(kdf: string, origin: string): Promise<void>
+acceptSecurityVersion(version: bigint): Promise<void>
+acknowledgeOrigin(origin: string): Promise<void>
+forgetOrigin(origin: string): Promise<void>
+acknowledgedOrigins(): Promise<string>                 // JSON list of origins
+planPass(options: string, ids: string[], values: string[]): Promise<string>
+runSync(options: string, ids: string[], values: string[]): Promise<string>
+queueUpload(id: string, scope: string): Promise<void>
+syncedIds(): string
+resetState(): Promise<void>
+runHub(onChange: () => void, stop: () => boolean): Promise<void>
+```
+
+`options` and the answers are the JSON texts described below; every rejection
+is a structured error, described next.
+
 Every `WasmSession` rejection is the JSON text of one object,
 `{"code", "message", …fields}`: JS branches on `code` and shows `message`, the
 core's own text. No field carries a value, a key or ciphertext. The codes and
@@ -106,7 +131,8 @@ their fields are listed in `crates/dybw-core-wasm/src/error.rs`. The profile's
 the key nowhere else (`wrong-origin`).
 
 "Remember unlock": `exportUserKey(): string`, synchronous, gives the user key
-as base64 (`locked`, or `busy` while another call has the keys, otherwise).
+as base64 while unlocked; otherwise `locked`, or `busy` while another call has
+the keys.
 It is one of the secrets spec §6.2 lets cross as a JS string, for SecretStorage:
 the plugin calls it only when the user turned "remember unlock" on.
 `unlockWithKey(profile, clientSecret, userKeyB64): Promise<string>` unlocks with
