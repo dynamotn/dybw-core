@@ -13,11 +13,12 @@ use dybw_core::crypto::{
     Cbor, EnvelopeNamespace, KdfParams, MarkScheme, Marker, MasterKey, SymmetricKey, derive_master_key,
     hash_master_password, open_envelope, parse_cek,
 };
+use dybw_core::sync::{BaseEntry, PlanInput, Policy, RemoteEntry, plan_sync};
 use dybw_core::vault::{Namespace, Organizations, scan_vault};
 use dybw_vectors::keys::account_keys;
 use dybw_vectors::{Files, Kind, Outcome, check, expected_failures, run_all};
 use serde_json::{Map, Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Every scenario of both namespaces, every kind, RSA through the host; against `expected-failures.txt`.
 pub async fn run_vectors_json<H: Host>(files: &Files, ports: &Ports<H>) -> String {
@@ -44,8 +45,9 @@ pub async fn run_known_answers_json<H: Host>(files: &Files, ports: &Ports<H>) ->
 }
 
 /// The harness's timings, in ms by the host's clock: `pbkdf2-600k` (the known answer's master key, PBKDF2 at
-/// 600 000 iterations) and `decrypt-1000-of-5000` (a scan of 5 000 ciphers, 1 000 marked). Answers JSON
-/// `{"results": [[name, ms, null | error]]}`; the ciphers are built before the clock starts.
+/// 600 000 iterations), `decrypt-1000-of-5000` (a scan of 5 000 ciphers, 1 000 marked) and `plan-10000` (the
+/// planner alone over 10 000 secrets, the plugin's budget). Answers JSON `{"results": [[name, ms, null | error]]}`;
+/// the ciphers and the planner's input are built before the clock starts.
 pub async fn run_perf_json<H: Host>(files: &Files, ports: &Ports<H>) -> String {
     let start = ports.0.now_ms();
     let pbkdf2 = pbkdf2_600k(files, ports).await;
@@ -58,9 +60,57 @@ pub async fn run_perf_json<H: Host>(files: &Files, ports: &Ports<H>) -> String {
         same(&report.present.len(), &1_000, "marked count")
     });
     let scan_ms = ports.0.now_ms() - start;
+    let (plan_ms, planned) = plan_10000(ports);
     let row = |name: &str, ms: i64, o: Outcome| json!([name, ms, o.err()]);
-    json!({ "results": [row("pbkdf2-600k", pbkdf2_ms, pbkdf2), row("decrypt-1000-of-5000", scan_ms, scanned)] })
-        .to_string()
+    let rows = [
+        row("pbkdf2-600k", pbkdf2_ms, pbkdf2),
+        row("decrypt-1000-of-5000", scan_ms, scanned),
+        row("plan-10000", plan_ms, planned),
+    ];
+    json!({ "results": rows }).to_string()
+}
+
+/// The plugin's `plan-10000`: 10 000 synced secrets, two in three with a newer remote revision, one in five with
+/// another remote value, one in ten edited on this device. Times `plan_sync` only: no cipher is decrypted.
+fn plan_10000<H: Host>(ports: &Ports<H>) -> (i64, Outcome) {
+    let (mut remote, mut base) = (BTreeMap::new(), BTreeMap::new());
+    for i in 0..10_000 {
+        let (id, cipher_id) = (format!("secret-{i}"), format!("c{i}"));
+        let revision = if i % 3 == 0 { "2026-01-01T00:00:00Z" } else { "2026-01-02T00:00:00Z" };
+        let r = RemoteEntry {
+            id: id.clone(),
+            cipher_id: cipher_id.clone(),
+            revision_date: revision.into(),
+            fingerprint: format!("r{}", i % 5),
+            organization: false,
+        };
+        let b = BaseEntry {
+            cipher_id,
+            revision_date: "2026-01-01T00:00:00Z".into(),
+            fingerprint: "r0".into(),
+            scope: None,
+            push_confirmed: false,
+            record: Default::default(),
+        };
+        remote.insert(id.clone(), r);
+        base.insert(id, b);
+    }
+    let local = |id: &str| Some(if id.ends_with('7') { "edited" } else { "r0" }.to_owned());
+    let (none, overrides) = (BTreeSet::new(), BTreeMap::new());
+    let input = PlanInput {
+        remote: &remote,
+        base: &base,
+        local: &local,
+        pending_creates: &none,
+        rolled_back: &none,
+        policy: Policy::Ask,
+        overrides: &overrides,
+    };
+    let start = ports.0.now_ms();
+    let actions = plan_sync(&input);
+    let ms = ports.0.now_ms() - start;
+    // 1 333 adopts (revision only), 7 000 pulls, 1 000 conflicts (both changed).
+    (ms, same(&actions.len(), &9_333, "action count"))
 }
 
 async fn pbkdf2_600k<H: Host>(files: &Files, ports: &Ports<H>) -> Outcome {

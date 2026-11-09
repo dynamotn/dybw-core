@@ -1700,7 +1700,8 @@ mod vectors {
     fn the_timings_run_over_the_host() {
         // The mock's clock stands still: every timing is 0.
         let out = parse(&block_on(run_perf_json(&files(), &real())));
-        assert_eq!(out, json!({ "results": [["pbkdf2-600k", 0, null], ["decrypt-1000-of-5000", 0, null]] }));
+        let rows = json!([["pbkdf2-600k", 0, null], ["decrypt-1000-of-5000", 0, null], ["plan-10000", 0, null]]);
+        assert_eq!(out, json!({ "results": rows }));
     }
 
     #[test]
@@ -1710,7 +1711,8 @@ mod vectors {
         let out = parse(&block_on(run_perf_json(&files, &real())));
         let errors = json!([
             ["pbkdf2-600k", 0, "iterations differs"],
-            ["decrypt-1000-of-5000", 0, "generated/obsidian/sync/pull-new.json is missing"]
+            ["decrypt-1000-of-5000", 0, "generated/obsidian/sync/pull-new.json is missing"],
+            ["plan-10000", 0, null]
         ]);
         assert_eq!(out["results"], errors);
     }

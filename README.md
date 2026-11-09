@@ -192,7 +192,9 @@ keeps running during a sync; it answers `locked` (never `busy`) when there are
 no keys, and `lock` stops it at its next check.
 
 Run the vectors, the crypto known answers, the timings and the panic test in
-Node, Chromium and WebKit:
+Node, Chromium and WebKit. The timings are a table for information, with the
+plugin's budgets: `pbkdf2-600k` under 3 000 ms and `plan-10000` (the planner
+alone over 10 000 secrets, no decryption) under 500 ms:
 
 ```bash
 cd crates/dybw-core-wasm/js
@@ -220,6 +222,15 @@ are run locally, not in CI:
 ```bash
 cargo deny check bans sources
 cargo audit
+```
+
+The SDK check (the plugin's `test:sdk`): Bitwarden's SDK
+(`vectors/crypto/sdk-vectors verify`, built from git) decrypts strings and a
+wrapped item key the core produced. It is opt-in locally; CI runs it in the
+`sdk` job:
+
+```bash
+cargo test -p dybw-vectors --test sdk --locked -- --ignored
 ```
 
 Coverage: 100% of lines on stable, and 100% of branches on the pinned nightly

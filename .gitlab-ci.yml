@@ -67,6 +67,13 @@ test:
   script:
     - cargo test --workspace --all-features --locked
 
+# Bitwarden's SDK decrypts what the core encrypts (the plugin's `test:sdk`); builds the SDK from git.
+sdk:
+  stage: test
+  extends: .cargo-cache
+  script:
+    - cargo test -p dybw-vectors --test sdk --locked -- --ignored
+
 # The core must keep building for the browser (M5): no native-only dependency without the `native` feature.
 wasm:
   stage: test
