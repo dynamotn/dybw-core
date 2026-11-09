@@ -10,7 +10,7 @@ type Glue = typeof import("../pkg/dybw_core_wasm.js");
 
 const LOCKED = JSON.stringify({ code: "locked", message: "Bitwarden is locked" });
 
-const wasm = () =>Uint8Array.from(atob(inject("wasm")), (c) => c.charCodeAt(0));
+const wasm = () => Uint8Array.from(atob(inject("wasm")), (c) => c.charCodeAt(0));
 
 /** A fresh glue module, so a fresh instance: the query string makes it another module. */
 async function instantiate(glue: Promise<unknown>): Promise<Glue> {
