@@ -1,3 +1,4 @@
+#![cfg(feature = "native")]
 #![expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
@@ -14,12 +15,19 @@ use dybw_core::profile::{
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
 use dybw_vectors::canonical::{NOW, canonicalize, drop_tool_defined};
-use dybw_vectors::keys::account_keys;
+use dybw_vectors::keys::ScenarioKeys;
 use dybw_vectors::server::{Sent, VectorServer, urls};
-use dybw_vectors::vectors_dir;
+use dybw_vectors::{Files, vectors_dir};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
+use std::path::Path;
 use zeroize::Zeroizing;
+
+/// The account `name` of the vectors at `dir`, its organization keys unwrapped by `AwsLcRsa`.
+fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys {
+    let files = Files::from_dir(dir).unwrap();
+    block_on(dybw_vectors::keys::account_keys(&files, name, organizations, &AwsLcRsa))
+}
 
 #[test]
 fn scenario_keys_load() {

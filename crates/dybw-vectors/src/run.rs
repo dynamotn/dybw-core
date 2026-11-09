@@ -4,10 +4,12 @@ use crate::canonical::{NOW_MS, canonicalize, drop_tool_defined};
 use crate::keys::account_keys;
 use crate::scenario::{Answer, Operation, Policy, Scenario, WriteExpect};
 use crate::server::{SERVER, VectorServer, urls};
+use crate::{Files, Outcome};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
+use dybw_core::ports::RsaOaep;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
-use dybw_core::testing::{FixedClock, SeededRandom, block_on};
+use dybw_core::testing::{FixedClock, SeededRandom};
 use dybw_core::vault::fields::{field_names, field_value, first_index, item_key};
 use dybw_core::vault::write::{HistoryAnswer, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use dybw_core::vault::{
@@ -15,7 +17,6 @@ use dybw_core::vault::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::path::Path;
 use zeroize::Zeroizing;
 
 pub fn namespace(name: &str) -> Result<&'static Namespace, String> {
@@ -57,17 +58,18 @@ fn compare<T: PartialEq + std::fmt::Debug>(what: &str, got: T, want: T) -> Resul
 
 /// Checks `expect.read`: items (attributes only when the vector lists them), skipped, uninspectable and, when
 /// given, duplicates. Lists other than items are compared sorted.
-pub fn read(dir: &Path, s: &Scenario) -> Result<(), String> {
+pub async fn read(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
     let want = s.expect.read.as_ref().ok_or("no expect.read")?;
     let ns = namespace(&s.namespace)?;
-    let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
+    let scenario_keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
     let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
     let keys = scenario_keys.into_keys(ns);
     let mut api = client(server)?;
-    let sync = block_on(async {
+    let sync = async {
         api.login(&api_key()?).await.map_err(|e| e.to_string())?;
         api.sync().await.map_err(|e| e.to_string())
-    })?;
+    }
+    .await?;
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
     // The device's bindings, when the vector has one (ADR 0019).
     let bound: BTreeMap<String, String> =
@@ -124,11 +126,11 @@ fn op_value(value: &str) -> Result<Zeroizing<Vec<u8>>, String> {
 /// The README's canonical body keeps the password history under `login`; the core writes it at the top level
 /// (data model §6.3, as the server stores it), and `canonicalize` maps one onto the other, so the two sides are
 /// compared by meaning.
-pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
+pub async fn write(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
     let want = s.expect.write.as_ref().ok_or("no expect.write")?;
-    let Some(op) = s.operation.as_ref() else { return sync_write(dir, s, want) };
+    let Some(op) = s.operation.as_ref() else { return sync_write(files, s, want, rsa).await };
     let ns = namespace(&s.namespace)?;
-    let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
+    let scenario_keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
     let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
     let keys = scenario_keys.into_keys(ns);
     let state = device_state(s, &keys);
@@ -136,7 +138,7 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
     let rng = SeededRandom::new(0x0077_7269_7465);
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
 
-    let outcome = block_on(async {
+    let outcome = async {
         api.login(&api_key()?).await.map_err(|e| e.to_string())?;
         let sync = api.sync().await.map_err(|e| e.to_string())?;
         let report = scan_vault(&sync, ns, &keys, &allowed);
@@ -222,7 +224,8 @@ pub fn write(dir: &Path, s: &Scenario) -> Result<(), String> {
                 sync::delete(&mut api, ns, &keys, &rng, &item(id)?.cipher, id).await.map(|_| ())
             }
         })
-    })?;
+    }
+    .await?;
 
     let rejected = server.rejected.get();
     compare("out-of-date rejections", rejected, u32::from(op.fresh().is_some()))?;
@@ -299,9 +302,9 @@ fn policy(s: &Scenario) -> sync::Policy {
 
 /// `expect.write` of a sync vector (no `operation`): one sync from `device` and `local` with no answers, then the
 /// requests it sent, or the question it asked first with nothing sent and the base unchanged.
-fn sync_write(dir: &Path, s: &Scenario, want: &WriteExpect) -> Result<(), String> {
+async fn sync_write(files: &Files, s: &Scenario, want: &WriteExpect, rsa: &impl RsaOaep) -> Outcome {
     let ns = namespace(&s.namespace)?;
-    let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
+    let scenario_keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
     let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
     let keys = scenario_keys.into_keys(ns);
     let mut state = device_state(s, &keys);
@@ -312,7 +315,7 @@ fn sync_write(dir: &Path, s: &Scenario, want: &WriteExpect) -> Result<(), String
     let (overrides, answers) = (BTreeMap::new(), BTreeMap::new());
     let mut unmarked = UnmarkedCache::default();
     let mut api = client(server.clone())?;
-    let report = block_on(async {
+    let report = async {
         api.login(&api_key()?).await.map_err(|e| e.to_string())?;
         let mut ctx = SyncContext {
             client: &mut api,
@@ -329,7 +332,8 @@ fn sync_write(dir: &Path, s: &Scenario, want: &WriteExpect) -> Result<(), String
             unmarked: &mut unmarked,
         };
         sync::run_sync(&mut ctx, &mut state, &mut local, |_| {}, || false).await.map_err(|e| e.to_string())
-    })?;
+    }
+    .await?;
     let sent =
         server.sent.borrow().iter().map(|r| canonicalize(r, &keys.user, &keys.orgs)).collect::<Result<Vec<_>, _>>()?;
     match want {
@@ -364,10 +368,10 @@ fn plan_entry(a: &Action) -> (&'static str, &str, Option<&'static str>) {
 /// Checks `expect.plan`: the device state from `device` (fingerprints of the plaintext with the namespace's marker)
 /// and the local values from `local`, planned by the core's pass against the fake server. `confirmed` is not
 /// compared.
-pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
+pub async fn plan(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
     let want = s.expect.plan.as_ref().ok_or("no expect.plan")?;
     let ns = namespace(&s.namespace)?;
-    let scenario_keys = account_keys(dir, &s.account, s.options.organizations);
+    let scenario_keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
     let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
     let keys = scenario_keys.into_keys(ns);
     let state = device_state(s, &keys);
@@ -377,7 +381,7 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
     let (overrides, answers) = (BTreeMap::new(), BTreeMap::new());
     let mut unmarked = UnmarkedCache::default();
     let mut api = client(server)?;
-    let planned = block_on(async {
+    let planned = async {
         api.login(&api_key()?).await.map_err(|e| e.to_string())?;
         let mut ctx = SyncContext {
             client: &mut api,
@@ -394,7 +398,8 @@ pub fn plan(dir: &Path, s: &Scenario) -> Result<(), String> {
             unmarked: &mut unmarked,
         };
         sync::plan_pass(&mut ctx, &state, &local).await.map_err(|e| e.to_string())
-    })?;
+    }
+    .await?;
     let mut got: Vec<_> = planned.actions.iter().map(plan_entry).collect();
     got.extend(planned.report.rollbacks.iter().map(|(id, _)| ("rollback", id.as_str(), None)));
     got.sort_by(|a, b| a.1.cmp(b.1));

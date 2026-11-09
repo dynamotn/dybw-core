@@ -1,14 +1,15 @@
 //! The fixed accounts of `vectors/accounts/`, unlocked by the core's own code.
 
+use crate::Files;
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::crypto::{
-    AwsLcRsa, ContentFormat, Marker, SymmetricKey, unwrap_org_key, unwrap_signing_key, verify_security_state,
+    ContentFormat, Marker, SymmetricKey, unwrap_org_key, unwrap_signing_key, verify_security_state,
 };
-use dybw_core::testing::{SeededRandom, block_on};
+use dybw_core::ports::RsaOaep;
+use dybw_core::testing::SeededRandom;
 use dybw_core::vault::{Keys, Namespace};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use std::path::Path;
 
 pub struct ScenarioKeys {
     pub user: SymmetricKey,
@@ -41,10 +42,10 @@ fn b64(s: &str, what: &str) -> Vec<u8> {
 /// Loads account `name`: the user key from `userKey`; with `organizations`, each organization's key is unwrapped by
 /// the core (RSA-OAEP under the account's private key) and checked against the plain `key` of the account file.
 /// Panics on a broken account file: nothing in a run works without it.
-pub fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys {
-    let path = dir.join("accounts").join(format!("{name}.json"));
-    let raw = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    let account: Value = serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+pub async fn account_keys(files: &Files, name: &str, organizations: bool, rsa: &impl RsaOaep) -> ScenarioKeys {
+    let path = format!("accounts/{name}.json");
+    let raw = files.get(&path).unwrap_or_else(|| panic!("{path}: not found"));
+    let account: Value = serde_json::from_str(raw).unwrap_or_else(|e| panic!("{path}: {e}"));
     let user = SymmetricKey::from_bytes(&b64(text(&account, "userKey", name), name))
         .unwrap_or_else(|e| panic!("{name}: userKey: {e}"));
 
@@ -66,7 +67,8 @@ pub fn account_keys(dir: &Path, name: &str, organizations: bool) -> ScenarioKeys
         for org in &orgs_list {
             let id = text(org, "id", name);
             let der = pkcs8.as_deref().unwrap_or_else(|| panic!("{name}: organizations without a privateKey"));
-            let key = block_on(unwrap_org_key(text(org, "wrapped", name), der, &AwsLcRsa))
+            let key = unwrap_org_key(text(org, "wrapped", name), der, rsa)
+                .await
                 .unwrap_or_else(|e| panic!("{name}: organization {id}: {e}"));
             assert_eq!(
                 key.to_bytes().as_slice(),
