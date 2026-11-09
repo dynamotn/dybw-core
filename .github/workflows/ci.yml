@@ -88,6 +88,67 @@ jobs:
       - run: cargo build -p dybw-core --no-default-features --locked --target wasm32-unknown-unknown
       - run: cargo build -p dybw-core-wasm --locked --target wasm32-unknown-unknown
 
+  # The core in WASM (M5): the conformance vectors and crypto known answers under Node, Chromium and WebKit, and the
+  # size budget of the build without `vectors`. build-wasm.sh's size report imports esbuild, so `npm ci` comes first.
+  wasm-vectors:
+    runs-on: ubuntu-latest
+    env:
+      BINARYEN_VERSION: version_133
+      # sha256 of binaryen-version_133-x86_64-linux.tar.gz, from the release's .sha256 file.
+      BINARYEN_SHA256: 2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489
+      DYBATPHO_DIR: ${{ github.workspace }}/.dybatpho
+      WASM_OPT: ${{ github.workspace }}/.binaryen/bin/wasm-opt
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # build-wasm.sh is built on dybatpho: the public repository at a pinned commit, not a submodule.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: dynamotn/dybatpho
+          ref: 67b2b992c1fb6100a5ac8a65a1d7f92372feffb1
+          path: .dybatpho
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable ref; the input picks the toolchain
+        with:
+          toolchain: 1.99.1
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+      - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177  # v2.87.30
+        with:
+          tool: wasm-bindgen@0.2.129
+      - name: Install binaryen
+        run: |
+          tarball="binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz"
+          curl -sSfLO "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/$tarball"
+          echo "$BINARYEN_SHA256  $tarball" | sha256sum -c -
+          mkdir .binaryen
+          tar -xzf "$tarball" -C .binaryen --strip-components 1
+          "$WASM_OPT" --version
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 26.12.1
+      - run: npm ci
+        working-directory: crates/dybw-core-wasm/js
+      # Without features first, so the size test never measures a stale build.
+      - run: scripts/build-wasm.sh
+      - run: scripts/build-wasm.sh --features vectors --out crates/dybw-core-wasm/js/pkg
+      - run: npx playwright install --with-deps chromium webkit
+        working-directory: crates/dybw-core-wasm/js
+      - run: npx vitest run
+        working-directory: crates/dybw-core-wasm/js
+      - name: Size report
+        run: |
+          {
+            echo "### dybw-core-wasm size (build without vectors)"
+            echo '```'
+            node crates/dybw-core-wasm/js/size.mjs target-wasm/pkg
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   coverage-lines:
     runs-on: ubuntu-latest
     steps:

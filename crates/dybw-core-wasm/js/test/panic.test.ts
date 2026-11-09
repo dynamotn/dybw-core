@@ -20,10 +20,11 @@ test("a panic traps, reports no value, and a new instance answers locked", async
   const first = await instantiate(import("../pkg/dybw_core_wasm.js?instance=first"));
   first.init(ports);
   expect(() => first.panicForTest("secret-sentinel")).toThrow(WebAssembly.RuntimeError);
-  expect(logged.length).toBeGreaterThan(0);
+  expect(logged.join("\n")).toContain("panicked");
   expect(logged.join("\n")).not.toContain("secret-sentinel");
 
   const second = await instantiate(import("../pkg/dybw_core_wasm.js?instance=second"));
+  expect(second).not.toBe(first);
   second.init(ports);
   const session = new second.WasmSession(hostPorts(), "obsidian");
   await expect(session.planPass("{}", [], [])).rejects.toBe("locked");

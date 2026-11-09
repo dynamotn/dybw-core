@@ -55,7 +55,7 @@ function _build {
     _found="$(grep -nF -- "${_pattern}" "${_glue}" || true)"
     [[ -z "${_found}" ]] || dybatpho::die "The glue contains ${_pattern}: ${_found}"
   done
-  dybatpho::info "Size report (budget 1 179 648 bytes)"
+  dybatpho::info "Size report"
   node "${ROOT}/crates/dybw-core-wasm/js/size.mjs" "${OUT}"
   [[ -z "${FEATURES}" ]] || dybatpho::warn "Built with features: the budget applies to the build without them"
   dybatpho::success "Built ${_wasm}"
