@@ -1,9 +1,14 @@
 //! The JS boundary, wasm32 only: the host's duck-typed `ports` object as a [`Host`], and the exports. Forwards
 //! only: what they call is covered by the native tests, this file by the WASM harness.
 //!
-//! Zeroization (D14): a secret export parameter is an owned `String`, which the glue copies into WASM memory once
-//! and hands over (never `&str`, which it frees unwiped); no export returns a secret. Imports follow the [`Host`]
-//! contract: secrets go out as borrowed views, secret answers are copied straight into `Zeroizing`.
+//! Zeroization (D14): a secret export parameter is an owned `String`, which the glue copies into WASM memory and
+//! hands over (never `&str`, which it frees unwiped); no export returns a secret. Residue can escape: for a string
+//! that is not ASCII, `passStringToWasm0` writes the ASCII prefix into a buffer of the string's UTF-16 length, then
+//! `realloc`s it twice (grow, then shrink to the UTF-8 length), and either move frees the old chunk unwiped: the
+//! prefix, or the whole value (accepted in D14). A secret that must not leave that residue can come in as a
+//! `Uint8Array` copied into `Zeroizing` with `copy_to`.
+//! Imports follow the [`Host`] contract: secrets go out as borrowed views, secret answers are copied straight into
+//! `Zeroizing`. Every answer is type-checked: a host that answers the wrong type gets an error, never a default.
 
 use crate::host::{Host, RecvFuture};
 use crate::session::Session;
@@ -84,8 +89,13 @@ async fn wait(p: Promise) -> Result<JsValue, String> {
 }
 
 /// A `Uint8Array`'s bytes, copied once into WASM memory.
-fn bytes(v: &JsValue) -> Zeroizing<Vec<u8>> {
-    Zeroizing::new(v.unchecked_ref::<Uint8Array>().to_vec())
+fn bytes(v: JsValue) -> Result<Zeroizing<Vec<u8>>, String> {
+    v.dyn_into::<Uint8Array>().map(|a| Zeroizing::new(a.to_vec())).map_err(|_| "host answered no Uint8Array".into())
+}
+
+/// A number the host answered, as an integer.
+fn number(v: &JsValue, what: &str) -> Result<f64, String> {
+    v.as_f64().filter(|n| n.fract() == 0.0 && *n >= 0.0).ok_or_else(|| format!("host answered no {what}"))
 }
 
 impl Host for HostPorts {
@@ -109,11 +119,14 @@ impl Host for HostPorts {
         body: Option<&[u8]>,
     ) -> Result<(u16, Zeroizing<Vec<u8>>), String> {
         let headers = Zeroizing::new(serde_json::to_string(headers).unwrap_or_default());
-        let answer: Array = wait(self.js_http(method, url, &headers, body)).await?.unchecked_into();
-        Ok((answer.get(0).as_f64().unwrap_or_default() as u16, bytes(&answer.get(1))))
+        let answer = wait(self.js_http(method, url, &headers, body)).await?;
+        let answer = answer.dyn_into::<Array>().map_err(|_| "host answered no [status, body]")?;
+        let status = u16::try_from(number(&answer.get(0), "status")? as u64).map_err(|_| "host answered no status")?;
+        Ok((status, bytes(answer.get(1))?))
     }
     async fn storage_load(&self, key: &str) -> Result<Option<Vec<u8>>, String> {
-        Ok(wait(self.js_storage_load(key)).await?.dyn_ref::<Uint8Array>().map(Uint8Array::to_vec))
+        let v = wait(self.js_storage_load(key)).await?;
+        if v.is_null() { Ok(None) } else { bytes(v).map(|b| Some(b.to_vec())) }
     }
     async fn storage_save(&self, key: &str, value: &[u8]) -> Result<(), String> {
         wait(self.js_storage_save(key, value)).await.map(drop)
@@ -122,7 +135,12 @@ impl Host for HostPorts {
         wait(self.js_storage_remove(key)).await.map(drop)
     }
     async fn secret_load(&self, key: &str) -> Result<Option<Zeroizing<String>>, String> {
-        Ok(wait(self.js_secret_load(key)).await?.as_string().map(Zeroizing::new))
+        let v = wait(self.js_secret_load(key)).await?;
+        if v.is_null() {
+            Ok(None)
+        } else {
+            v.as_string().map(|s| Some(Zeroizing::new(s))).ok_or("host answered no string".into())
+        }
     }
     async fn secret_save(&self, key: &str, value: &str) -> Result<(), String> {
         wait(self.js_secret_save(key, value)).await.map(drop)
@@ -138,7 +156,7 @@ impl Host for HostPorts {
         memory_kib: u32,
         parallelism: u32,
     ) -> Result<Zeroizing<Vec<u8>>, String> {
-        wait(self.js_argon2id(password, salt, iterations, memory_kib, parallelism)).await.map(|v| bytes(&v))
+        bytes(wait(self.js_argon2id(password, salt, iterations, memory_kib, parallelism)).await?)
     }
     async fn rsa_oaep_decrypt(
         &self,
@@ -146,10 +164,11 @@ impl Host for HostPorts {
         hash: &str,
         ciphertext: &[u8],
     ) -> Result<Zeroizing<Vec<u8>>, String> {
-        wait(self.js_rsa_oaep_decrypt(pkcs8, hash, ciphertext)).await.map(|v| bytes(&v))
+        bytes(wait(self.js_rsa_oaep_decrypt(pkcs8, hash, ciphertext)).await?)
     }
     async fn socket_open(&self, url: &str) -> Result<u32, String> {
-        wait(self.js_socket_open(url)).await.map(|v| v.as_f64().unwrap_or_default() as u32)
+        let id = number(&wait(self.js_socket_open(url)).await?, "socket id")?;
+        u32::try_from(id as u64).map_err(|_| "host answered no socket id".into())
     }
     async fn socket_send(&self, id: u32, frame: Frame) -> Result<(), String> {
         let frame = match frame {
@@ -163,7 +182,10 @@ impl Host for HostPorts {
         Box::pin(async move {
             match next.await {
                 Ok(v) if v.is_null() => None,
-                Ok(v) => Some(Ok(v.as_string().map_or_else(|| Frame::Binary(bytes(&v).to_vec()), Frame::Text))),
+                Ok(v) => Some(match v.as_string() {
+                    Some(t) => Ok(Frame::Text(t)),
+                    None => bytes(v).map(|b| Frame::Binary(b.to_vec())),
+                }),
                 Err(e) => Some(Err(message(e))),
             }
         })
@@ -203,14 +225,15 @@ impl WasmSession {
     pub fn new(ports: HostPorts, namespace: &str) -> Result<WasmSession, String> {
         Session::new(Rc::new(ports), namespace).map(WasmSession)
     }
-    pub async fn unlock(&mut self, profile: &str, client_secret: String, password: String) -> Result<String, String> {
+    pub async fn unlock(&self, profile: &str, client_secret: String, password: String) -> Result<String, String> {
         self.0.unlock(profile, Zeroizing::new(client_secret), Zeroizing::new(password)).await
     }
     #[wasm_bindgen(js_name = unlockCached)]
-    pub async fn unlock_cached(&mut self, profile: &str, password: String) -> Result<String, String> {
+    pub async fn unlock_cached(&self, profile: &str, password: String) -> Result<String, String> {
         self.0.unlock_cached(profile, Zeroizing::new(password)).await
     }
-    pub fn lock(&mut self) {
+    /// Never throws: every method takes `&self`, so no wasm-bindgen borrow can refuse it.
+    pub fn lock(&self) {
         self.0.lock();
     }
     #[wasm_bindgen(js_name = deviceId)]
@@ -226,11 +249,11 @@ impl WasmSession {
         self.0.accept_security_version(version).await
     }
     #[wasm_bindgen(js_name = planPass)]
-    pub async fn plan_pass(&mut self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
+    pub async fn plan_pass(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
         self.0.plan_pass(options, ids, values).await
     }
     #[wasm_bindgen(js_name = runSync)]
-    pub async fn run_sync(&mut self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
+    pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
         self.0.run_sync(options, ids, values).await
     }
     /// Runs until `stop()` answers true; stop it before `lock`.
