@@ -5,7 +5,10 @@
 # @brief Build dybw-core-wasm for the web
 # @description Builds the crate with the `wasm` profile, generates the `--target web` glue with wasm-bindgen,
 #              shrinks the module with `wasm-opt -Oz` (the features rustc enables for wasm32), then refuses glue a
-#              bundle cannot take (D13). `WASM_OPT` names the wasm-opt binary; dybatpho is found at `DYBATPHO_DIR`.
+#              bundle cannot take (D13), and prints the size report (D12): the module, its base64, the glue after
+#              esbuild minify, gzip (information) and the total against the budget of 1 179 648 bytes for
+#              base64(wasm) + glue, which `js/test/size.test.ts` enforces. The report needs node and the harness's
+#              `npm ci` (esbuild). `WASM_OPT` names the wasm-opt binary; dybatpho is found at `DYBATPHO_DIR`.
 SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 ROOT="$(dirname "${SCRIPT_DIR}")"
 : "${DYBATPHO_DIR:=${HOME}/Working/personal/tools/dybatpho}"
@@ -28,6 +31,7 @@ function _build {
   dybatpho::require cargo
   dybatpho::require wasm-bindgen
   dybatpho::require "${_opt}"
+  dybatpho::require node
 
   local -a _features=()
   if [[ -n "${FEATURES}" ]]; then
@@ -51,9 +55,10 @@ function _build {
     _found="$(grep -nF -- "${_pattern}" "${_glue}" || true)"
     [[ -z "${_found}" ]] || dybatpho::die "The glue contains ${_pattern}: ${_found}"
   done
-  local _size
-  _size="$(wc -c < "${_wasm}")"
-  dybatpho::success "Built ${_wasm} (${_size// /} bytes)"
+  dybatpho::info "Size report (budget 1 179 648 bytes)"
+  node "${ROOT}/crates/dybw-core-wasm/js/size.mjs" "${OUT}"
+  [[ -z "${FEATURES}" ]] || dybatpho::warn "Built with features: the budget applies to the build without them"
+  dybatpho::success "Built ${_wasm}"
 }
 
 # @description The option spec of the build.

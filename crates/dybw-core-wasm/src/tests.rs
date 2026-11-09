@@ -892,7 +892,9 @@ fn the_mock_computes_for_real() {
 #[expect(clippy::indexing_slicing, reason = "tests")]
 mod vectors {
     use super::{MockHost, Ports};
-    use crate::vectors::{cbor_json, msg_is, run_known_answers_json, run_vectors_json, unb64, unhex};
+    use crate::vectors::{
+        cbor_json, msg_is, panic_for_test, run_known_answers_json, run_perf_json, run_vectors_json, unb64, unhex,
+    };
     use dybw_core::api::Msg;
     use dybw_core::crypto::{AwsLcRsa, Cbor};
     use dybw_core::testing::block_on;
@@ -965,6 +967,31 @@ mod vectors {
         assert_eq!(out["results"].as_array().map(Vec::len), Some(3), "one entry per kind");
         assert!(out["results"][0][1].as_str().is_some_and(|e| e.starts_with("generated/bwss/a.json: ")));
         assert_eq!(out["failures"].as_array().map(Vec::len), Some(3));
+    }
+
+    #[test]
+    fn the_timings_run_over_the_host() {
+        // The mock's clock stands still: every timing is 0.
+        let out = parse(&block_on(run_perf_json(&files(), &real())));
+        assert_eq!(out, json!({ "results": [["pbkdf2-600k", 0, null], ["decrypt-1000-of-5000", 0, null]] }));
+    }
+
+    #[test]
+    fn a_timing_that_fails_is_reported() {
+        let kat = files().get("crypto/vectors.json").unwrap_or_default().replace("600000", "1");
+        let files = Files::from_map(BTreeMap::from([("crypto/vectors.json".to_owned(), kat)]));
+        let out = parse(&block_on(run_perf_json(&files, &real())));
+        let errors = json!([
+            ["pbkdf2-600k", 0, "iterations differs"],
+            ["decrypt-1000-of-5000", 0, "generated/obsidian/sync/pull-new.json is missing"]
+        ]);
+        assert_eq!(out["results"], errors);
+    }
+
+    #[test]
+    #[should_panic(expected = "secret-sentinel")]
+    fn panic_for_test_panics() {
+        panic_for_test("secret-sentinel");
     }
 
     #[test]

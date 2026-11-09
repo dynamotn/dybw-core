@@ -1,9 +1,11 @@
 // Runs in Node before each project: reads the vector files, the expected failures and the WASM module, and hands
 // them to the tests, which may run in a browser without a file system.
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestProject } from "vitest/node";
+// @ts-expect-error: a plain ES module without types.
+import { sizeReport } from "../size.mjs";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -13,6 +15,8 @@ declare module "vitest" {
     expectedFailures: string[];
     /** The module after wasm-opt, as base64. */
     wasm: string;
+    /** The size report of the build without `vectors` at `target-wasm/pkg`, `null` when there is none. */
+    size: { wasm: number; base64: number; glue: number; gzip: number; total: number; budget: number } | null;
   }
 }
 
@@ -42,4 +46,6 @@ export default function setup(project: TestProject): void {
   project.provide("expectedFailures", expectedFailures());
   const wasm = join(root, "crates/dybw-core-wasm/js/pkg/dybw_core_wasm_bg.wasm");
   project.provide("wasm", readFileSync(wasm).toString("base64"));
+  const plain = join(root, "target-wasm/pkg");
+  project.provide("size", existsSync(join(plain, "dybw_core_wasm_bg.wasm")) ? sizeReport(plain) : null);
 }

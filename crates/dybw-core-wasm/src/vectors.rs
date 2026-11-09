@@ -13,6 +13,8 @@ use dybw_core::crypto::{
     Cbor, EnvelopeNamespace, KdfParams, MarkScheme, Marker, MasterKey, SymmetricKey, derive_master_key,
     hash_master_password, open_envelope, parse_cek,
 };
+use dybw_core::vault::{Namespace, Organizations, scan_vault};
+use dybw_vectors::keys::account_keys;
 use dybw_vectors::{Files, Kind, Outcome, check, expected_failures, run_all};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -39,6 +41,55 @@ pub async fn run_known_answers_json<H: Host>(files: &Files, ports: &Ports<H>) ->
         ("marks".to_owned(), marks(files)),
     ];
     report(results, &BTreeMap::new())
+}
+
+/// The harness's timings, in ms by the host's clock: `pbkdf2-600k` (the known answer's master key, PBKDF2 at
+/// 600 000 iterations) and `decrypt-1000-of-5000` (a scan of 5 000 ciphers, 1 000 marked). Answers JSON
+/// `{"results": [[name, ms, null | error]]}`; the ciphers are built before the clock starts.
+pub async fn run_perf_json<H: Host>(files: &Files, ports: &Ports<H>) -> String {
+    let start = ports.0.now_ms();
+    let pbkdf2 = pbkdf2_600k(files, ports).await;
+    let pbkdf2_ms = ports.0.now_ms() - start;
+    let vault = vault_5000(files, ports).await;
+    let start = ports.0.now_ms();
+    let scanned = vault.and_then(|(sync, keys)| {
+        // `present` counts every marked cipher, the 999 copies that lose to the first included.
+        let report = scan_vault(&sync, &Namespace::OBSIDIAN, &keys, &Organizations::None);
+        same(&report.present.len(), &1_000, "marked count")
+    });
+    let scan_ms = ports.0.now_ms() - start;
+    let row = |name: &str, ms: i64, o: Outcome| json!([name, ms, o.err()]);
+    json!({ "results": [row("pbkdf2-600k", pbkdf2_ms, pbkdf2), row("decrypt-1000-of-5000", scan_ms, scanned)] })
+        .to_string()
+}
+
+async fn pbkdf2_600k<H: Host>(files: &Files, ports: &Ports<H>) -> Outcome {
+    let v = read(files, "crypto/vectors.json")?;
+    let p = at(&v, "pbkdf2");
+    same(&number(at(p, "iterations")), &600_000, "iterations")?;
+    master(&v, KdfParams::Pbkdf2 { iterations: 600_000 }, p, ports).await.map(drop)
+}
+
+/// A `/sync` of 5 000 ciphers: 1 000 copies of `pull-new`'s marked cipher, 4 000 without its marker field (still
+/// with a field whose name must be decrypted to know), and the keys of its account.
+async fn vault_5000<H: Host>(files: &Files, ports: &Ports<H>) -> Result<(Value, dybw_core::vault::Keys), String> {
+    let v = read(files, "generated/obsidian/sync/pull-new.json")?;
+    let marked = object(list(at(&v, "ciphers"))?.first().unwrap_or(&Value::Null))?.clone();
+    let mut unmarked = marked.clone();
+    unmarked.insert("fields".into(), json!(list(marked.get("fields").unwrap_or(&Value::Null))?.get(1..)));
+    let cipher = |i: usize| {
+        let mut c = if i < 1_000 { marked.clone() } else { unmarked.clone() };
+        c.insert("id".into(), json!(format!("c{i}")));
+        c
+    };
+    let sync = json!({ "ciphers": (0..5_000).map(cipher).collect::<Vec<_>>() });
+    let keys = account_keys(files, text(at(&v, "account")), false, ports).await;
+    Ok((sync, keys.into_keys(&Namespace::OBSIDIAN)))
+}
+
+/// Panics with `message`; the harness checks the panic hook never reports it.
+pub fn panic_for_test(message: &str) {
+    panic!("{message}")
 }
 
 fn report(results: Vec<(String, Outcome)>, expected: &BTreeMap<String, String>) -> String {

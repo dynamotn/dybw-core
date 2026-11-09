@@ -297,3 +297,17 @@ pub async fn run_vectors(files: js_sys::Map, ports: HostPorts) -> String {
 pub async fn run_known_answers(files: js_sys::Map, ports: HostPorts) -> String {
     crate::vectors::run_known_answers_json(&vector_files(&files), &Ports(Rc::new(ports))).await
 }
+
+/// See [`crate::vectors::run_perf_json`].
+#[cfg(feature = "vectors")]
+#[wasm_bindgen(js_name = runPerf)]
+pub async fn run_perf(files: js_sys::Map, ports: HostPorts) -> String {
+    crate::vectors::run_perf_json(&vector_files(&files), &Ports(Rc::new(ports))).await
+}
+
+/// See [`crate::vectors::panic_for_test`].
+#[cfg(feature = "vectors")]
+#[wasm_bindgen(js_name = panicForTest)]
+pub fn panic_for_test(message: &str) {
+    crate::vectors::panic_for_test(message);
+}
