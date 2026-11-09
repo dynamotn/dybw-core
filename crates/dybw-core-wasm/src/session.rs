@@ -249,6 +249,8 @@ impl<H: Host> Session<H> {
         Ok(profile::acknowledge_origin(&self.ports, origin).await?)
     }
 
+    /// Withdraws an acknowledgement. It takes effect at the next unlock: the host locks the session when the user
+    /// withdraws it.
     pub async fn forget_origin(&self, origin: &str) -> Result<(), Error> {
         Ok(profile::forget_origin(&self.ports, origin).await?)
     }

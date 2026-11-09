@@ -927,7 +927,9 @@ mod session {
         assert_eq!(block_on(s.acknowledge_origin(&format!("{ORIGIN}/identity"))), Ok(()));
         let both = r#"["https://other.invalid","https://vectors.invalid"]"#;
         assert_eq!(block_on(s.acknowledged_origins()), Ok(both.into()));
-        assert_eq!(block_on(s.acknowledge_origin("no url")).map_err(code), Err(INVALID.into()));
+        for bad in ["no url", "file:///etc/passwd", "data:text/plain,x", "http://vectors.invalid"] {
+            assert_eq!(block_on(s.acknowledge_origin(bad)).map_err(code), Err(INVALID.into()), "{bad}");
+        }
         assert!(unlock(&s, "pbkdf2").is_ok(), "the acknowledged origin logs in");
         assert!(plan(&s, &[], &[]).is_ok());
         // The unlock dropped the other server's acknowledgement.

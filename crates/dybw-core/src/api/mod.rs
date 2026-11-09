@@ -1,6 +1,7 @@
 //! The Bitwarden server API: wire formats first, the client and the hub follow.
 
 mod client;
+pub(crate) use client::check_scheme;
 mod hub;
 mod msgpack;
 

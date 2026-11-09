@@ -6,7 +6,6 @@
   ],
   "account": "pbkdf2",
   "namespaces": [
-    "bwss",
     "obsidian"
   ],
   "options": {

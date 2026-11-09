@@ -67,6 +67,8 @@ impl ApiError {
     }
 }
 
+/// A server's endpoints. Build them with [`resolve_server_urls`]: ADR 0018's gate checks only the identity origin,
+/// which covers the API because the resolver gives both one origin (self-hosted) or the cloud pair.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServerUrls {
     pub api: String,
@@ -81,12 +83,7 @@ pub fn resolve_server_urls(server_url: &str) -> Result<ServerUrls, ApiError> {
     // The text is not echoed: the URL may hold a password.
     let url = Url::parse(raw).map_err(|e| ApiError::Invalid(format!("invalid server URL: {e}")))?;
     let host = url.host_str().unwrap_or_default();
-    let loopback = matches!(host, "localhost" | "127.0.0.1" | "[::1]");
-    if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
-        return Err(ApiError::Invalid(
-            "the server URL must use https:// (plain http is only allowed for localhost)".into(),
-        ));
-    }
+    check_scheme(&url)?;
     if !url.username().is_empty() || url.password().is_some() {
         return Err(ApiError::Invalid("the server URL must not contain credentials".into()));
     }
@@ -107,6 +104,17 @@ pub fn resolve_server_urls(server_url: &str) -> Result<ServerUrls, ApiError> {
             }
         }
     })
+}
+
+/// https, or plain http to a loopback host: the only URLs a server or an acknowledged origin may have.
+pub(crate) fn check_scheme(url: &Url) -> Result<(), ApiError> {
+    let loopback = matches!(url.host_str().unwrap_or_default(), "localhost" | "127.0.0.1" | "[::1]");
+    if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
+        return Err(ApiError::Invalid(
+            "the server URL must use https:// (plain http is only allowed for localhost)".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Bitwarden used to answer in PascalCase (older Vaultwarden still does); every response goes through this.
@@ -210,7 +218,8 @@ pub struct Client<H: Http, C: Clock> {
 }
 
 impl<H: Http, C: Clock> Client<H, C> {
-    /// Refuses device info with control characters: it becomes header values.
+    /// Refuses device info with control characters: it becomes header values. `urls` must come from
+    /// [`resolve_server_urls`] (see [`ServerUrls`]).
     pub fn new(http: H, clock: C, urls: ServerUrls, device: DeviceInfo) -> Result<Self, ApiError> {
         let texts = [&device.identifier, &device.name, &device.client_name, &device.client_version];
         if texts.iter().any(|t| t.chars().any(char::is_control)) {
@@ -327,7 +336,9 @@ impl<H: Http, C: Clock> Client<H, C> {
         self.call(method, format!("{}{path}", self.urls.api), headers, body, limit).await
     }
 
+    /// Gated like the credentials (ADR 0018): it sends the email.
     pub async fn prelogin(&self, email: &str) -> Result<KdfParams, ApiError> {
+        self.may_send_credentials()?;
         let body = Zeroizing::new(json!({ "email": email }).to_string().into_bytes());
         let headers = vec![("Content-Type".to_owned(), "application/json".to_owned())];
         let url = format!("{}/accounts/prelogin", self.urls.identity);

@@ -534,6 +534,7 @@ fn credentials_go_through_a_client_that_follows_redirects_only_to_cloud_or_an_ac
     let e = block_on(rig.client.login(&key())).unwrap_err();
     assert!(refused(&e) && !e.is_transient(), "{e:?}");
     assert!(e.to_string().contains("https://bw.example.org"), "{e}");
+    assert!(refused(&block_on(rig.client.prelogin("a@b.c")).unwrap_err()), "prelogin sends the email");
     assert!(rig.sent.borrow().is_empty(), "nothing is sent, not even /connect/token");
 
     // The bearer token: a session logged in before is refused on every call, and nothing is sent.

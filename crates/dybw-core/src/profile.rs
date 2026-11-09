@@ -1,7 +1,7 @@
 //! A profile's session: unlock (prelogin, KDF, user key, private key, organization keys), device identity, lock.
 //! Port of bwss `BitwardenBackend::unlock` and the plugin's `unlockUserKey` and `unlockOrganizationKeys`.
 
-use crate::api::{ApiError, ApiKey, Client, origin_of};
+use crate::api::{ApiError, ApiKey, Client, check_scheme, origin_of};
 use crate::crypto::{
     CryptoError, KdfParams, Marker, SymmetricKey, derive_master_key, unwrap_signing_key, verify_security_state,
 };
@@ -262,14 +262,17 @@ async fn save_acknowledged(storage: &impl Storage, origins: &BTreeSet<String>) -
 }
 
 /// The user's acknowledgement, on this device, that `origin`'s server or a proxy in front of it could redirect the
-/// API key (ADR 0018). Stored as `scheme://host[:port]`.
+/// API key (ADR 0018). Stored as `scheme://host[:port]`; only https, or http to a loopback host, as a server URL.
 pub async fn acknowledge_origin(storage: &impl Storage, origin: &str) -> Result<(), ProfileError> {
+    let url = url::Url::parse(origin).map_err(|e| ApiError::Invalid(format!("invalid URL: {e}")))?;
+    check_scheme(&url)?;
     let mut origins = acknowledged_origins(storage).await?;
-    origins.insert(origin_of(origin)?);
+    origins.insert(url.origin().ascii_serialization());
     save_acknowledged(storage, &origins).await
 }
 
-/// Withdraws `origin`'s acknowledgement.
+/// Withdraws `origin`'s acknowledgement. A session already unlocked keeps its client: it takes effect at the next
+/// unlock (the host locks the session when the user withdraws it).
 pub async fn forget_origin(storage: &impl Storage, origin: &str) -> Result<(), ProfileError> {
     let mut origins = acknowledged_origins(storage).await?;
     origins.remove(&origin_of(origin)?);
@@ -606,7 +609,12 @@ mod tests {
             block_on(storage.load("acknowledged-origins")).unwrap().unwrap(),
             br#"["https://a.example","https://b.example"]"#
         );
-        assert!(matches!(block_on(acknowledge_origin(&storage, "not a url")), Err(ProfileError::Api(_))));
+        for bad in ["not a url", "http://a.example", "file:///etc/passwd", "data:text/plain,x", "ftp://a.example"] {
+            let e = block_on(acknowledge_origin(&storage, bad)).unwrap_err();
+            assert!(matches!(e, ProfileError::Api(ApiError::Invalid(_))), "{bad}: {e:?}");
+        }
+        block_on(acknowledge_origin(&storage, "http://localhost:8080")).unwrap();
+        block_on(forget_origin(&storage, "http://localhost:8080")).unwrap();
         block_on(forget_origin(&storage, "https://b.example/")).unwrap();
         assert_eq!(block_on(acknowledged_origins(&storage)).unwrap(), set(&["https://a.example"]));
 
