@@ -347,6 +347,7 @@ dependencies = [
 name = "dybw-core-wasm"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "dybw-core",
  "dybw-vectors",
  "js-sys",

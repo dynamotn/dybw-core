@@ -47,6 +47,9 @@ struct MockHost {
     hold: Cell<usize>,
     /// Only `secret_save` fails.
     fail_secret_save: Cell<bool>,
+    /// The `secret_save` call with this number (from 1) answers `Pending` once; `secret_saves` counts the calls.
+    hold_secret_save: Cell<usize>,
+    secret_saves: Cell<usize>,
     /// When set, `http` is this fake Bitwarden server.
     server: RefCell<Option<VectorServer>>,
     /// `argon2id` and `rsa_oaep_decrypt` compute for real (`NativeArgon2`, `AwsLcRsa`), with the host's texts.
@@ -134,6 +137,16 @@ impl Host for MockHost {
     }
     async fn secret_save(&self, key: &str, value: &str) -> Result<(), String> {
         self.check()?;
+        self.secret_saves.set(self.secret_saves.get() + 1);
+        let mut hold = self.secret_saves.get() == self.hold_secret_save.get();
+        poll_fn(|cx| {
+            if !std::mem::take(&mut hold) {
+                return Poll::Ready(());
+            }
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        })
+        .await;
         if self.fail_secret_save.get() {
             return Err("no secret storage".into());
         }
@@ -769,6 +782,32 @@ mod session {
         assert_eq!(host.store.borrow().get(STATE).cloned(), newer, "the stopped sync saved nothing");
     }
 
+    /// Locks while the `at`-th of the three pulled values is being saved; answers the saved secrets' ids and
+    /// whether the state was saved.
+    fn lock_during_save(at: usize) -> (Vec<String>, bool) {
+        let raw = files().get("generated/obsidian/sync/multi-id-sorted.json").unwrap_or_default().to_owned();
+        let scenario: Value = serde_json::from_str(&raw).unwrap_or_default();
+        let host = host("pbkdf2", scenario["ciphers"].as_array().cloned().unwrap_or_default());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.hold_secret_save.set(at);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut sync = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(sync.as_mut().poll(&mut cx).is_pending());
+        s.lock();
+        assert_eq!(block_on(sync), Err(LOCKED.into()));
+        let mut saved: Vec<String> = host.secrets.borrow().keys().cloned().collect();
+        saved.sort();
+        (saved, host.store.borrow().contains_key(STATE))
+    }
+
+    #[test]
+    fn a_lock_during_the_saves_stops_them() {
+        // The save in flight completes; nothing after it starts.
+        assert_eq!(lock_during_save(1), (vec!["alpha".into()], false));
+        assert_eq!(lock_during_save(3), (vec!["alpha".into(), "beta".into(), "gamma".into()], false));
+    }
+
     #[test]
     fn lock_wins_over_a_running_hub() {
         let host = host("pbkdf2", vec![]);
@@ -992,12 +1031,9 @@ mod vectors {
 
     #[test]
     fn base64_and_hex_decode() {
-        assert_eq!(unb64("TWFu"), b"Man");
-        assert_eq!(unb64("TWE="), b"Ma");
-        assert_eq!(unb64("TQ=="), b"M");
-        assert_eq!(unb64("+/+/"), [0xfb, 0xff, 0xbf]);
-        assert_eq!(unb64("az09"), [0x6b, 0x3d, 0x3d]);
-        assert_eq!(unb64("T"), b"");
+        assert_eq!(unb64("TWE="), Ok(b"Ma".to_vec()));
+        assert_eq!(unb64("+/+/"), Ok(vec![0xfb, 0xff, 0xbf]));
+        assert_eq!(unb64("TWE"), Err("not base64".into()));
         assert_eq!(unhex("00fFzz7"), [0, 255, 0]);
     }
 

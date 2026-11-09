@@ -7,6 +7,7 @@
 
 use crate::host::Host;
 use crate::ports::Ports;
+use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{Msg, decode_msgpack};
 use dybw_core::crypto::{
     Cbor, EnvelopeNamespace, KdfParams, MarkScheme, Marker, MasterKey, SymmetricKey, derive_master_key,
@@ -83,14 +84,18 @@ fn same<T: PartialEq + ?Sized>(got: &T, want: &T, what: &str) -> Outcome {
 }
 
 fn key(v: &Value) -> Result<SymmetricKey, String> {
-    SymmetricKey::from_bytes(&unb64(text(v))).map_err(fail)
+    SymmetricKey::from_bytes(&unb64(text(v))?).map_err(fail)
 }
 
 /// Derives the master key of `crypto/vectors.json` with `kdf` and checks it and its stretched key against `want`.
 async fn master<H: Host>(v: &Value, kdf: KdfParams, want: &Value, ports: &Ports<H>) -> Result<MasterKey, String> {
     let mk = derive_master_key(text(at(v, "password")), text(at(v, "email")), kdf, ports).await.map_err(fail)?;
-    same(mk.as_slice(), unb64(text(at(want, "masterKey"))).as_slice(), "masterKey")?;
-    same(SymmetricKey::stretch(&mk).to_bytes().as_slice(), unb64(text(at(want, "stretched"))).as_slice(), "stretched")?;
+    same(mk.as_slice(), unb64(text(at(want, "masterKey")))?.as_slice(), "masterKey")?;
+    same(
+        SymmetricKey::stretch(&mk).to_bytes().as_slice(),
+        unb64(text(at(want, "stretched")))?.as_slice(),
+        "stretched",
+    )?;
     Ok(mk)
 }
 
@@ -126,12 +131,12 @@ fn cose(files: &Files) -> Outcome {
         let p = at(acc, "privateKey");
         same(
             user.decrypt_pkcs8(text(at(p, "wrapped"))).map_err(fail)?.as_slice(),
-            unb64(text(at(p, "pkcs8"))).as_slice(),
+            unb64(text(at(p, "pkcs8")))?.as_slice(),
             "pkcs8",
         )?;
         for k in list(at(acc, "itemKeys"))? {
             let item = user.decrypt_key(text(at(k, "wrapped"))).map_err(fail)?;
-            same(item.to_bytes().as_slice(), unb64(text(at(k, "key"))).as_slice(), "itemKey")?;
+            same(item.to_bytes().as_slice(), unb64(text(at(k, "key")))?.as_slice(), "itemKey")?;
             same(item.decrypt_str(text(at(k, "field"))).map_err(fail)?.as_str(), text(at(k, "fieldPlain")), "field")?;
         }
     }
@@ -141,7 +146,7 @@ fn cose(files: &Files) -> Outcome {
 /// Opens `envelope` (base64) with the content key `cek` as the SDK stores it, and checks it opens to `plaintext`.
 fn opens(cek: &[u8], envelope: &str, plaintext: &Value, what: &str) -> Outcome {
     let cek = parse_cek(cek).map_err(fail)?;
-    let opened = open_envelope(&cek, &unb64(envelope), EnvelopeNamespace::VaultItem).map_err(fail)?;
+    let opened = open_envelope(&cek, &unb64(envelope)?, EnvelopeNamespace::VaultItem).map_err(fail)?;
     same(&cbor_json(&opened), plaintext, what)
 }
 
@@ -152,7 +157,7 @@ fn sdk(files: &Files) -> Outcome {
         let fields = item.as_object().into_iter().flatten();
         let value =
             |suffix: &str| fields.clone().find(|(k, _)| k.ends_with(suffix)).map_or("", |(_, e)| text(at(e, "value")));
-        opens(&unb64(value("_CEK")), value("_ENVELOPE"), at(item, "plaintext"), name)?;
+        opens(&unb64(value("_CEK"))?, value("_ENVELOPE"), at(item, "plaintext"), name)?;
     }
     let s = at(&v, "sealed");
     let blob: Value = serde_json::from_str(text(at(at(s, "TEST_VECTOR_SEALED_BLOB"), "value"))).map_err(fail)?;
@@ -181,21 +186,9 @@ fn marks(files: &Files) -> Outcome {
     Ok(())
 }
 
-/// Standard base64 with padding. A character outside the alphabet decodes as `/`: it only makes a comparison fail.
-pub(crate) fn unb64(s: &str) -> Vec<u8> {
-    let six = |c: u8| match c {
-        b'A'..=b'Z' => c - b'A',
-        b'a'..=b'z' => c - b'a' + 26,
-        b'0'..=b'9' => c - b'0' + 52,
-        b'+' => 62,
-        _ => 63,
-    };
-    let sixes: Vec<u8> = s.bytes().filter(|&c| c != b'=').map(six).collect();
-    let bytes = |c: &[u8]| {
-        let n = c.iter().fold(0u32, |n, &x| (n << 6) | u32::from(x)) << (6 * (4 - c.len()));
-        n.to_be_bytes().into_iter().skip(1).take(c.len().saturating_sub(1))
-    };
-    sixes.chunks(4).flat_map(bytes).collect()
+/// Standard base64 with padding.
+pub(crate) fn unb64(s: &str) -> Result<Vec<u8>, String> {
+    B64.decode(s).map_err(|_| "not base64".into())
 }
 
 /// Lowercase or uppercase hex; a pair that is not hex decodes as 0.

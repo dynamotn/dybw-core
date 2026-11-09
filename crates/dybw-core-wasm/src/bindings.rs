@@ -8,7 +8,8 @@
 //! prefix, or the whole value (accepted in D14). A secret that must not leave that residue can come in as a
 //! `Uint8Array` copied into `Zeroizing` with `copy_to`.
 //! Imports follow the [`Host`] contract: secrets go out as borrowed views, secret answers are copied straight into
-//! `Zeroizing`. Every answer is type-checked: a host that answers the wrong type gets an error, never a default.
+//! `Zeroizing` and the host's array is wiped. Every answer is type-checked: a host that answers the wrong type gets
+//! an error, never a default.
 
 use crate::host::{Host, RecvFuture};
 #[cfg(feature = "vectors")]
@@ -95,6 +96,14 @@ fn bytes(v: JsValue) -> Result<Zeroizing<Vec<u8>>, String> {
     v.dyn_into::<Uint8Array>().map(|a| Zeroizing::new(a.to_vec())).map_err(|_| "host answered no Uint8Array".into())
 }
 
+/// A secret answer's bytes, copied once into WASM memory; then the host's array is wiped.
+fn secret(v: JsValue) -> Result<Zeroizing<Vec<u8>>, String> {
+    let a = v.dyn_into::<Uint8Array>().map_err(|_| "host answered no Uint8Array")?;
+    let copy = Zeroizing::new(a.to_vec());
+    a.fill(0, 0, a.length());
+    Ok(copy)
+}
+
 /// A number the host answered, as an integer.
 fn number(v: &JsValue, what: &str) -> Result<f64, String> {
     v.as_f64().filter(|n| n.fract() == 0.0 && *n >= 0.0).ok_or_else(|| format!("host answered no {what}"))
@@ -158,7 +167,7 @@ impl Host for HostPorts {
         memory_kib: u32,
         parallelism: u32,
     ) -> Result<Zeroizing<Vec<u8>>, String> {
-        bytes(wait(self.js_argon2id(password, salt, iterations, memory_kib, parallelism)).await?)
+        secret(wait(self.js_argon2id(password, salt, iterations, memory_kib, parallelism)).await?)
     }
     async fn rsa_oaep_decrypt(
         &self,
@@ -166,7 +175,7 @@ impl Host for HostPorts {
         hash: &str,
         ciphertext: &[u8],
     ) -> Result<Zeroizing<Vec<u8>>, String> {
-        bytes(wait(self.js_rsa_oaep_decrypt(pkcs8, hash, ciphertext)).await?)
+        secret(wait(self.js_rsa_oaep_decrypt(pkcs8, hash, ciphertext)).await?)
     }
     async fn socket_open(&self, url: &str) -> Result<u32, String> {
         let id = number(&wait(self.js_socket_open(url)).await?, "socket id")?;

@@ -1,6 +1,6 @@
 // The conformance vectors and the crypto known answers, run by the WASM build with the harness's JS ports.
 import { beforeAll, describe, expect, inject, test } from "vitest";
-import init, { runKnownAnswers, runVectors } from "../pkg/dybw_core_wasm.js";
+import init, { runKnownAnswers, runVectors, WasmSession } from "../pkg/dybw_core_wasm.js";
 import { hostPorts, RSA_KEY_ERROR } from "./ports";
 
 type Report = { results: [string, string | null][]; failures: string[] };
@@ -29,10 +29,17 @@ describe("the WASM build", () => {
     const ports = hostPorts();
     const decrypt = ports.rsaOaepDecrypt;
     let rsaCalls = 0;
-    ports.rsaOaepDecrypt = (...args) => (rsaCalls++, decrypt(...args));
+    const plaintexts: Uint8Array[] = [];
+    ports.rsaOaepDecrypt = async (...args) => {
+      rsaCalls++;
+      const plain = await decrypt(...args);
+      plaintexts.push(plain);
+      return plain;
+    };
     const report = JSON.parse(await runVectors(files, ports)) as Report;
     expect(report.failures).toEqual([]);
     expect(rsaCalls, "the organization vectors go through WebCrypto").toBeGreaterThan(0);
+    expect(plaintexts.every((p) => p.length > 0 && p.every((b) => b === 0)), "RSA plaintexts wiped").toBe(true);
     expect(report.results.length).toBe(scenarioCount());
     const failing = [...new Set(report.results.filter(([, e]) => e !== null).map(([id]) => id))].sort();
     expect(failing).toEqual([...inject("expectedFailures")].sort());
@@ -40,8 +47,18 @@ describe("the WASM build", () => {
   });
 
   test("passes the crypto known answers", async () => {
-    const report = JSON.parse(await runKnownAnswers(files, hostPorts())) as Report;
+    const ports = hostPorts();
+    const kdf = ports.argon2id;
+    const outputs: Uint8Array[] = [];
+    ports.argon2id = async (...args) => {
+      const out = await kdf(...args);
+      outputs.push(out);
+      return out;
+    };
+    const report = JSON.parse(await runKnownAnswers(files, ports)) as Report;
     expect(report.failures).toEqual([]);
+    expect(outputs.length).toBe(1);
+    expect(outputs[0].every((b) => b === 0), "the Argon2id output is wiped").toBe(true);
     expect(report.results).toEqual(["pbkdf2", "argon2id", "cose", "sdk", "msgpack", "marks"].map((n) => [n, null]));
     console.log(`known answers: ${report.results.length} passed`);
   });
@@ -53,5 +70,13 @@ describe("the harness's ports", () => {
     await expect(ports.rsaOaepDecrypt(new Uint8Array([1, 2, 3]), "SHA-1", new Uint8Array(256))).rejects.toBe(
       RSA_KEY_ERROR,
     );
+  });
+});
+
+describe("the session", () => {
+  test("starts without a saved state: storageLoad answering undefined is no state", async () => {
+    const ports = { ...hostPorts(), storageLoad: async () => undefined };
+    const id = await new WasmSession(ports, "obsidian").deviceId();
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 });
