@@ -1,3 +1,6 @@
 __pycache__/
 .pytest_cache/
 target/
+tools/
+target-wasm/
+crates/dybw-core-wasm/js/node_modules/

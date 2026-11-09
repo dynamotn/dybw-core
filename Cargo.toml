@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/dybw-core", "crates/dybw-vectors"]
+members = ["crates/dybw-core", "crates/dybw-core-wasm", "crates/dybw-vectors"]
 resolver = "3"
 
 [workspace.package]
@@ -26,3 +26,12 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.blake2]
 opt-level = 3
+
+# The WASM build (`--profile wasm`): small over fast; native release builds keep `release`.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

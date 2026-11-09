@@ -1,0 +1,9 @@
+//! dybw-core for `wasm32-unknown-unknown`: every core port implemented over one [`host::Host`] trait, which mirrors
+//! the duck-typed JS `ports` object. Unstable: M6 may reshape it.
+#![forbid(unsafe_code)]
+
+pub mod host;
+pub mod ports;
+
+#[cfg(test)]
+mod tests;

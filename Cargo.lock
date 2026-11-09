@@ -338,6 +338,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dybw-core-wasm"
+version = "0.1.0"
+dependencies = [
+ "dybw-core",
+ "zeroize",
+]
+
+[[package]]
 name = "dybw-vectors"
 version = "0.1.0"
 dependencies = [

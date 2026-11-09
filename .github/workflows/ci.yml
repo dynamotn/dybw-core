@@ -53,6 +53,12 @@ jobs:
           if printf '%s\n' "$tree" | rg -q '^(tokio|reqwest|rsa|getrandom) '; then
             echo "forbidden dependency in dybw-core default build"; exit 1
           fi
+      - name: No forbidden dependency in dybw-core-wasm (wasm32)
+        run: |
+          tree=$(cargo tree -p dybw-core-wasm -e normal --target wasm32-unknown-unknown --prefix none) || exit 1
+          if printf '%s\n' "$tree" | rg -q '^(aws-lc-rs|aws-lc-sys|argon2|getrandom|tokio|reqwest|rsa) '; then
+            echo "forbidden dependency in dybw-core-wasm"; exit 1
+          fi
       - run: uv run vectors/gen/gen.py check
 
   test:
@@ -80,6 +86,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
       - run: cargo build -p dybw-core --no-default-features --locked --target wasm32-unknown-unknown
+      - run: cargo build -p dybw-core-wasm --locked --target wasm32-unknown-unknown
 
   coverage-lines:
     runs-on: ubuntu-latest
