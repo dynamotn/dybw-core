@@ -48,6 +48,10 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
   - `testing` (feature): fakes and `block_on`.
 - `crates/dybw-vectors`: runs the conformance vectors against the core.
   `expected-failures.txt` lists no vector at the end of M3.
+- `crates/dybw-core-wasm`: the core for `wasm32-unknown-unknown` (M5), with the
+  host ports in JavaScript; every `#[wasm_bindgen]` item is in `src/bindings.rs`.
+  The `vectors` feature adds the conformance runner for the harness in `js/`
+  (see [WASM](#wasm)).
 
 M4 Part A adds what bwss needs from the core:
 
@@ -63,6 +67,41 @@ M4 Part A adds what bwss needs from the core:
   with the ADR 0023 known answers in `vectors/crypto/bwss-subkeys.json`.
 
 Its futures are `!Send`: run them on a `current_thread` runtime or a `LocalSet`.
+
+## WASM
+
+Tools, at the versions CI pins: Rust 1.99.1 with the `wasm32-unknown-unknown`
+target, `wasm-bindgen-cli` 0.2.129 (it must match the `wasm-bindgen` crate),
+binaryen `version_133` (`wasm-opt`), Node 26 and
+[dybatpho](https://github.com/dynamotn/dybatpho), which the build script is
+written with. The harness's `npm ci` comes first: the build's size report
+uses its esbuild.
+
+```bash
+(cd crates/dybw-core-wasm/js && npm ci)
+WASM_OPT=/path/to/wasm-opt DYBATPHO_DIR=/path/to/dybatpho scripts/build-wasm.sh
+WASM_OPT=/path/to/wasm-opt DYBATPHO_DIR=/path/to/dybatpho \
+  scripts/build-wasm.sh --features vectors --out crates/dybw-core-wasm/js/pkg
+```
+
+The first build, without features, goes to `target-wasm/pkg`: it is the module
+the plugin ships and the one the size gate measures. The second adds the
+vectors runner for the harness. Each build runs `wasm-opt -Oz`, refuses glue
+with Node-only or eval-like code, and prints the size report.
+
+Run the vectors, the crypto known answers, the timings and the panic test in
+Node, Chromium and WebKit:
+
+```bash
+cd crates/dybw-core-wasm/js
+npx playwright install chromium webkit
+npx vitest run
+```
+
+The size gate (`js/test/size.test.ts`): base64 of the module without `vectors`
+plus its glue after esbuild minify must fit in 1 179 648 bytes (ADR 0024),
+since the plugin embeds the module as base64 in its `main.js`. Gzip is
+reported for information only.
 
 ## Checks
 
@@ -90,4 +129,5 @@ cargo +nightly-2026-10-01 llvm-cov --branch --workspace --all-features --locked 
 ```
 
 CI runs on GitHub Actions (`.github/workflows/ci.yml`); `.gitlab-ci.yml` is
-kept for when GitLab minutes return.
+kept for when GitLab minutes return. Its `wasm-vectors` job runs the two WASM
+builds and the harness above, and writes the size report to the run summary.
