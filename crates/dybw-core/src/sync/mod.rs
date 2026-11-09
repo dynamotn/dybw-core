@@ -14,7 +14,7 @@ pub use engine::{
 pub use plan::{
     Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, is_rollback, plan_sync,
 };
-pub use queue::{FlushReport, Op, enqueue, flush};
+pub use queue::{FlushReport, Op, enqueue, flush, flush_until};
 pub use state::{DeviceState, parse_plugin_state, to_plugin_json};
 pub use write::{ATTEMPTS, DeleteOutcome, SyncWriteError, create, delete, update};
 

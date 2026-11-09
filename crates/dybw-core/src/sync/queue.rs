@@ -385,6 +385,27 @@ pub async fn flush<H: Http, C: Clock>(
     now_ms: i64,
     sync: &Value,
 ) -> FlushReport {
+    flush_until(queue, client, ns, keys, records, rng, now_ms, sync, &mut |_, _| true).await
+}
+
+/// What [`flush_until`] calls after each op; `dyn`, so every caller shares one instance of the flush.
+type AfterOp<'a> = dyn FnMut(&[Op], &BTreeMap<String, WriteRecord>) -> bool + 'a;
+
+/// [`flush`], showing `after_op` the queue and the records after each op that left its turn (sent, removed or kept
+/// for later), so the caller can save them at once; the flush stops when it returns `false` (a lock, for example),
+/// and the ops not yet run stay queued without a report entry.
+#[expect(clippy::too_many_arguments, reason = "the writer's inputs, each the caller's")]
+pub async fn flush_until<H: Http, C: Clock>(
+    queue: &mut Vec<Op>,
+    client: &mut Client<H, C>,
+    ns: &Namespace,
+    keys: &Keys,
+    records: &mut BTreeMap<String, WriteRecord>,
+    rng: &impl Random,
+    now_ms: i64,
+    sync: &Value,
+    after_op: &mut AfterOp<'_>,
+) -> FlushReport {
     let mut report = FlushReport::default();
     let mut ciphers = sync.get("ciphers").and_then(Value::as_array).cloned().unwrap_or_default();
     // Ids with a deferred op, and the queue position of the op to run next.
@@ -446,6 +467,9 @@ pub async fn flush<H: Http, C: Clock>(
             at += 1;
         } else {
             queue.remove(at);
+        }
+        if !after_op(queue, records) {
+            break;
         }
     }
     report

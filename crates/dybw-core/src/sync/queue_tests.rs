@@ -11,6 +11,7 @@ use crate::vault::write::{
     FieldSet, HistoryAnswer, HistoryQuestion, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord,
 };
 use serde_json::{Value, json};
+use std::collections::BTreeMap;
 use zeroize::Zeroizing;
 
 fn set(source: ValueSource, secret: &[u8], mark: u8) -> ValueChange {
@@ -1210,4 +1211,54 @@ fn a_no_hint_patch_held_by_a_too_large_cipher_does_not_block_other_ids() {
     assert_eq!(strs(&report.done), ["z"]);
     assert_eq!(ids(&queue), ["patch x"]);
     assert_eq!(r.log(), ["Put /ciphers/c2"]);
+}
+
+impl Rig {
+    /// `flush_until`, recording the queue it shows after each op; `go` answers whether to go on.
+    fn flush_until(&mut self, queue: &mut Vec<Op>, ciphers: &[Value], go: bool) -> (FlushReport, Vec<Vec<String>>) {
+        let sync = json!({ "ciphers": ciphers });
+        let mut seen = Vec::new();
+        let mut after = |left: &[Op], _: &BTreeMap<String, WriteRecord>| {
+            seen.push(ids(left));
+            go
+        };
+        let report = block_on(flush_until(
+            queue,
+            &mut self.client,
+            B,
+            &self.keys,
+            &mut self.records,
+            &self.rng,
+            1_000,
+            &sync,
+            &mut after,
+        ));
+        (report, seen)
+    }
+}
+
+#[test]
+fn flush_until_stops_after_the_op_the_caller_saw() {
+    let mut r = Rig::new();
+    let (c1, c2) = (r.item("c1", "x", "old"), r.item("c2", "z", "s"));
+    let mut queue = vec![r.change(&c1, None), r.change(&c2, None)];
+    r.fake.echo();
+    let (report, seen) = r.flush_until(&mut queue, &[c1, c2], false);
+    assert_eq!(strs(&report.done), ["x"]);
+    assert_eq!(seen, [vec!["patch z".to_owned()]]);
+    assert_eq!(ids(&queue), ["patch z"]);
+    assert_eq!(r.log(), ["Put /ciphers/c1"]);
+}
+
+#[test]
+fn flush_until_shows_the_queue_after_every_op() {
+    let mut r = Rig::new();
+    let (c1, c2) = (r.item("c1", "x", "old"), r.item("c2", "z", "s"));
+    let mut queue = vec![r.change(&c1, None), r.change(&c2, None)];
+    r.fake.echo();
+    r.fake.echo();
+    let (report, seen) = r.flush_until(&mut queue, &[c1, c2], true);
+    assert_eq!(strs(&report.done), ["x", "z"]);
+    assert_eq!(seen, [vec!["patch z".to_owned()], vec![]]);
+    assert!(queue.is_empty());
 }
