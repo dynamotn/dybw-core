@@ -2,11 +2,11 @@
 
 use crate::canonical::{NOW_MS, canonicalize, drop_tool_defined};
 use crate::keys::account_keys;
-use crate::scenario::{Answer, Operation, Policy, Scenario, WriteExpect};
-use crate::server::{SERVER, VectorServer, urls};
+use crate::scenario::{Answer, Operation, Policy, ReadExpect, Scenario, Server, WriteExpect};
+use crate::server::{CLOUD, SERVER, VectorServer, urls};
 use crate::{Files, Outcome};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
-use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of};
+use dybw_core::api::{ApiError, ApiKey, Client, DeviceInfo, ServerUrls, origin_of, resolve_server_urls};
 use dybw_core::ports::RsaOaep;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom};
@@ -29,6 +29,11 @@ pub fn namespace(name: &str) -> Result<&'static Namespace, String> {
 
 /// A client of the fake server, with a fixed clock.
 pub fn client(server: VectorServer) -> Result<Client<VectorServer, FixedClock>, String> {
+    client_at(server, urls())
+}
+
+/// A client of the fake server at `urls`, with a fixed clock.
+fn client_at(server: VectorServer, urls: ServerUrls) -> Result<Client<VectorServer, FixedClock>, String> {
     let device = DeviceInfo {
         identifier: "vectors-device".into(),
         name: "vectors".into(),
@@ -36,12 +41,17 @@ pub fn client(server: VectorServer) -> Result<Client<VectorServer, FixedClock>, 
         client_name: "cli".into(),
         client_version: "0".into(),
     };
-    Client::new(server, FixedClock { now_ms: 0 }, urls(), device).map_err(|e| e.to_string())
+    Client::new(server, FixedClock { now_ms: 0 }, urls, device).map_err(|e| e.to_string())
 }
 
 fn api_key() -> Result<ApiKey, String> {
+    api_key_for(&format!("{SERVER}/identity"))
+}
+
+/// The vectors' API key, entered for the identity URL `identity`.
+fn api_key_for(identity: &str) -> Result<ApiKey, String> {
     Ok(ApiKey {
-        origin: origin_of(&format!("{SERVER}/identity")).map_err(|e| e.to_string())?,
+        origin: origin_of(identity).map_err(|e| e.to_string())?,
         client_id: "vectors".into(),
         client_secret: Zeroizing::new("vectors".into()),
     })
@@ -57,19 +67,41 @@ fn compare<T: PartialEq + std::fmt::Debug>(what: &str, got: T, want: T) -> Resul
 }
 
 /// Checks `expect.read`: items (attributes only when the vector lists them), skipped, uninspectable and, when
-/// given, duplicates. Lists other than items are compared sorted.
+/// given, duplicates. Lists other than items are compared sorted. A refused read compares the error code and the
+/// requests sent before it (ADR 0018: none).
 pub async fn read(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
     let want = s.expect.read.as_ref().ok_or("no expect.read")?;
     let ns = namespace(&s.namespace)?;
     let scenario_keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
-    let server = VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
+    let mut server =
+        VectorServer::new(scenario_keys.profile.clone(), s.ciphers.clone(), scenario_keys.prelogin.clone());
+    server.follows_redirects = s.options.follows_redirects;
+    let requests = server.requests.clone();
     let keys = scenario_keys.into_keys(ns);
-    let mut api = client(server)?;
-    let sync = async {
-        api.login(&api_key()?).await.map_err(|e| e.to_string())?;
-        api.sync().await.map_err(|e| e.to_string())
+    let urls = match s.options.server {
+        Server::SelfHosted => urls(),
+        Server::Cloud => resolve_server_urls(CLOUD).map_err(|e| e.to_string())?,
+    };
+    let key = api_key_for(&urls.identity)?;
+    let mut api = client_at(server, urls)?.with_acknowledged(s.options.acknowledged.clone());
+    let synced = async {
+        api.login(&key).await?;
+        api.sync().await
     }
-    .await?;
+    .await;
+    let (want, sync) = match (want, synced) {
+        (ReadExpect::Items(want), Ok(sync)) => (want, sync),
+        (ReadExpect::Refused(want), Err(e)) => {
+            let code = match e {
+                ApiError::OriginNotAcknowledged { .. } => "origin-not-acknowledged",
+                e => return Err(format!("unexpected error: {e}")),
+            };
+            compare("error", code, want.error.as_str())?;
+            return compare("sent", requests.borrow().as_slice(), want.sent.as_slice());
+        }
+        (ReadExpect::Refused(_), Ok(_)) => return Err("expected an error, the read succeeded".into()),
+        (ReadExpect::Items(_), Err(e)) => return Err(e.to_string()),
+    };
     let allowed = if s.options.organizations { Organizations::All } else { Organizations::None };
     // The device's bindings, when the vector has one (ADR 0019).
     let bound: BTreeMap<String, String> =

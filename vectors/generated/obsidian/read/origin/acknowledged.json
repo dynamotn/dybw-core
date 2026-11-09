@@ -1,0 +1,69 @@
+{
+  "id": "read/origin/acknowledged",
+  "spec": "1.6",
+  "sections": [
+    "§11"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "followsRedirects": true,
+    "acknowledged": [
+      "https://vectors.invalid"
+    ]
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.Fg6/jrJY8e9ccPkEcMiIEQ==|OYeEFhdHlfFLFyZweqe6kA==|xdR5GPsKFWCa9sNdS/AJiNC9sRU093ZJSW6ajZm4w68=",
+      "notes": null,
+      "login": {
+        "username": "2.y3+PXus+wvtZA7pDJunvQA==|SWrhlv1tXYUNex3YBvBQzg==|67MT+kG0AmPFuudr7Rdjtm1bQphOdA+FTKkjNDDSxaw=",
+        "password": "2.eP9DovWuLHkufn5cCRL/uA==|sEhuOh/++tWtQ3v5ZkUf2A==|SCr+Xdzke+Cg0iGX473BJCKf1hbFDGJYL/l/9x9eF8o=",
+        "uris": [
+          {
+            "uri": "2.eayKQ7EQKdQwTocrtNwZuA==|2ckyfD/36jEp+hyEEvxw5/guGvoHwK63OCq735A6XzM=|F71ksGartg6+XzpGpS5f8Ac36mudKbqC4SJlw/H2gTU=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.FrSEvTWMBX6IPVllMzoOnw==|Bi2EH+s78AiavycjkhKMOQ==|JkDNsSit4wVZhZSQXjR16E5A97u5HbZpExN3x9T5roA=",
+          "value": "2.hHZd2skbD+4NDXM+8Ita4g==|0B/TwUI/CB7I/OIGY/Oqqg==|tLuCHM7k380ySw+8bKmzU5+SpwmirGv+sLYL+OQAUpE=",
+          "type": 0
+        },
+        {
+          "name": "2.+r/6OQ8JnC+qHNG0DnY5UQ==|XABL9SsAWRaDDfB0lLYzSoXeIFNx+WTv0tbi46oAp4o=|yR6apU7foYx9+VcZp++YKUFhItkLl8wMEQOJicjlr18=",
+          "value": "2.c0GYBsqppwH+dOwdJaxB8g==|YvtMYCJ8PawYt7TFu28acw==|NxemZa2bMnvT7ttvcrPZ592Weglsaev7/nDV+VAd77s=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "origin-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

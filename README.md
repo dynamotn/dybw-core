@@ -105,6 +105,17 @@ their fields are listed in `crates/dybw-core-wasm/src/error.rs`. The profile's
 `apiOrigin` is the identity origin the API key was entered for; `unlock` sends
 the key nowhere else (`wrong-origin`).
 
+A host whose `http` follows redirects (`refusesRedirects()` answers `false`)
+gets ADR 0018's rule: the API key and the bearer token go only to Bitwarden
+cloud (`identity.bitwarden.com`, `identity.bitwarden.eu`) or to an identity
+origin the user acknowledged on this device; anything else is refused with
+`origin-not-acknowledged` (field `origin`) before any request. The
+acknowledgements live in the host's `Storage` under `acknowledged-origins`
+(a JSON list), set with `acknowledgeOrigin(origin)`, withdrawn with
+`forgetOrigin(origin)` and listed by `acknowledgedOrigins()`. Each is bound
+to its server: an unlock drops every acknowledgement but its own identity
+origin's. A host that refuses redirects, as bwss, is unaffected.
+
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit:
 

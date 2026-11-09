@@ -3,7 +3,7 @@
 
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +37,25 @@ pub struct Options {
     pub policy: Policy,
     #[serde(default)]
     pub accept_rollback: bool,
+    /// The server the client talks to (ADR 0018).
+    #[serde(default)]
+    pub server: Server,
+    /// The host's HTTP follows redirects (`Http::refuses_redirects` is `false`).
+    #[serde(default)]
+    pub follows_redirects: bool,
+    /// Identity origins acknowledged on the device.
+    #[serde(default)]
+    pub acknowledged: BTreeSet<String>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Server {
+    /// The fake server at `server::SERVER`.
+    #[default]
+    SelfHosted,
+    /// The fake server as Bitwarden cloud US (`server::CLOUD`).
+    Cloud,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -144,9 +163,25 @@ pub struct Expect {
     pub plan: Option<Vec<PlanEntry>>,
 }
 
+/// The scan of a read, or the error that stopped it with the requests that were sent first.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum ReadExpect {
+    Items(ReadItems),
+    Refused(ReadRefused),
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ReadExpect {
+pub struct ReadRefused {
+    pub error: String,
+    /// `METHOD /path` of each request sent, in order.
+    pub sent: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadItems {
     pub items: Vec<ExpectedItem>,
     pub skipped: Vec<Skipped>,
     pub uninspectable: Vec<String>,

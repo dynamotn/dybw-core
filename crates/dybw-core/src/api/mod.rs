@@ -4,7 +4,10 @@ mod client;
 mod hub;
 mod msgpack;
 
-pub use client::{ApiError, ApiKey, Client, DeviceInfo, ServerUrls, normalize_keys, origin_of, resolve_server_urls};
+pub use client::{
+    ApiError, ApiKey, CLOUD_IDENTITY_ORIGINS, Client, DeviceInfo, ServerUrls, normalize_keys, origin_of,
+    resolve_server_urls,
+};
 pub use hub::{Hub, HubOptions, HubOut, hub_url, run_hub};
 pub use msgpack::{Msg, MsgPackError, decode_msgpack, split_signalr_frames};
 

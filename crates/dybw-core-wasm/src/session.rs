@@ -243,7 +243,23 @@ impl<H: Host> Session<H> {
         Ok(profile::accept_security_version(&self.ports, version).await?)
     }
 
-    /// A client for the profile's server, not logged in, and the identity origin.
+    /// The user's acknowledgement of a self-hosted identity origin (ADR 0018), for a host whose `http` follows
+    /// redirects.
+    pub async fn acknowledge_origin(&self, origin: &str) -> Result<(), Error> {
+        Ok(profile::acknowledge_origin(&self.ports, origin).await?)
+    }
+
+    pub async fn forget_origin(&self, origin: &str) -> Result<(), Error> {
+        Ok(profile::forget_origin(&self.ports, origin).await?)
+    }
+
+    /// The acknowledged origins, a JSON list.
+    pub async fn acknowledged_origins(&self) -> Result<String, Error> {
+        Ok(json!(profile::acknowledged_origins(&self.ports).await?).to_string())
+    }
+
+    /// A client for the profile's server, not logged in, with this server's acknowledgement (ADR 0018; the others
+    /// are dropped), and the identity origin.
     async fn client(&self, p: &Profile) -> Result<(Client<Ports<H>, Ports<H>>, String, String), Error> {
         let urls = resolve_server_urls(&p.server)?;
         let origin = origin_of(&urls.identity)?;
@@ -255,7 +271,8 @@ impl<H: Host> Session<H> {
             client_name: p.client_name.clone(),
             client_version: p.client_version.clone(),
         };
-        let client = Client::new(self.port(), self.port(), urls, device)?;
+        let acknowledged = profile::acknowledged_for(&self.ports, &origin).await?;
+        let client = Client::new(self.port(), self.port(), urls, device)?.with_acknowledged(acknowledged);
         Ok((client, origin, notifications))
     }
 

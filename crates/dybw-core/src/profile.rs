@@ -1,7 +1,7 @@
 //! A profile's session: unlock (prelogin, KDF, user key, private key, organization keys), device identity, lock.
 //! Port of bwss `BitwardenBackend::unlock` and the plugin's `unlockUserKey` and `unlockOrganizationKeys`.
 
-use crate::api::{ApiError, ApiKey, Client};
+use crate::api::{ApiError, ApiKey, Client, origin_of};
 use crate::crypto::{
     CryptoError, KdfParams, Marker, SymmetricKey, derive_master_key, unwrap_signing_key, verify_security_state,
 };
@@ -9,6 +9,7 @@ use crate::ports::{Clock, Http, KdfRunner, PortError, Random, RsaOaep, Storage};
 use crate::vault::{Keys, Namespace, OrgProblem, Organizations, unlock_organizations};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD as B64};
 use serde_json::Value;
+use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
 /// The storage key of the device identifier.
@@ -20,6 +21,8 @@ const USER_KEY_ID_LABEL: &[u8] = b"dybw user-key-id v1";
 const KDF_PIN: &str = "kdf-pin";
 /// The storage key of the highest security state version seen, decimal text (ADR 0019).
 const SECURITY_VERSION: &str = "security-version";
+/// The storage key of the identity origins acknowledged on this device, a JSON list (ADR 0018).
+const ACKNOWLEDGED_ORIGINS: &str = "acknowledged-origins";
 
 /// The names of the KDF's two sources in messages (ADR 0022).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -243,6 +246,45 @@ pub async fn accept_kdf(storage: &impl Storage, params: KdfParams, origin: &str)
 /// profile moved to another server or account, whose state is older than the one this device saw.
 pub async fn accept_security_version(storage: &impl Storage, version: u64) -> Result<(), ProfileError> {
     Ok(storage.save(SECURITY_VERSION, version.to_string().as_bytes()).await?)
+}
+
+/// The identity origins acknowledged on this device (ADR 0018). Unreadable text acknowledges nothing: it fails closed,
+/// and the next acknowledgement replaces it.
+pub async fn acknowledged_origins(storage: &impl Storage) -> Result<BTreeSet<String>, ProfileError> {
+    let raw = storage.load(ACKNOWLEDGED_ORIGINS).await?;
+    Ok(raw.and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default())
+}
+
+async fn save_acknowledged(storage: &impl Storage, origins: &BTreeSet<String>) -> Result<(), ProfileError> {
+    // A set of strings always serializes.
+    let raw = serde_json::to_vec(origins).unwrap_or_default();
+    Ok(storage.save(ACKNOWLEDGED_ORIGINS, &raw).await?)
+}
+
+/// The user's acknowledgement, on this device, that `origin`'s server or a proxy in front of it could redirect the
+/// API key (ADR 0018). Stored as `scheme://host[:port]`.
+pub async fn acknowledge_origin(storage: &impl Storage, origin: &str) -> Result<(), ProfileError> {
+    let mut origins = acknowledged_origins(storage).await?;
+    origins.insert(origin_of(origin)?);
+    save_acknowledged(storage, &origins).await
+}
+
+/// Withdraws `origin`'s acknowledgement.
+pub async fn forget_origin(storage: &impl Storage, origin: &str) -> Result<(), ProfileError> {
+    let mut origins = acknowledged_origins(storage).await?;
+    origins.remove(&origin_of(origin)?);
+    save_acknowledged(storage, &origins).await
+}
+
+/// The acknowledgements an unlock against identity `origin` uses: `origin`'s own, if any. An acknowledgement is bound to
+/// one server, so the others are dropped from storage: changing the server, then changing back, asks again.
+pub async fn acknowledged_for(storage: &impl Storage, origin: &str) -> Result<BTreeSet<String>, ProfileError> {
+    let all = acknowledged_origins(storage).await?;
+    let kept: BTreeSet<String> = all.iter().filter(|o| *o == origin).cloned().collect();
+    if kept != all {
+        save_acknowledged(storage, &kept).await?;
+    }
+    Ok(kept)
 }
 
 /// bwss `BitwardenBackend::unlock`: the API-key login and `/sync` first, then the KDF, so the password never leaves
@@ -550,5 +592,41 @@ mod tests {
         assert!(matches!(block_on(load_pin(&FailsLoad)), Err(ProfileError::Port(_))));
         block_on(FailsLoad.save("k", b"v")).unwrap();
         block_on(FailsLoad.remove("k")).unwrap();
+    }
+
+    #[test]
+    fn acknowledged_origins_round_trip_and_bind_to_one_server() {
+        let storage = MemStorage::default();
+        let set = |o: &[&str]| o.iter().map(|o| (*o).to_owned()).collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(block_on(acknowledged_origins(&storage)).unwrap(), set(&[]));
+        // Stored as an origin: a path, a trailing slash and a default port go.
+        block_on(acknowledge_origin(&storage, "https://a.example:443/identity/")).unwrap();
+        block_on(acknowledge_origin(&storage, "https://b.example")).unwrap();
+        assert_eq!(
+            block_on(storage.load("acknowledged-origins")).unwrap().unwrap(),
+            br#"["https://a.example","https://b.example"]"#
+        );
+        assert!(matches!(block_on(acknowledge_origin(&storage, "not a url")), Err(ProfileError::Api(_))));
+        block_on(forget_origin(&storage, "https://b.example/")).unwrap();
+        assert_eq!(block_on(acknowledged_origins(&storage)).unwrap(), set(&["https://a.example"]));
+
+        // The unlock of another server drops every other acknowledgement; its own stays.
+        block_on(acknowledge_origin(&storage, "https://b.example")).unwrap();
+        assert_eq!(block_on(acknowledged_for(&storage, "https://b.example")).unwrap(), set(&["https://b.example"]));
+        assert_eq!(block_on(acknowledged_origins(&storage)).unwrap(), set(&["https://b.example"]));
+        assert_eq!(block_on(acknowledged_for(&storage, "https://c.example")).unwrap(), set(&[]));
+        assert_eq!(block_on(acknowledged_origins(&storage)).unwrap(), set(&[]));
+
+        // Unreadable text acknowledges nothing (fail closed), and acknowledging again replaces it.
+        block_on(storage.save("acknowledged-origins", b"{")).unwrap();
+        assert_eq!(block_on(acknowledged_for(&storage, "https://a.example")).unwrap(), set(&[]));
+        block_on(acknowledge_origin(&storage, "https://a.example")).unwrap();
+        assert_eq!(block_on(acknowledged_origins(&storage)).unwrap(), set(&["https://a.example"]));
+
+        // Port failures surface.
+        assert!(matches!(block_on(acknowledged_origins(&FailsLoad)), Err(ProfileError::Port(_))));
+        assert!(matches!(block_on(acknowledge_origin(&Broken(None), "https://a.example")), Err(ProfileError::Port(_))));
+        let saved = Broken(Some(br#"["https://a.example"]"#.to_vec()));
+        assert!(matches!(block_on(acknowledged_for(&saved, "https://b.example")), Err(ProfileError::Port(_))));
     }
 }

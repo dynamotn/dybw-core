@@ -1,0 +1,66 @@
+{
+  "id": "read/origin/refuses-redirects",
+  "spec": "1.6",
+  "sections": [
+    "§11"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "followsRedirects": false
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.rGH2cWnT44PQdTRFdOubWw==|t152rUq0WaagqqHZuwTYxw==|cLxEXIRrYJLBvrS29kUm6ZGWrvQ/kfUoNlmD1ThucLo=",
+      "notes": null,
+      "login": {
+        "username": "2./PDJaTFWpFpDRfEYL5j7Ww==|pA38MATouwTTPz1ie5NcpA==|A8Yatnmor69aCGZxSb1YIKWvRZ1yo990k2zkcLCDyV4=",
+        "password": "2.SxEQMoJAkLae6u4FV2nhDQ==|3RKdrW8LVrBUVQ97H0J2AA==|LTGIuSoGUiehOKnvtQES6YtQMjGU0hSvlOPrHe7l2dw=",
+        "uris": [
+          {
+            "uri": "2.o3mT8kzwo0wmb9SdLwnV8w==|ibstM9oPXHe1kliI/bUSGqHeWAcanRD+YkGlDN0zWEs=|6R+GyORqfOgurI6UFycnuf/ZamCdNwiFSAwKYRqd95A=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.wlZ6MdZJawTXVrUTiqJ1HQ==|RR2EfTKMly+fYTOYsftqIg==|JNzXI+nQZDBgF+kFzuYBzZxu/q2uTC36h0wr0mH4sS8=",
+          "value": "2.MVlU7KScOElVdQaq3i+JAQ==|0RI50vmuVforTLzzoENpNg==|u9kHf3RYiLDDHHk7CjqO8iJ6RtJkvnJ5j/7oXpLw+g0=",
+          "type": 0
+        },
+        {
+          "name": "2.xPV48GYIpcR7m8u6sbMYKw==|aX2H/4v7r+L92lCtxG2hSg==|fNMk4B3XLEJ9L402iGd56UTPaP7Y4yOBoePwD2v2yDU=",
+          "value": "2.z2edThy7UuLLAJPzkTnJMA==|LlMoYCQ7KobkUknjE0Pd0g==|hSCR2fI77iklD+nCzpV5AOlj1J1lz8QkgNcu06J6Ly4=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "origin-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

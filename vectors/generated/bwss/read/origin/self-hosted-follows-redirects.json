@@ -1,0 +1,58 @@
+{
+  "id": "read/origin/self-hosted-follows-redirects",
+  "spec": "1.6",
+  "sections": [
+    "§11"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "followsRedirects": true
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.U4gFsWyeC9bCRzbt7Ma8YQ==|SWxbLEyLrhlGQK5qLhLbAg==|NjnrrY/gLSKbSNDVm10V1rXrwQe0o/0uq6CQBdSWcIg=",
+      "notes": null,
+      "login": {
+        "username": "2.0m32diOhiiCJRTAAQj4ycw==|UndzAXhRL4xPK5N3WIxJlw==|3Ne8niqOoiPifwYINgCavN+Scn7Mtq86+qaIAGLIKsk=",
+        "password": "2./2CAbqoKu3vwvXSrmMENkQ==|FsOWJfthwrtBI3421oP+9Q==|fWEbdqhwUxN76hf8zmGCxRkntxc87DK5M1qE8sdb9t8=",
+        "uris": [
+          {
+            "uri": "2.xVUgzJu+o7hALGlPDfVDOg==|Hw7U/EJpGoMO5a++FW9QOM6IaHp/rkanpNWcrAlMyn8=|09MZGfKQUeqMJiB7AqgKdqrqoIy3VD9n3TkDY9KDmBM=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.h3Eji6+XGFavr4lyilpOzw==|Pxx1qdtFUGtBrgFm4Osd5w==|TaM9oTjdocfCS5pR7qDqwBY0zakR0a0B15B/5CGXBak=",
+          "value": "2.bKDQYxcGVLmARJpL9/LVjQ==|l8fJSuOuqggZCNUQqcQ06w==|bD0zAz3BwJ6UQz5W232JAyRcJuQsYGHkUMLS2LUBN58=",
+          "type": 0
+        },
+        {
+          "name": "2.k3hiv7zNME9Pjq/6Q984aw==|F7x4W9I87t6itwisMtzi2w==|a1rEvfoHlVkbJVZ6blUQoi/EmHe5ItryGZWsy2vhr3k=",
+          "value": "2.EFP70ivs0I6OqidsGO53fw==|fSp99Ei0yHjX1dKaeERwpA==|X615dB5aPAvH+Zm/dv5wHt2ZZKB0bCJS/Xh0AxlcRlM=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "error": "origin-not-acknowledged",
+      "sent": []
+    }
+  }
+}

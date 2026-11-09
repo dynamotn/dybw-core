@@ -1,0 +1,58 @@
+{
+  "id": "read/origin/self-hosted-follows-redirects",
+  "spec": "1.6",
+  "sections": [
+    "§11"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "followsRedirects": true
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.nmjLxWkawXaLBtQrGiNhQg==|JgzZHzXL2yw5+qOrZoGKJg==|3xeFvwlWPkxFhPJRcCTySpfYi4XCiNNhPhiWDbITf88=",
+      "notes": null,
+      "login": {
+        "username": "2.AjUUpm3ZLtG3v1Z+U+VX6A==|O8B5chtnMHfGV04H5fo9Lw==|8PjP86btZMm5wvo+lL56P1Vyib+Qta/Q4MoHl3pSsos=",
+        "password": "2.UaWVIjan4S+uDLIful2bIQ==|P26e4SFCB6eiEPkbTL+kfA==|IxaVR3doHVSfXhAErrWLJ0WlKLpZsIYqGuS7SFPGE+E=",
+        "uris": [
+          {
+            "uri": "2.nSpZfYTy4Mljidp7bhtORg==|kAzDwfJWxxk9XeXadtA6yuMVp/Ne+wczRyRjkxIABx4=|U1N+gD1tXUy3fCCBotRPDn0NMsPzBxHLgHM1MK3Ps+Q=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.okV49YKq4Kde3WckugbqDg==|8KVW6tpWpoqOwmo0lhtAzQ==|Dvu8EiQN44/0bzykhi6nFFHs9+ZusakluSS7WlKwIDA=",
+          "value": "2.OspAmKOW91QnFMgMtvN+7Q==|sddnXa5k0/2sdzxu2Le3RQ==|LOP+EmoEO3SbBZzBViZDtSDvd0Q++hFHEYxV6OkFFXE=",
+          "type": 0
+        },
+        {
+          "name": "2.54cwYCcTb+CEySLXIDGA3Q==|u1qUfOubuz8uWQF+QDfynfrNSoZMks5XPHNBdm872kQ=|9ZCd5h+gr6S+xuLpZo6IKB7oEjN+UDfNGxKlraa9EgQ=",
+          "value": "2.pvLpuxUHXKcUOHcJ2sg90A==|1uyxcoxktvO5vr+DXuALdw==|WGgM30d7DV52o/ZKu3PN2QBZGF6v2QEc+Jf6vZO9MNA=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "error": "origin-not-acknowledged",
+      "sent": []
+    }
+  }
+}

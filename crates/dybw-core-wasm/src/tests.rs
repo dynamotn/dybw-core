@@ -598,7 +598,7 @@ mod session {
         assert!(block_on(s.unlock_cached("{", Zeroizing::default())).is_err());
         // The redirect-following host is refused before credentials leave.
         let out = block_on(s.unlock(&profile("pbkdf2"), Zeroizing::default(), Zeroizing::default()));
-        assert!(out.is_err_and(|e| e.code() == "api" && e.message().contains("redirect")));
+        assert!(out.is_err_and(|e| e.code() == "origin-not-acknowledged" && e.message().contains("redirect")));
 
         host.fail.set(true);
         assert_eq!(block_on(s.device_id()).map_err(message), Err("host port failed: boom".into()));
@@ -913,6 +913,37 @@ mod session {
     }
 
     #[test]
+    fn a_self_hosted_origin_needs_an_acknowledgement_when_the_host_follows_redirects() {
+        let host = host("pbkdf2", vec![]);
+        host.refuses.set(false);
+        let s = session(&host);
+        let e = unlock(&s, "pbkdf2").err();
+        assert_eq!(e.as_ref().map(Error::code), Some("origin-not-acknowledged"));
+        assert_eq!(e.as_ref().and_then(|e| e.field("origin")), Some(&json!(ORIGIN)));
+        assert!(host.http_seen.borrow().is_empty(), "no request may leave, not even /connect/token");
+
+        assert_eq!(block_on(s.acknowledged_origins()), Ok("[]".into()));
+        assert_eq!(block_on(s.acknowledge_origin("https://other.invalid")), Ok(()));
+        assert_eq!(block_on(s.acknowledge_origin(&format!("{ORIGIN}/identity"))), Ok(()));
+        let both = r#"["https://other.invalid","https://vectors.invalid"]"#;
+        assert_eq!(block_on(s.acknowledged_origins()), Ok(both.into()));
+        assert_eq!(block_on(s.acknowledge_origin("no url")).map_err(code), Err(INVALID.into()));
+        assert!(unlock(&s, "pbkdf2").is_ok(), "the acknowledged origin logs in");
+        assert!(plan(&s, &[], &[]).is_ok());
+        // The unlock dropped the other server's acknowledgement.
+        assert_eq!(block_on(s.acknowledged_origins()), Ok(format!(r#"["{ORIGIN}"]"#)));
+
+        assert_eq!(block_on(s.forget_origin(ORIGIN)), Ok(()));
+        assert_eq!(block_on(s.acknowledged_origins()), Ok("[]".into()));
+        assert_eq!(unlock(&s, "pbkdf2").map_err(code), Err("origin-not-acknowledged".into()));
+
+        host.fail.set(true);
+        assert_eq!(block_on(s.acknowledged_origins()).map_err(code), Err("port".into()));
+        assert_eq!(block_on(s.acknowledge_origin(ORIGIN)).map_err(code), Err("port".into()));
+        assert_eq!(block_on(s.forget_origin(ORIGIN)).map_err(code), Err("port".into()));
+    }
+
+    #[test]
     fn a_rejection_reaches_js_as_json() {
         let host = host("pbkdf2", vec![]);
         let e = block_on(session(&host).plan_pass("{}", vec![], vec![])).err().map(String::from);
@@ -1014,6 +1045,8 @@ mod session {
         }
         assert_eq!(api(ApiError::Invalid("i".into())), INVALID);
         assert_eq!(api(ApiError::WrongOrigin), "wrong-origin");
+        let refused = Error::from(ApiError::OriginNotAcknowledged { origin: "https://o".into() });
+        assert_eq!((refused.code(), refused.field("origin")), ("origin-not-acknowledged", Some(&json!("https://o"))));
         assert_eq!(Error::from(ApiError::TooLarge).field("status"), None);
 
         let crypto = |e: CryptoError| Error::from(ProfileError::Crypto(e)).code().to_owned();

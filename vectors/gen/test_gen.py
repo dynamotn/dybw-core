@@ -135,6 +135,15 @@ def test_source_schema_accepts_later_shapes():
         check(src, SOURCE_SCHEMA)
 
 
+def test_source_schema_accepts_acknowledged_origins():
+    """ADR 0018: the host may follow redirects, and a refused read lists the requests sent (none)."""
+    options = {"server": "cloud", "followsRedirects": True, "acknowledged": ["https://vectors.invalid"]}
+    check(with_expect({"read": {"error": "origin-not-acknowledged", "sent": []}}, options=options), SOURCE_SCHEMA)
+    rejects(with_expect({"read": {"error": "origin-not-acknowledged"}}))
+    rejects(with_expect({"read": {"error": "wrong-origin", "sent": []}}))
+    rejects(with_expect({"read": {"items": [], "skipped": [], "uninspectable": []}}, options={"server": "eu"}))
+
+
 def with_expect(expect: dict, **extra) -> dict:
     return {**MINIMAL, **extra, "expect": expect}
 

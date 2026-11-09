@@ -1,0 +1,67 @@
+{
+  "id": "read/origin/cloud-follows-redirects",
+  "spec": "1.6",
+  "sections": [
+    "§11"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "server": "cloud",
+    "followsRedirects": true
+  },
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.xBvzWa+/of01Br1sh2cYOg==|huslW/jjv97M/e3nBLxRmQ==|DNK4jbLdY+PZ5jIDYLqtVKEB7POqzLb+ryFj0r8yPYU=",
+      "notes": null,
+      "login": {
+        "username": "2.jBz7Ngs19xt76yAJWEJYHQ==|dzVJjlm7aER+WwNTE55D3A==|3wFhWUlwBHAn3uxNl6Ervh9sCrn4TzU/nyNinPxgcLY=",
+        "password": "2.7MR3sDq3FZ3/rGNbU1xsew==|4Sf0Anpx7QfWuSIAtyAO6A==|iEqDcGpKajE2nWaWpRsZvxpnV9Ky8jF5f8oSmr3wnQM=",
+        "uris": [
+          {
+            "uri": "2.0n25fPoAB70+ghuHYZIpaA==|ZQyajlLdRtpkIvHOd6S0KQjiSth8QCQ9Q0zgMYU7NTo=|FAwLGJDYb8pHdprrqmy4N7xsEPIjouLDMzFdJ25Zsm0=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.cQM3O4xtDFJ/Tj5MGH75vw==|dglRtgch+ZFahPaRxviNeQ==|/GDJ7AMTz90tc48/yNO9rCeUygUiWUnIBGVn2MPUeRM=",
+          "value": "2.Bz4oFK6NfZWu8Yt/ZlyGDw==|Ap6sfxo/Fy7mAZgjNrd7NQ==|qQKyoyhseFyevVnWwsjbOI1FfpdzRdSxlVg/OVEHILI=",
+          "type": 0
+        },
+        {
+          "name": "2.gUrFMOWktvMyi9c7Qo3mYA==|lcLha7p9npv96sQ9fUIqQg==|8XfJs0kyQabCd6q7B8zC/xcOiGEPiDznM7OnIQersLg=",
+          "value": "2.v6e5VFD5AcIkBmpnyU18Pg==|aUbls0r3NAPy5Vfndw0dTA==|qz+LLc5iUp0ZEYTAOiKWbhu83iaTv7R2XQ8V0U5Ghuw=",
+          "type": 1
+        }
+      ],
+      "passwordHistory": [],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "expect": {
+    "read": {
+      "items": [
+        {
+          "cipher": "c1",
+          "id": "alpha",
+          "value": "origin-secret",
+          "source": "field"
+        }
+      ],
+      "skipped": [],
+      "uninspectable": []
+    }
+  }
+}

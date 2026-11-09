@@ -10,6 +10,7 @@
 //! | `kdf-pin-unreadable` | |
 //! | `security-downgrade` | `seen`, `offered` (versions) |
 //! | `security-state` | `fault` (`"missing"`, `"invalid"` or `"stored-unreadable"`) |
+//! | `origin-not-acknowledged` | `origin` (identity origin, for `acknowledgeOrigin`) |
 //! | `wrong-origin` | |
 //! | `mass-clear` | `clears`, `base` (counts) |
 //! | `api` | `status`, only for an HTTP error |
@@ -34,6 +35,7 @@ pub const KDF_WEAKENED: &str = "kdf-weakened";
 pub const KDF_PIN_UNREADABLE: &str = "kdf-pin-unreadable";
 pub const SECURITY_DOWNGRADE: &str = "security-downgrade";
 pub const SECURITY_STATE: &str = "security-state";
+pub const ORIGIN_NOT_ACKNOWLEDGED: &str = "origin-not-acknowledged";
 pub const WRONG_ORIGIN: &str = "wrong-origin";
 pub const MASS_CLEAR: &str = "mass-clear";
 pub const API: &str = "api";
@@ -106,6 +108,9 @@ impl From<ApiError> for Error {
     fn from(e: ApiError) -> Self {
         match e {
             ApiError::Http { status, .. } => Error::new(API, &e).with("status", status),
+            ApiError::OriginNotAcknowledged { ref origin } => {
+                Error::new(ORIGIN_NOT_ACKNOWLEDGED, &e).with("origin", origin.as_str())
+            }
             ApiError::WrongOrigin => Error::new(WRONG_ORIGIN, e),
             ApiError::Invalid(_) => Error::invalid(e),
             _ => Error::new(API, e),

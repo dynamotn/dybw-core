@@ -81,6 +81,23 @@ test("a session unlocks, plans and syncs a local value, and locks", async () => 
   expect(drawn.every((d) => d.every((b) => b === 0)), "every random array is wiped once copied").toBe(true);
 });
 
+test("a host that follows redirects sends nothing to a self-hosted origin until it is acknowledged (ADR 0018)", async () => {
+  const { ports: base, requests } = ports();
+  const s = new WasmSession({ ...base, refusesRedirects: () => false }, "obsidian");
+  const refused = await s.unlock(profile(cose), "vectors", cose.password).catch((e: unknown) => JSON.parse(String(e)));
+  expect(refused).toMatchObject({ code: "origin-not-acknowledged", origin: "https://vectors.invalid" });
+  expect(requests, "no request left, not even /connect/token").toEqual([]);
+
+  await s.acknowledgeOrigin("https://vectors.invalid");
+  expect(JSON.parse(await s.acknowledgedOrigins())).toEqual(["https://vectors.invalid"]);
+  await s.unlock(profile(cose), "vectors", cose.password);
+  expect(requests[0]).toBe("POST /identity/connect/token");
+
+  await s.forgetOrigin("https://vectors.invalid");
+  expect(JSON.parse(await s.acknowledgedOrigins())).toEqual([]);
+  s.lock();
+});
+
 test("the hub runs until lock, and its promise settles", async () => {
   const { ports: p, counts } = ports();
   const s = new WasmSession(p, "obsidian");

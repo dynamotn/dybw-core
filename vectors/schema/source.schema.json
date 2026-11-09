@@ -687,6 +687,21 @@
         },
         "acceptRollback": {
           "type": "boolean"
+        },
+        "server": {
+          "enum": [
+            "self-hosted",
+            "cloud"
+          ]
+        },
+        "followsRedirects": {
+          "type": "boolean"
+        },
+        "acknowledged": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
@@ -787,120 +802,145 @@
       "type": "object",
       "properties": {
         "read": {
-          "type": "object",
-          "properties": {
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "cipher": {
-                    "type": "string"
-                  },
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9-]+$"
-                  },
-                  "value": {
-                    "type": "string"
-                  },
-                  "source": {
-                    "enum": [
-                      "field",
-                      "notes",
-                      "login-password",
-                      "note-body"
-                    ]
-                  },
-                  "attributes": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
                     "type": "object",
-                    "additionalProperties": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "cipher",
-                  "id",
-                  "value",
-                  "source"
-                ]
-              }
-            },
-            "skipped": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "cipher": {
-                    "type": "string"
-                  },
-                  "reason": {
-                    "enum": [
-                      "wrong-type",
-                      "encoding-on-user-source",
-                      "unknown-location",
-                      "unknown-encoding",
-                      "invalid-id",
-                      "reserved-id",
-                      "view-password-hidden",
-                      "organizations-off",
-                      "undecryptable",
-                      "newer-format",
-                      "invalid-base64"
+                    "properties": {
+                      "cipher": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "enum": [
+                          "field",
+                          "notes",
+                          "login-password",
+                          "note-body"
+                        ]
+                      },
+                      "attributes": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "cipher",
+                      "id",
+                      "value",
+                      "source"
                     ]
                   }
                 },
-                "additionalProperties": false,
-                "required": [
-                  "cipher",
-                  "reason"
-                ]
-              }
-            },
-            "uninspectable": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "duplicates": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9-]+$"
-                  },
-                  "kept": {
-                    "type": "string"
-                  },
-                  "left": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "boundKept": {
-                    "type": "boolean"
+                "skipped": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "cipher": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "enum": [
+                          "wrong-type",
+                          "encoding-on-user-source",
+                          "unknown-location",
+                          "unknown-encoding",
+                          "invalid-id",
+                          "reserved-id",
+                          "view-password-hidden",
+                          "organizations-off",
+                          "undecryptable",
+                          "newer-format",
+                          "invalid-base64"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "cipher",
+                      "reason"
+                    ]
                   }
                 },
-                "additionalProperties": false,
-                "required": [
-                  "id",
-                  "kept",
-                  "left"
-                ]
-              }
+                "uninspectable": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "duplicates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                      },
+                      "kept": {
+                        "type": "string"
+                      },
+                      "left": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "boundKept": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "kept",
+                      "left"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "items",
+                "skipped",
+                "uninspectable"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "enum": [
+                    "origin-not-acknowledged"
+                  ]
+                },
+                "sent": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "error",
+                "sent"
+              ]
             }
-          },
-          "additionalProperties": false,
-          "required": [
-            "items",
-            "skipped",
-            "uninspectable"
           ]
         },
         "write": {

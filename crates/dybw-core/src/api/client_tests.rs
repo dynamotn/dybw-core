@@ -4,7 +4,7 @@ use crate::ports::{HttpResponse, PortError};
 use crate::testing::block_on;
 use serde_json::json;
 use std::cell::{Cell, RefCell};
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 use std::rc::Rc;
 
 type Sent = Rc<RefCell<Vec<HttpRequest>>>;
@@ -49,11 +49,14 @@ type Seen = (Method, String, Vec<(String, String)>, Option<Vec<u8>>);
 
 impl Rig {
     fn new() -> Self {
+        Rig::at("https://bw.example.org")
+    }
+    fn at(server: &str) -> Self {
         let sent = Sent::default();
         let replies = Replies::default();
         let (now, refuses) = (Rc::new(Cell::new(1_000_000)), Rc::new(Cell::new(true)));
         let fake = Fake { sent: sent.clone(), replies: replies.clone(), refuses: refuses.clone() };
-        let urls = resolve_server_urls("https://bw.example.org").unwrap();
+        let urls = resolve_server_urls(server).unwrap();
         let client = Client::new(fake, TestClock(now.clone()), urls, device()).unwrap();
         Rig { client, sent, replies, now, refuses }
     }
@@ -523,26 +526,69 @@ fn a_failed_renewal_surfaces_and_sends_nothing_else() {
 }
 
 #[test]
-fn credentials_never_go_through_a_client_that_follows_redirects() {
+fn credentials_go_through_a_client_that_follows_redirects_only_to_cloud_or_an_acknowledged_origin() {
+    let refused =
+        |e: &ApiError| matches!(e, ApiError::OriginNotAcknowledged { origin } if origin == "https://bw.example.org");
     let mut rig = Rig::new();
     rig.refuses.set(false);
     let e = block_on(rig.client.login(&key())).unwrap_err();
-    assert!(matches!(e, ApiError::RedirectsNotRefused) && !e.is_transient() && !e.to_string().is_empty());
-    assert!(rig.sent.borrow().is_empty());
+    assert!(refused(&e) && !e.is_transient(), "{e:?}");
+    assert!(e.to_string().contains("https://bw.example.org"), "{e}");
+    assert!(rig.sent.borrow().is_empty(), "nothing is sent, not even /connect/token");
 
+    // The bearer token: a session logged in before is refused on every call, and nothing is sent.
     rig.refuses.set(true);
     rig.synced();
     let before = rig.sent.borrow().len();
     rig.refuses.set(false);
     let c = &mut rig.client;
-    assert!(matches!(block_on(c.sync()), Err(ApiError::RedirectsNotRefused)));
-    assert!(matches!(block_on(c.get_cipher("x")), Err(ApiError::RedirectsNotRefused)));
-    assert!(matches!(block_on(c.create_cipher(Map::new())), Err(ApiError::RedirectsNotRefused)));
-    assert!(matches!(block_on(c.update_cipher("x", Map::new())), Err(ApiError::RedirectsNotRefused)));
-    assert!(matches!(block_on(c.trash_cipher("x")), Err(ApiError::RedirectsNotRefused)));
-    assert!(matches!(block_on(c.create_folder("x")), Err(ApiError::RedirectsNotRefused)));
-    assert!(matches!(block_on(c.revision_date()), Err(ApiError::RedirectsNotRefused)));
+    assert!(refused(&block_on(c.sync()).unwrap_err()));
+    assert!(refused(&block_on(c.get_cipher("x")).unwrap_err()));
+    assert!(refused(&block_on(c.create_cipher(Map::new())).unwrap_err()));
+    assert!(refused(&block_on(c.update_cipher("x", Map::new())).unwrap_err()));
+    assert!(refused(&block_on(c.trash_cipher("x")).unwrap_err()));
+    assert!(refused(&block_on(c.create_folder("x")).unwrap_err()));
+    assert!(refused(&block_on(c.revision_date()).unwrap_err()));
     assert_eq!(rig.sent.borrow().len(), before);
+
+    // Acknowledged on this device: the login and the bearer calls go out.
+    let mut rig = Rig::new();
+    rig.refuses.set(false);
+    rig.client = rig.client.with_acknowledged(BTreeSet::from(["https://other.example.org".to_owned()]));
+    assert!(refused(&block_on(rig.client.login(&key())).unwrap_err()), "another origin's acknowledgement");
+    rig.client = rig.client.with_acknowledged(BTreeSet::from(["https://bw.example.org".to_owned()]));
+    rig.synced();
+    rig.reply(200, "1");
+    block_on(rig.client.revision_date()).unwrap();
+
+    // Bitwarden cloud, US and EU: always.
+    for (server, tld) in [("https://vault.bitwarden.com", "com"), ("https://vault.bitwarden.eu", "eu")] {
+        let mut rig = Rig::at(server);
+        rig.refuses.set(false);
+        let key = ApiKey { origin: format!("https://identity.bitwarden.{tld}"), ..key() };
+        rig.reply(200, r#"{"access_token":"tok","expires_in":3600}"#);
+        block_on(rig.client.login(&key)).unwrap();
+        rig.reply(200, SYNC);
+        block_on(rig.client.sync()).unwrap();
+        assert_eq!(rig.sent.borrow()[0].url, format!("https://identity.bitwarden.{tld}/connect/token"));
+    }
+}
+
+#[test]
+fn the_cloud_identity_origins_are_what_resolve_server_urls_maps() {
+    let servers =
+        ["https://vault.bitwarden.com", "https://bitwarden.com", "https://vault.bitwarden.eu", "https://bitwarden.eu"];
+    let cloud: BTreeSet<String> =
+        servers.iter().map(|s| origin_of(&resolve_server_urls(s).unwrap().identity).unwrap()).collect();
+    assert_eq!(cloud, CLOUD_IDENTITY_ORIGINS.iter().map(|o| (*o).to_owned()).collect());
+}
+
+#[test]
+fn a_client_that_refuses_redirects_sends_to_any_origin() {
+    // bwss: unchanged by ADR 0018's acknowledgements.
+    let mut rig = Rig::new();
+    rig.synced();
+    assert_eq!(rig.sent.borrow()[0].url, "https://bw.example.org/identity/connect/token");
 }
 
 #[test]

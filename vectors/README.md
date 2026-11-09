@@ -28,7 +28,7 @@ One JSON object per file.
 | `sections` | `["§5", ...]` | The sections of the data model the scenario tests (at least one) |
 | `account` | string | Name of a fixed account in `vectors/accounts/` |
 | `namespaces` | subset of `["bwss", "obsidian"]` | The scenario applies to each one listed. In field names and values, `{ns}` stands for the namespace |
-| `options` | object | `organizations` (bool, default `false`), `policy` (`"ask"` default, `"prefer-remote"`, `"prefer-local"`) |
+| `options` | object | `organizations` (bool, default `false`), `policy` (`"ask"` default, `"prefer-remote"`, `"prefer-local"`); for ADR 0018, `server` (`"self-hosted"` default, `https://vectors.invalid`; `"cloud"`, Bitwarden cloud US), `followsRedirects` (bool, default `false`: the host's HTTP follows redirects) and `acknowledged` (identity origins acknowledged on the device, default none) |
 | `ciphers` | array | Plaintext ciphers, below |
 | `device` | object, optional | The device's sync state, below |
 | `local` | object, optional | `{ id: string \| null }`: the device's local values. An absent id and `null` both mean no local value; `""` is a value. Sync scenarios still write `null` for every id they plan for |
@@ -132,7 +132,11 @@ change to `fresh`.
 
 ### `expect`
 
-- `read`: `{ items, skipped, uninspectable, duplicates? }`.
+- `read`: `{ items, skipped, uninspectable, duplicates? }`, or
+  `{ "error": "origin-not-acknowledged", "sent": [] }` for a read refused before
+  any request (ADR 0018: a host that follows redirects, a self-hosted identity
+  origin not acknowledged). `sent` lists each request the fake server received,
+  as `METHOD /path`.
   - `items`: `[{ cipher, id, value, source }]`, sorted by `id`, with `source`
     one of `field`, `notes`, `login-password`, `note-body`. `value` is the
     decoded secret, under these rules:

@@ -4,6 +4,7 @@
 use crate::crypto::KdfParams;
 use crate::ports::{Clock, Http, HttpRequest, Method};
 use serde_json::{Map, Value, json};
+use std::collections::BTreeSet;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -12,6 +13,10 @@ pub const MAX_BODY: usize = 256 * 1024 * 1024;
 
 /// Largest response body read from any endpoint but `/sync` (ADR 0019).
 pub const MAX_RESPONSE: usize = 16 * 1024 * 1024;
+
+/// The Bitwarden cloud identity origins, US and EU, as `resolve_server_urls` maps them: credentials go there even
+/// through a client that follows redirects (ADR 0018).
+pub const CLOUD_IDENTITY_ORIGINS: [&str; 2] = ["https://identity.bitwarden.com", "https://identity.bitwarden.eu"];
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
@@ -24,9 +29,17 @@ pub enum ApiError {
     /// A rejected input (server URL, device info); the text is shown as it is.
     #[error("{0}")]
     Invalid(String),
-    /// The HTTP adapter would follow a redirect, which could carry the API key or token to another host.
+    /// The HTTP adapter would follow a redirect, which could carry the API key or token to another host. No longer
+    /// raised by [`Client`], which answers [`ApiError::OriginNotAcknowledged`] (ADR 0018); kept for hosts' matches.
     #[error("the HTTP client follows redirects; refusing to send credentials")]
     RedirectsNotRefused,
+    /// The HTTP adapter follows redirects and the identity origin is neither Bitwarden cloud nor acknowledged on this
+    /// device (ADR 0018): nothing was sent.
+    #[error(
+        "this app cannot stop a redirect: {origin}, or a proxy in front of it, could redirect the API key elsewhere; \
+         acknowledge that risk on this device to use this server"
+    )]
+    OriginNotAcknowledged { origin: String },
     #[error("not logged in")]
     NotLoggedIn,
     #[error("the response is larger than the limit")]
@@ -192,6 +205,8 @@ pub struct Client<H: Http, C: Clock> {
     body_limit: usize,
     /// `MAX_RESPONSE`, for every other response; tests lower it.
     response_limit: usize,
+    /// Identity origins the user acknowledged on this device (ADR 0018).
+    acknowledged: BTreeSet<String>,
 }
 
 impl<H: Http, C: Clock> Client<H, C> {
@@ -210,7 +225,30 @@ impl<H: Http, C: Clock> Client<H, C> {
             user_id: None,
             body_limit: MAX_BODY,
             response_limit: MAX_RESPONSE,
+            acknowledged: BTreeSet::new(),
         })
+    }
+
+    /// The identity origins the user acknowledged on this device: through an HTTP client that follows redirects,
+    /// credentials go only to Bitwarden cloud or to one of these (ADR 0018). A client that refuses redirects ignores
+    /// them.
+    pub fn with_acknowledged(mut self, origins: BTreeSet<String>) -> Self {
+        self.acknowledged = origins;
+        self
+    }
+
+    /// ADR 0018: credentials go out through a client that refuses redirects, or to Bitwarden cloud, or to an
+    /// identity origin acknowledged on this device.
+    fn may_send_credentials(&self) -> Result<(), ApiError> {
+        if self.http.refuses_redirects() {
+            return Ok(());
+        }
+        let origin = origin_of(&self.urls.identity)?;
+        if CLOUD_IDENTITY_ORIGINS.contains(&origin.as_str()) || self.acknowledged.contains(&origin) {
+            Ok(())
+        } else {
+            Err(ApiError::OriginNotAcknowledged { origin })
+        }
     }
 
     /// The client's clock, in Unix milliseconds.
@@ -224,12 +262,10 @@ impl<H: Http, C: Clock> Client<H, C> {
         Some(s.token.as_str())
     }
 
-    /// Refuses to send credentials through a client that follows redirects, then renews a token that is
-    /// within a minute of expiry with the stored API key.
+    /// Refuses to send the bearer token where ADR 0018 forbids it, then renews a token that is within a minute of
+    /// expiry with the stored API key.
     async fn ensure_login(&mut self) -> Result<(), ApiError> {
-        if !self.http.refuses_redirects() {
-            return Err(ApiError::RedirectsNotRefused);
-        }
+        self.may_send_credentials()?;
         let s = self.session.as_ref().ok_or(ApiError::NotLoggedIn)?;
         if self.clock.now_ms() >= s.renew_at_ms {
             let key = ApiKey {
@@ -310,14 +346,13 @@ impl<H: Http, C: Clock> Client<H, C> {
 
     /// Logs in with a personal API key. It authenticates only; decrypting still needs the master password.
     ///
-    /// The key is bound to the identity origin it was entered for: another origin is refused before any request.
+    /// The key is bound to the identity origin it was entered for: another origin is refused before any request, and
+    /// so is an origin ADR 0018 forbids (`OriginNotAcknowledged`).
     pub async fn login(&mut self, key: &ApiKey) -> Result<(), ApiError> {
         if key.origin != origin_of(&self.urls.identity)? {
             return Err(ApiError::WrongOrigin);
         }
-        if !self.http.refuses_redirects() {
-            return Err(ApiError::RedirectsNotRefused);
-        }
+        self.may_send_credentials()?;
         let body = token_form(key, &self.device);
         let headers = vec![("Content-Type".to_owned(), "application/x-www-form-urlencoded; charset=utf-8".to_owned())];
         let url = format!("{}/connect/token", self.urls.identity);
@@ -390,7 +425,7 @@ impl<H: Http, C: Clock> Client<H, C> {
     }
 
     pub async fn create_cipher(&mut self, body: Map<String, Value>) -> Result<Value, ApiError> {
-        // Before `with_owner`, which runs before `authed`: a missing login or a redirect-following client is
+        // Before `with_owner`, which runs before `authed`: a missing login or an origin ADR 0018 forbids is
         // reported ahead of `NotSynced`.
         self.ensure_login().await?;
         self.authed(Method::Post, "/ciphers", Some(self.with_owner(body)?)).await

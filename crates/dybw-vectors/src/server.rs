@@ -9,6 +9,12 @@ use std::rc::Rc;
 use zeroize::Zeroizing;
 
 pub const SERVER: &str = "https://vectors.invalid";
+/// The vault URL of a scenario whose server is Bitwarden cloud: the same fake server answers its identity and API
+/// hosts (ADR 0018).
+pub const CLOUD: &str = "https://vault.bitwarden.com";
+/// Each cloud host, and the path prefix it stands for on `SERVER`.
+const CLOUD_HOSTS: [(&str, &str); 2] =
+    [("https://identity.bitwarden.com", "/identity"), ("https://api.bitwarden.com", "/api")];
 /// What the server answers to every write (README "Delete": the `PUT` body as sent, plus `id` and this date).
 pub const SERVER_REVISION: &str = "2026-12-01T00:00:00.000Z";
 const OUT_OF_DATE: &str = "The client copy of this cipher is out of date. Resubmit with the current revision date.";
@@ -38,6 +44,10 @@ pub struct VectorServer {
     pub rejected: Rc<Cell<u32>>,
     /// The cipher served after the next update is rejected as out of date (data model §6.5).
     pub fresh: Rc<RefCell<Option<Value>>>,
+    /// `METHOD /path` of every request, in order.
+    pub requests: Rc<RefCell<Vec<String>>>,
+    /// Answers `refuses_redirects` with `false` (ADR 0018).
+    pub follows_redirects: bool,
 }
 
 fn json_response(status: u16, body: &Value) -> Result<HttpResponse, PortError> {
@@ -57,6 +67,8 @@ impl VectorServer {
             sent: Rc::default(),
             rejected: Rc::default(),
             fresh: Rc::default(),
+            requests: Rc::default(),
+            follows_redirects: false,
         }
     }
 
@@ -86,12 +98,19 @@ fn reply(mut body: Value, id: &str) -> Value {
 
 impl Http for VectorServer {
     fn refuses_redirects(&self) -> bool {
-        true
+        !self.follows_redirects
     }
 
     async fn send(&self, req: HttpRequest) -> Result<HttpResponse, PortError> {
-        let rest = req.url.strip_prefix(SERVER).unwrap_or(&req.url);
+        let cloud = CLOUD_HOSTS.iter().find_map(|(host, at)| req.url.strip_prefix(host).map(|r| format!("{at}{r}")));
+        let rest = cloud.as_deref().or_else(|| req.url.strip_prefix(SERVER)).unwrap_or(&req.url);
         let path = rest.split(['?', '#']).next().unwrap_or(rest);
+        let method = match req.method {
+            Method::Get => "GET",
+            Method::Post => "POST",
+            Method::Put => "PUT",
+        };
+        self.requests.borrow_mut().push(format!("{method} {path}"));
         let body = || -> Result<Value, PortError> {
             let raw = req.body.as_deref().map_or(&[][..], Vec::as_slice);
             serde_json::from_slice(raw).map_err(|_| PortError("request body is not JSON".into()))

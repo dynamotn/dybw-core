@@ -294,6 +294,18 @@ impl WasmSession {
     pub async fn accept_security_version(&self, version: u64) -> Result<(), String> {
         Ok(self.0.accept_security_version(version).await?)
     }
+    #[wasm_bindgen(js_name = acknowledgeOrigin)]
+    pub async fn acknowledge_origin(&self, origin: &str) -> Result<(), String> {
+        Ok(self.0.acknowledge_origin(origin).await?)
+    }
+    #[wasm_bindgen(js_name = forgetOrigin)]
+    pub async fn forget_origin(&self, origin: &str) -> Result<(), String> {
+        Ok(self.0.forget_origin(origin).await?)
+    }
+    #[wasm_bindgen(js_name = acknowledgedOrigins)]
+    pub async fn acknowledged_origins(&self) -> Result<String, String> {
+        Ok(self.0.acknowledged_origins().await?)
+    }
     #[wasm_bindgen(js_name = planPass)]
     pub async fn plan_pass(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
         Ok(self.0.plan_pass(options, ids, values).await?)
