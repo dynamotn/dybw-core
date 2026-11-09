@@ -87,7 +87,16 @@ WASM_OPT=/path/to/wasm-opt DYBATPHO_DIR=/path/to/dybatpho \
 The first build, without features, goes to `target-wasm/pkg`: it is the module
 the plugin ships and the one the size gate measures. The second adds the
 vectors runner for the harness. Each build runs `wasm-opt -Oz`, refuses glue
-with Node-only or eval-like code, and prints the size report.
+with Node-only or eval-like code, and prints the size report. It remaps the
+repository, the cargo registry sources and the rustc sysroot, so the module
+holds no absolute build path.
+
+A panic traps the instance but leaves it callable with its memory, keys
+included. On any trap the plugin calls `lock()` on every live `WasmSession`,
+each in its own try/catch, which wipes the keys, then reloads itself (or loads
+a fresh glue module): the glue caches its instance, so calling its init again
+is no recovery. The buffers of the call that trapped are not wiped; they stay
+in the dead instance's memory until it is dropped.
 
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit:
@@ -129,5 +138,11 @@ cargo +nightly-2026-10-01 llvm-cov --branch --workspace --all-features --locked 
 ```
 
 CI runs on GitHub Actions (`.github/workflows/ci.yml`); `.gitlab-ci.yml` is
-kept for when GitLab minutes return. Its `wasm-vectors` job runs the two WASM
-builds and the harness above, and writes the size report to the run summary.
+kept for when GitLab minutes return. Both have a `wasm-vectors` job that runs
+the two WASM builds and the harness above; only the GitHub job writes the size
+report to the run summary. Both `wasm` jobs also run clippy for the wasm32
+target, the only build that compiles `bindings.rs`:
+
+```bash
+cargo clippy -p dybw-core-wasm --target wasm32-unknown-unknown --all-features --locked -- -D warnings
+```

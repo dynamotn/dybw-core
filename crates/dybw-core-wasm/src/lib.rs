@@ -3,6 +3,9 @@
 //!
 //! Size budget: the module built without `vectors` (`scripts/build-wasm.sh`, `wasm-opt -Oz`), as base64, plus its
 //! glue after esbuild minify must stay within 1 179 648 bytes (1.125 MiB); `js/test/size.test.ts` enforces it.
+//!
+//! Panics (D15): a panic traps the instance, which stays callable with its keys; the host locks every live session,
+//! then reloads (the `init` export in bindings.rs has the steps and the accepted residue).
 #![forbid(unsafe_code)]
 
 #[cfg(target_arch = "wasm32")]
