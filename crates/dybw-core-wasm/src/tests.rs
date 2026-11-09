@@ -1,4 +1,4 @@
-use crate::host::{Host, RecvFuture};
+use crate::host::{Host, RSA_KEY_ERROR, RecvFuture};
 use crate::ports::Ports;
 use dybw_core::ports::{
     Argon2Input, Clock, EventSocket, Events, Frame, Http, HttpRequest, KdfRunner, Method, OaepHash, Random, RsaOaep,
@@ -70,12 +70,13 @@ impl Host for MockHost {
         &self,
         method: &str,
         url: &str,
-        headers: Vec<(String, String)>,
-        body: Option<Vec<u8>>,
-    ) -> Result<(u16, Vec<u8>), String> {
+        headers: &[(String, String)],
+        body: Option<&[u8]>,
+    ) -> Result<(u16, Zeroizing<Vec<u8>>), String> {
         self.check()?;
-        self.http_seen.borrow_mut().push((method.into(), url.into(), headers, body));
-        Ok(self.http_answer.borrow().clone())
+        self.http_seen.borrow_mut().push((method.into(), url.into(), headers.to_vec(), body.map(<[u8]>::to_vec)));
+        let (status, body) = self.http_answer.borrow().clone();
+        Ok((status, Zeroizing::new(body)))
     }
     async fn storage_load(&self, key: &str) -> Result<Option<Vec<u8>>, String> {
         self.check()?;
@@ -91,9 +92,9 @@ impl Host for MockHost {
         self.store.borrow_mut().remove(key);
         Ok(())
     }
-    async fn secret_load(&self, key: &str) -> Result<Option<String>, String> {
+    async fn secret_load(&self, key: &str) -> Result<Option<Zeroizing<String>>, String> {
         self.check()?;
-        Ok(self.secrets.borrow().get(key).cloned())
+        Ok(self.secrets.borrow().get(key).cloned().map(Zeroizing::new))
     }
     async fn secret_save(&self, key: &str, value: &str) -> Result<(), String> {
         self.check()?;
@@ -107,19 +108,24 @@ impl Host for MockHost {
     }
     async fn argon2id(
         &self,
-        password: Vec<u8>,
-        salt: [u8; 32],
+        password: &[u8],
+        salt: &[u8; 32],
         iterations: u32,
         memory_kib: u32,
         parallelism: u32,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Zeroizing<Vec<u8>>, String> {
         self.check()?;
-        self.kdf_seen.borrow_mut().push((password, salt, iterations, memory_kib, parallelism));
-        Ok(vec![9; self.kdf_len.get()])
+        self.kdf_seen.borrow_mut().push((password.into(), *salt, iterations, memory_kib, parallelism));
+        Ok(Zeroizing::new(vec![9; self.kdf_len.get()]))
     }
-    async fn rsa_oaep_decrypt(&self, pkcs8: &[u8], hash: &str, ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+    async fn rsa_oaep_decrypt(
+        &self,
+        pkcs8: &[u8],
+        hash: &str,
+        ciphertext: &[u8],
+    ) -> Result<Zeroizing<Vec<u8>>, String> {
         self.rsa_seen.borrow_mut().push((pkcs8.into(), hash.into(), ciphertext.into()));
-        self.rsa_error.borrow().clone().map_or(Ok(b"plain".to_vec()), Err)
+        self.rsa_error.borrow().clone().map_or(Ok(Zeroizing::new(b"plain".to_vec())), Err)
     }
     async fn socket_open(&self, url: &str) -> Result<u32, String> {
         self.check()?;
@@ -220,7 +226,7 @@ fn rsa_maps_hash_names_and_error_texts() {
     assert_eq!(hashes, ["SHA-1", "SHA-256"]);
     assert_eq!(p.0.rsa_seen.borrow().first(), Some(&(b"key".to_vec(), "SHA-1".into(), b"ct".to_vec())));
 
-    *p.0.rsa_error.borrow_mut() = Some("key".into());
+    *p.0.rsa_error.borrow_mut() = Some(RSA_KEY_ERROR.into());
     assert_eq!(err(block_on(p.decrypt(b"k", OaepHash::Sha1, b"c"))), "the account's private key cannot be read");
     *p.0.rsa_error.borrow_mut() = Some("OperationError: secret detail".into());
     assert_eq!(err(block_on(p.decrypt(b"k", OaepHash::Sha1, b"c"))), "organization key decryption failed");
@@ -312,4 +318,17 @@ fn clock_and_sleep_forward() {
     assert_eq!(*p.0.slept.borrow(), [250]);
     p.0.log("hello");
     assert_eq!(*p.0.logged.borrow(), ["hello"]);
+}
+
+#[test]
+fn a_dropped_socket_is_closed() {
+    let p = ports();
+    drop(block_on(p.connect("wss://h")));
+    assert_eq!(*p.0.closed.borrow(), [7]);
+
+    let mut socket = block_on(p.connect("wss://hh")).ok().unwrap_or_else(|| unreachable!());
+    block_on(socket.close());
+    block_on(socket.close());
+    drop(socket);
+    assert_eq!(*p.0.closed.borrow(), [7, 8], "closed once");
 }
