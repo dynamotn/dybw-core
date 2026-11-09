@@ -1498,6 +1498,26 @@ fn a_create_reply_without_an_id_is_an_error() {
 }
 
 #[test]
+fn a_scope_applies_as_the_plugin_decides() {
+    for (raw, want) in [
+        (None, true),
+        (Some(" "), true),
+        (Some(" global "), true),
+        (Some("vault:Notes"), true),
+        (Some("vault:Other"), false),
+        (Some("device:d1"), true),
+        (Some("device:d2"), false),
+        // What the plugin cannot parse it skips.
+        (Some("vault:"), false),
+        (Some("device:"), false),
+        (Some("Global"), false),
+        (Some("planet:mars"), false),
+    ] {
+        assert_eq!(scope_applies(raw, "Notes", "d1"), want, "{raw:?}");
+    }
+}
+
+#[test]
 fn scopes_are_read_as_the_plugin_parses_them() {
     for (raw, want) in [
         (None, "global"),
@@ -1518,6 +1538,24 @@ fn scopes_are_read_as_the_plugin_parses_them() {
     }
 }
 
+/// The ids and questions of the pushes that asked.
+fn asked(report: &SyncReport) -> Vec<(&str, HistoryQuestion)> {
+    report.skipped.questions.iter().map(|q| (q.id.as_str(), q.question)).collect()
+}
+
+#[test]
+fn a_question_names_the_item() {
+    use crate::vault::write::HistoryQuestion::FirstWriteBack;
+    let mut r = Rig::obsidian();
+    let c = r.add_login("k", "p1");
+    let name = r.enc(&r.keys.user, "GitHub");
+    r.world().cipher(&c)["name"] = json!(name);
+    r.ok();
+    r.store.put("k", "p2");
+    let want = Question { id: "k".into(), question: FirstWriteBack, label: "GitHub".into() };
+    assert_eq!(r.ok().skipped.questions, [want]);
+}
+
 #[test]
 fn a_push_that_asks_is_held_with_the_base_unchanged() {
     use crate::vault::write::HistoryQuestion::FirstWriteBack;
@@ -1527,7 +1565,7 @@ fn a_push_that_asks_is_held_with_the_base_unchanged() {
     let base = r.state.base["k"].clone();
     r.store.put("k", "p2");
     let report = r.ok();
-    assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
+    assert_eq!(asked(&report), [("k", FirstWriteBack)]);
     assert!(report.pushed.is_empty() && report.errors.is_empty() && report.conflicts.is_empty());
     assert_eq!((&r.state.base["k"], r.remote(&c).as_str()), (&base, "p1"));
     // Answered, the push goes and the record learns the value.
@@ -1549,7 +1587,7 @@ fn a_push_that_asks_is_held_with_the_base_unchanged() {
     r.add_login("k", "q1");
     r.store.put("k", "p4");
     let report = r.sync_with("k", Policy::PreferLocal, ConflictKind::BothChanged);
-    assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
+    assert_eq!(asked(&report), [("k", FirstWriteBack)]);
     // "Keep separate" writes a tool field instead, which never asks again.
     r.answers.insert("k".into(), (FirstWriteBack, HistoryAnswer::KeepSeparate));
     assert_eq!(r.sync_with("k", Policy::PreferLocal, ConflictKind::BothChanged).pushed, ["k"]);
@@ -1576,7 +1614,7 @@ fn a_question_is_reported_once_however_many_passes_ask_it() {
     });
     let report = r.ok();
     assert_eq!((report.passes, report.kept_changing), (MAX_PASSES, true));
-    assert_eq!(report.skipped.questions, [("k".to_owned(), FirstWriteBack)]);
+    assert_eq!(asked(&report), [("k", FirstWriteBack)]);
 }
 
 // --- no rollback below the base (ADR 0019) ---

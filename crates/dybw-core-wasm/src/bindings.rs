@@ -314,7 +314,19 @@ impl WasmSession {
     pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
         Ok(self.0.run_sync(options, ids, values).await?)
     }
-    /// Runs until `stop()` answers true or throws, or `lock` runs.
+    #[wasm_bindgen(js_name = queueUpload)]
+    pub async fn queue_upload(&self, id: &str, scope: &str) -> Result<(), String> {
+        Ok(self.0.queue_upload(id, scope).await?)
+    }
+    #[wasm_bindgen(js_name = syncedIds)]
+    pub fn synced_ids(&self) -> Result<String, String> {
+        Ok(self.0.synced_ids()?)
+    }
+    #[wasm_bindgen(js_name = resetState)]
+    pub async fn reset_state(&self) -> Result<(), String> {
+        Ok(self.0.reset_state().await?)
+    }
+    /// Runs until `stop()` answers true or throws, or `lock` runs; also while a sync runs.
     #[wasm_bindgen(js_name = runHub)]
     pub async fn run_hub(&self, on_change: Function, stop: Function) -> Result<(), String> {
         // Fail closed: a `stop` that throws stops.

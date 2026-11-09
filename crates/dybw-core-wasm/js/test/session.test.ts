@@ -2,7 +2,7 @@
 // server (`server.ts`) as the `cose-v2` account, the WASM mirror of the native `a_session_unlocks_and_locks`.
 import { beforeAll, expect, inject, test } from "vitest";
 import init, { WasmSession } from "../pkg/dybw_core_wasm.js";
-import { account, profile, serverPorts } from "./server";
+import { account, profile, serverPorts, wrappedPrivateKey } from "./server";
 
 const files = new Map(Object.entries(inject("files")));
 const cose = account(files, "cose-v2");
@@ -160,4 +160,19 @@ test("a port that throws synchronously fails the call, leaves the session usable
   s.lock();
   await expect(settled(hub)).resolves.toBeUndefined();
   await expect(s.planPass("{}", [], [])).rejects.toBe(LOCKED);
+});
+
+test("a conflict reaches JS with its label and organization", async () => {
+  const org = account(files, "org");
+  const scenario = JSON.parse(files.get("generated/obsidian/sync/org-claim-with-local-asks.json") ?? "null");
+  const { ports: p } = serverPorts(org, { privateKey: await wrappedPrivateKey(org), ciphers: scenario.ciphers });
+  const s = new WasmSession(p, "obsidian");
+  const all = JSON.stringify({ ...JSON.parse(profile(org)), organizations: "all" });
+  const summary = JSON.parse(await s.unlock(all, "vectors", org.password));
+  expect(summary.orgProblems).toEqual([]);
+  const report = JSON.parse(await s.runSync("{}", ["alpha"], ["shared-secret"]));
+  expect(report.conflicts).toEqual([
+    { id: "alpha", kind: "organization-claim", label: "Login c1", organization: "org-a", organizationName: "Org A" },
+  ]);
+  s.lock();
 });

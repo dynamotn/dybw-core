@@ -412,9 +412,11 @@ mod session {
     use crate::session::{STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
     use dybw_core::crypto::{AwsLcRsa, KdfParams};
     use dybw_core::profile::{KdfSource, UnlockWarning};
-    use dybw_core::sync::{Action, ActionError, ApplyError, Conflict, ConflictKind, SyncReport};
+    use dybw_core::sync::{Action, ActionError, ApplyError, Conflict, ConflictKind, PassReport, Question, SyncReport};
     use dybw_core::testing::block_on;
     use dybw_core::vault::Organizations;
+    use dybw_core::vault::scan::{Duplicate, SkipReason};
+    use dybw_core::vault::write::HistoryQuestion;
     use dybw_vectors::server::VectorServer;
     use dybw_vectors::{Files, vectors_dir};
     use serde_json::{Value, json};
@@ -638,6 +640,25 @@ mod session {
         assert_eq!(policy(r#""ask""#), Some(dybw_core::sync::Policy::Ask));
         assert_eq!(policy(r#""prefer-remote""#), Some(dybw_core::sync::Policy::PreferRemote));
         assert_eq!(policy(r#""prefer-local""#), Some(dybw_core::sync::Policy::PreferLocal));
+        use crate::session::{Answer, Ask, Kind};
+        use dybw_core::vault::write::HistoryAnswer;
+        let kind = |j: &str| serde_json::from_str::<Kind>(&format!("{j:?}")).ok().map(ConflictKind::from);
+        for k in [
+            ConflictKind::BothChanged,
+            ConflictKind::LocalUnsynced,
+            ConflictKind::DeletedRemotely,
+            ConflictKind::OrganizationClaim,
+            ConflictKind::OrganizationPush,
+        ] {
+            assert_eq!(kind(k.code()), Some(k));
+        }
+        let ask = |j: &str| serde_json::from_str::<Ask>(&format!("{j:?}")).ok().map(HistoryQuestion::from);
+        for q in [HistoryQuestion::FirstWriteBack, HistoryQuestion::EvictsForeign] {
+            assert_eq!(ask(q.code()), Some(q));
+        }
+        let answer = |j: &str| serde_json::from_str::<Answer>(j).ok().map(HistoryAnswer::from);
+        assert_eq!(answer(r#""write-to-login""#), Some(HistoryAnswer::WriteToLogin));
+        assert_eq!(answer(r#""keep-separate""#), Some(HistoryAnswer::KeepSeparate));
     }
 
     #[test]
@@ -678,7 +699,8 @@ mod session {
         };
         assert!(warning(&below).contains("5000"));
         let r = report_json(&report);
-        assert_eq!(r["conflicts"], json!([{ "id": "a", "kind": "local-unsynced" }]));
+        let conflict = json!({ "id": "a", "kind": "local-unsynced", "label": "a", "organization": null, "organizationName": null });
+        assert_eq!(r["conflicts"], json!([conflict]));
         assert_eq!(r["errors"], json!([{ "id": "a", "error": "the value is not text" }]));
     }
 
@@ -853,7 +875,6 @@ mod session {
         assert!(sync.as_mut().poll(&mut cx).is_pending());
         // A second call while the first has the keys is refused, not thrown.
         assert_eq!(plan(&s, &[], &[]), Err(BUSY.into()));
-        assert_eq!(block_on(s.run_hub(|| {}, || true)).map_err(code), Err(BUSY.into()));
         s.lock();
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
         // The sync stops before applying anything, and its keys are dropped, not put back.
@@ -1072,6 +1093,297 @@ mod session {
         assert_eq!(weak.field("origin"), Some(&json!("https://o")));
         // Only a weakened KDF takes the origin.
         assert_eq!(Error::busy().at("https://o"), Error::busy());
+    }
+
+    fn scenario(name: &str) -> Value {
+        let raw = files().get(&format!("generated/obsidian/sync/{name}.json")).unwrap_or_default().to_owned();
+        serde_json::from_str(&raw).unwrap_or_default()
+    }
+
+    fn ciphers(scenario: &Value) -> Vec<Value> {
+        scenario["ciphers"].as_array().cloned().unwrap_or_default()
+    }
+
+    /// The scenario's `device` as the plugin's saved state of device `d`, fingerprints marked from the plaintext.
+    fn seed_state(host: &MockHost, scenario: &Value) {
+        let keys = block_on(dybw_vectors::keys::account_keys(&files(), "pbkdf2", false, &AwsLcRsa));
+        let marker = keys.into_keys(&dybw_core::vault::Namespace::OBSIDIAN).marker;
+        let base: serde_json::Map<String, Value> = scenario["device"]["base"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(id, e)| {
+                let fingerprint = marker.mark_b64(id, e["value"].as_str().unwrap_or_default());
+                let entry =
+                    json!({ "cipherId": e["cipher"], "revisionDate": e["revisionDate"], "fingerprint": fingerprint });
+                (id.clone(), entry)
+            })
+            .collect();
+        let state = json!({ "version": 1, "deviceId": "d", "base": base, "pendingCreates": [], "pendingScopes": {} });
+        host.store.borrow_mut().insert(STATE.into(), state.to_string().into_bytes());
+    }
+
+    fn json_of(out: Result<String, Error>) -> Result<Value, String> {
+        Ok(serde_json::from_str(&out.map_err(code)?).unwrap_or_default())
+    }
+
+    fn saved_state(host: &MockHost) -> Value {
+        serde_json::from_slice(&host.store.borrow().get(STATE).cloned().unwrap_or_default()).unwrap_or_default()
+    }
+
+    #[test]
+    fn an_override_changes_the_plan_for_its_kind_only() {
+        let host = host("org", ciphers(&scenario("org-claim-with-local-asks")));
+        host.real.set(true);
+        let s = session(&host);
+        let p = with(&profile("org"), "organizations", json!("all"));
+        let summary = unlock_with(&s, &p, "org");
+        assert!(summary.as_ref().is_ok_and(|s| s.contains(r#""orgProblems":[]"#)), "{summary:?}");
+        let planned = |options: Value| {
+            let options = options.to_string();
+            json_of(block_on(s.plan_pass(&options, vec!["alpha".into()], vec!["shared-secret".into()])))
+                .map(|p| p["actions"].clone())
+        };
+        let asked = json!([{ "kind": "conflict", "id": "alpha", "conflict": "organization-claim" }]);
+        assert_eq!(planned(json!({})), Ok(asked.clone()));
+        let take = |kind: &str| json!({ "overrides": { "alpha": { "policy": "prefer-remote", "kind": kind } } });
+        assert_eq!(planned(take("organization-claim")), Ok(json!([{ "kind": "pull", "id": "alpha" }])));
+        // A decision about another kind of conflict is not this one's.
+        assert_eq!(planned(take("both-changed")), Ok(asked));
+        assert_eq!(planned(take("no-such-kind")), Err(INVALID.into()));
+        let report = json_of(block_on(s.run_sync("{}", vec!["alpha".into()], vec!["shared-secret".into()])));
+        let conflict = json!({
+            "id": "alpha", "kind": "organization-claim", "label": "Login c1", "organization": "org-a",
+            "organizationName": "Org A",
+        });
+        assert_eq!(report.map(|r| r["conflicts"].clone()), Ok(json!([conflict])));
+    }
+
+    #[test]
+    fn an_answer_covers_only_the_question_it_was_given_for() {
+        let pushed = scenario("history-question-holds-push");
+        let host = host("pbkdf2", ciphers(&pushed));
+        seed_state(&host, &pushed);
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let sync = |options: Value| {
+            let options = options.to_string();
+            json_of(block_on(s.run_sync(&options, vec!["alpha".into()], vec!["new-secret".into()]))).unwrap_or_default()
+        };
+        let report = sync(json!({}));
+        assert_eq!(report["pushed"], json!([]));
+        let label = report["questions"][0]["label"].clone();
+        assert!(label.is_string());
+        let question = json!([{ "id": "alpha", "label": label, "question": "first-write-back" }]);
+        assert_eq!(report["questions"], question);
+        // ADR 0016: an answer to another question does not cover this one.
+        let answer = |q: &str| json!({ "answers": { "alpha": { "question": q, "answer": "write-to-login" } } });
+        let report = sync(answer("evicts-foreign-history"));
+        assert_eq!((&report["pushed"], &report["questions"]), (&json!([]), &question));
+        let report = sync(answer("first-write-back"));
+        assert_eq!((&report["pushed"], &report["questions"]), (&json!(["alpha"]), &json!([])));
+        let keep = json!({ "answers": { "alpha": { "question": "first-write-back", "answer": "keep-separate" } } });
+        assert!(block_on(s.plan_pass(&keep.to_string(), vec![], vec![])).is_ok());
+    }
+
+    #[test]
+    fn options_take_the_vault_and_the_upload_folder() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let options = json!({ "vaultName": "Notes", "uploadFolder": "Secrets", "policy": "ask" }).to_string();
+        let plan = json_of(block_on(s.plan_pass(&options, vec![], vec![])));
+        assert_eq!(plan.map(|p| p["actions"].clone()), Ok(json!([{ "kind": "pull", "id": "alpha" }])));
+        let unknown = block_on(s.plan_pass(r#"{"massClear":true}"#, vec![], vec![]));
+        assert_eq!(unknown.map_err(code), Err(INVALID.into()));
+    }
+
+    #[test]
+    fn every_report_field_reaches_js() {
+        let pair = || vec![(String::from("a"), String::from("c"))];
+        let conflict = Conflict {
+            id: "a".into(),
+            kind: ConflictKind::OrganizationPush,
+            organization: Some("org".into()),
+            organization_name: Some("Org <b>".into()),
+            label: "GitHub".into(),
+        };
+        let duplicate = Duplicate { id: "a".into(), kept: "c".into(), left: vec!["d".into()], bound_kept: true };
+        let report = SyncReport {
+            pulled: vec!["p".into()],
+            pushed: vec!["u".into()],
+            created: vec!["n".into()],
+            cleared: vec!["x".into()],
+            conflicts: vec![conflict],
+            skipped: PassReport {
+                skipped: vec![("c".into(), SkipReason::NewerFormat)],
+                duplicates: vec![duplicate],
+                unknown_features: vec![("c".into(), vec!["dybw:x".into()])],
+                held: pair(),
+                rollbacks: pair(),
+                read_only: pair(),
+                unreadable: vec!["c".into()],
+                questions: vec![Question {
+                    id: "a".into(),
+                    question: HistoryQuestion::EvictsForeign,
+                    label: "GitHub".into(),
+                }],
+            },
+            errors: vec![ActionError { id: "a".into(), error: ApplyError::NotText }],
+            passes: 3,
+            kept_changing: true,
+        };
+        let pair = json!([{ "id": "a", "cipherId": "c" }]);
+        let r = report_json(&report);
+        let want = json!({
+            "pulled": ["p"], "pushed": ["u"], "created": ["n"], "cleared": ["x"],
+            "errors": [{ "id": "a", "error": "the value is not text" }], "passes": 3, "keptChanging": true,
+            "conflicts": [{
+                "id": "a", "kind": "organization-push", "label": "GitHub", "organization": "org",
+                "organizationName": "Org <b>",
+            }],
+            "questions": [{ "id": "a", "label": "GitHub", "question": "evicts-foreign-history" }],
+            "rollbacks": pair, "held": pair, "readOnly": pair,
+            "unknownFeatures": [{ "cipherId": "c", "features": ["dybw:x"] }],
+            "unreadable": ["c"],
+            "duplicates": [{ "id": "a", "kept": "c", "left": ["d"], "boundKept": true }],
+            "skipped": [{ "cipherId": "c", "reason": "newer-format" }],
+            "warnings": r["warnings"],
+        });
+        assert_eq!(r, want);
+        assert_eq!(r["warnings"].as_array().map(Vec::len), Some(7), "{}", r["warnings"]);
+        assert_eq!(report_json(&SyncReport::default())["warnings"], json!([]));
+        // A conflict without an organization names none.
+        let r = report_json(&SyncReport { conflicts: vec![conflict_without_org()], ..SyncReport::default() });
+        assert_eq!(
+            (&r["conflicts"][0]["organization"], &r["conflicts"][0]["organizationName"]),
+            (&Value::Null, &Value::Null)
+        );
+    }
+
+    fn conflict_without_org() -> Conflict {
+        Conflict {
+            id: "a".into(),
+            kind: ConflictKind::BothChanged,
+            organization: None,
+            organization_name: None,
+            label: "a".into(),
+        }
+    }
+
+    #[test]
+    fn the_hub_keeps_running_during_a_sync() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut sync = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(sync.as_mut().poll(&mut cx).is_pending());
+        let polls = Cell::new(0);
+        let stop = || {
+            polls.set(polls.get() + 1);
+            polls.get() > 3
+        };
+        assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()), "not busy");
+        // It connected with the token the sync's client had when it took the keys.
+        assert_eq!(host.closed.borrow().len(), 1);
+        let report = json_of(block_on(sync)).unwrap_or_default();
+        assert_eq!(report["pulled"], json!(["alpha"]));
+        // After the sync the hub reads the client's token again.
+        polls.set(0);
+        assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()));
+        assert_eq!(host.closed.borrow().len(), 2);
+    }
+
+    #[test]
+    fn lock_stops_a_hub_running_during_a_sync() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut sync = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(sync.as_mut().poll(&mut cx).is_pending());
+        let calls = Cell::new(0);
+        let stop = || {
+            calls.set(calls.get() + 1);
+            if calls.get() == 3 {
+                s.lock();
+            }
+            false
+        };
+        assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()));
+        assert_eq!(calls.get(), 3, "the hub stopped at its first check after lock");
+        assert_eq!(block_on(s.run_hub(|| {}, || false)).map_err(code), Err(LOCKED.into()));
+        assert_eq!(block_on(sync).map_err(code), Err(LOCKED.into()));
+        assert!(host.secrets.borrow().is_empty(), "nothing ran with the old keys");
+    }
+
+    #[test]
+    fn uploads_are_queued_with_their_scope() {
+        let host = host("pbkdf2", vec![]);
+        let s = session(&host);
+        assert_eq!(block_on(s.queue_upload("k", "global")).map_err(code), Err(LOCKED.into()));
+        assert_eq!(s.synced_ids().map_err(code), Err(LOCKED.into()));
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let device = block_on(s.device_id()).unwrap_or_default();
+        assert_eq!(block_on(s.queue_upload("k", "global")), Ok(()));
+        assert_eq!(block_on(s.queue_upload("v", " vault:Notes ")), Ok(()));
+        assert_eq!(block_on(s.queue_upload("d", "device")), Ok(()));
+        // Queued again with another scope: listed once, with the new scope.
+        assert_eq!(block_on(s.queue_upload("k", "device:someone-else")), Ok(()));
+        for (id, scope) in [("k", "planet:mars"), ("k", "vault:"), ("bad id", "global"), ("obsidian:x", "global")] {
+            assert_eq!(block_on(s.queue_upload(id, scope)).map_err(code), Err(INVALID.into()), "{id} {scope}");
+        }
+        let own = format!("device:{device}");
+        let saved = saved_state(&host);
+        assert_eq!(saved["pendingCreates"], json!(["k", "v", "d"]));
+        assert_eq!(saved["pendingScopes"], json!({ "k": own, "v": "vault:Notes", "d": own }));
+        assert_eq!(json_of(s.synced_ids()), Ok(json!({ "base": [], "pendingCreates": ["k", "v", "d"] })));
+        host.fail.set(true);
+        assert_eq!(block_on(s.queue_upload("k", "global")).map_err(code), Err("port".into()));
+    }
+
+    #[test]
+    fn reset_state_works_locked_or_unlocked_but_not_while_busy() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
+        assert!(block_on(s.queue_upload("k", "global")).is_ok());
+        let ids = json_of(s.synced_ids()).unwrap_or_default();
+        assert_eq!((&ids["base"], &ids["pendingCreates"]), (&json!(["alpha"]), &json!(["k"])));
+
+        // While a sync has the keys.
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut sync = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(sync.as_mut().poll(&mut cx).is_pending());
+        assert_eq!(block_on(s.reset_state()).map_err(code), Err(BUSY.into()));
+        assert_eq!(s.synced_ids().map_err(code), Err(BUSY.into()));
+        assert_eq!(block_on(s.queue_upload("k", "global")).map_err(code), Err(BUSY.into()));
+        assert!(block_on(sync).is_ok());
+
+        let device = saved_state(&host)["deviceId"].clone();
+        assert_eq!(block_on(s.reset_state()), Ok(()));
+        assert_eq!(json_of(s.synced_ids()), Ok(json!({ "base": [], "pendingCreates": [] })));
+        let empty = json!({ "version": 1, "deviceId": device, "base": {}, "pendingCreates": [], "pendingScopes": {} });
+        assert_eq!(saved_state(&host), empty);
+
+        // Locked: the saved state is reset, keeping its device id.
+        assert!(block_on(s.queue_upload("k", "global")).is_ok());
+        s.lock();
+        assert_eq!(block_on(s.reset_state()), Ok(()));
+        assert_eq!(saved_state(&host), empty);
+        // Nothing saved yet, or unreadable: a fresh state for this device.
+        let fresh = Rc::new(MockHost::default());
+        fresh.store.borrow_mut().insert(STATE.into(), b"{".to_vec());
+        let s = session(&fresh);
+        assert_eq!(block_on(s.reset_state()), Ok(()));
+        assert_eq!(saved_state(&fresh)["deviceId"], json!(block_on(s.device_id()).unwrap_or_default()));
+        fresh.fail.set(true);
+        assert_eq!(block_on(s.reset_state()).map_err(code), Err("port".into()));
     }
 }
 

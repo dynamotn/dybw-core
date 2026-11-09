@@ -116,6 +116,57 @@ acknowledgements live in the host's `Storage` under `acknowledged-origins`
 to its server: an unlock drops every acknowledgement but its own identity
 origin's. A host that refuses redirects, as bwss, is unaffected.
 
+The sync calls take local values as `ids[i]` = `values[i]` and an options
+JSON object, every field optional:
+
+```text
+{ policy: "ask" | "prefer-remote" | "prefer-local",
+  acceptRollback: bool,
+  overrides: { <id>: { policy, kind } },          // kind: a conflict kind below
+  answers: { <id>: { question, answer } },        // question: "first-write-back" | "evicts-foreign-history"
+                                                  // answer: "write-to-login" | "keep-separate"
+  vaultName: string, uploadFolder: string }
+```
+
+An override holds only while the conflict is still of its `kind`; an answer
+covers only the question it was given for (ADR 0016). An item's
+`obsidian:scope` applies as the plugin's `scopeApplies`: `global` (or none)
+everywhere, `vault:<name>` where `vaultName` is `<name>`, `device:<id>` on the
+device whose state has that id; a scope the plugin cannot parse applies
+nowhere. An unknown option is refused (`invalid`): a mass clear has no
+override, `resetState()` is the way out.
+
+`planPass` answers `{actions: [{kind, id, …}], massClear}`. `runSync` answers:
+
+```text
+{ pulled, pushed, created, cleared: [id],
+  errors: [{id, error}], passes: number, keptChanging: bool,
+  conflicts: [{id, kind, label, organization, organizationName}],
+  questions: [{id, label, question}],
+  rollbacks, held, readOnly: [{id, cipherId}],
+  unknownFeatures: [{cipherId, features: [name]}],
+  unreadable: [cipherId],
+  duplicates: [{id, kept, left: [cipherId], boundKept}],
+  skipped: [{cipherId, reason}],
+  warnings: [string] }
+```
+
+Conflict kinds: `both-changed`, `local-unsynced`, `deleted-remotely`,
+`organization-claim`, `organization-push`. `label` is the item's name, or the
+id when it has none. `organization` and `organizationName` are `null` for a
+personal item; the name is raw, as the organization's owners set it: sanitize
+it before showing it. `skipped` reasons are the vectors' codes (`wrong-type`,
+`newer-format`, …). `warnings` are the core's sentences for the notice, with
+counts only. No field carries a value.
+
+The state calls: `queueUpload(id, scope)` (unlocked; `scope` is `"global"`,
+`"vault:<name>"` or `"device"`, which is always this device; the host checks it
+holds a value for `id`), `syncedIds()` answering `{base: [id], pendingCreates:
+[id]}` (unlocked), and `resetState()`, which works locked (on the saved state)
+or unlocked. All three answer `busy` while another call has the keys out.
+`runHub` keeps the device id, the notifications URL and the access token beside
+the keys, so it keeps running during a sync; `lock` stops it at its next check.
+
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit:
 

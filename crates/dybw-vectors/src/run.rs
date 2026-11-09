@@ -375,7 +375,7 @@ async fn sync_write(files: &Files, s: &Scenario, want: &WriteExpect, rsa: &impl 
             let pushes = s.expect.plan.iter().flatten().filter(|p| p.kind == "push").collect::<Vec<_>>();
             let [push] = pushes.as_slice() else { return Err("a sync question needs one planned push".into()) };
             let asked: Vec<(&str, &str)> =
-                report.skipped.questions.iter().map(|(i, q)| (i.as_str(), q.code())).collect();
+                report.skipped.questions.iter().map(|q| (q.id.as_str(), q.question.code())).collect();
             compare("questions", asked, vec![(push.id.as_str(), want.question.as_str())])?;
             compare("base", &state.base, &before.base)?;
             compare_requests(&s.namespace, sent, &[])

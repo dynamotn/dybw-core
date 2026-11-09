@@ -8,8 +8,8 @@ mod state;
 mod write;
 
 pub use engine::{
-    ActionError, ApplyError, Conflict, LocalValues, MAX_PASSES, PassPlan, PassReport, SyncContext, SyncError,
-    SyncReport, plan_pass, run_sync,
+    ActionError, ApplyError, Conflict, LocalValues, MAX_PASSES, PassPlan, PassReport, Question, SyncContext, SyncError,
+    SyncReport, item_scope, plan_pass, run_sync, scope_applies,
 };
 pub use plan::{
     Action, BaseEntry, ConflictKind, ConflictOverride, PlanInput, Policy, RemoteEntry, is_rollback, plan_sync,

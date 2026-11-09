@@ -121,7 +121,16 @@ pub struct PassReport {
     pub unreadable: Vec<String>,
     /// Pushes not applied because the user must answer first (ADR 0016); their base is unchanged. Like the rest of
     /// `SyncReport::skipped`, of the last pass only, so each id is listed once however many passes asked.
-    pub questions: Vec<(String, HistoryQuestion)>,
+    pub questions: Vec<Question>,
+}
+
+/// A push waiting for the user's answer to `question` (ADR 0016).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Question {
+    pub id: String,
+    pub question: HistoryQuestion,
+    /// As `Conflict::label`.
+    pub label: String,
 }
 
 #[derive(Debug, Default)]
@@ -338,10 +347,28 @@ pub(super) fn normalize_scope(raw: Option<&str>) -> String {
     if known { v.to_owned() } else { "global".to_owned() }
 }
 
+/// The item's `{ns}:scope` field as the item holds it, `None` without one.
+pub fn item_scope<'a>(ns: &Namespace, item: &'a MarkedItem) -> Option<&'a str> {
+    let field = ns.field("scope");
+    item.tool_fields.iter().find(|(n, _)| *n == field).map(|(_, v)| v.as_str())
+}
+
 /// The item's scope from its `{ns}:scope` field, as the base keeps it.
 pub(super) fn scope_of(ns: &Namespace, item: &MarkedItem) -> String {
-    let field = ns.field("scope");
-    normalize_scope(item.tool_fields.iter().find(|(n, _)| *n == field).map(|(_, v)| v.as_str()))
+    normalize_scope(item_scope(ns, item))
+}
+
+/// The plugin's `scopeApplies` over `parseScope`: whether an item with this `{ns}:scope` value is the tool's to sync
+/// in the vault `vault_name` on the device `device_id`. A scope the plugin cannot parse applies nowhere: the plugin
+/// skips such an item.
+pub fn scope_applies(scope: Option<&str>, vault_name: &str, device_id: &str) -> bool {
+    let v = scope.unwrap_or_default().trim();
+    match (v.strip_prefix("vault:"), v.strip_prefix("device:")) {
+        _ if v.is_empty() || v == "global" => true,
+        (Some(name), _) if !name.is_empty() => name == vault_name,
+        (_, Some(id)) if !id.is_empty() => id == device_id,
+        _ => false,
+    }
 }
 
 /// The base entry for what the item holds now. A confirmation to push, and the record of what was written, belong
@@ -465,7 +492,8 @@ async fn apply<H: Http, C: Clock, R: Random>(
                 Ok(sent) => sent.unzip(),
                 // Nothing was sent: the push waits for the user's answer, and the base stays as it was.
                 Err(SyncWriteError::Write(WriteError::Ask(q))) => {
-                    report.skipped.questions.push((id.to_owned(), q));
+                    let label = label(ctx.keys, id, Some(rec));
+                    report.skipped.questions.push(Question { id: id.to_owned(), question: q, label });
                     return Ok(false);
                 }
                 // The item changed under the write: the next pass plans again from what it holds then.
@@ -566,8 +594,12 @@ fn conflict(keys: &Keys, sync: &Value, id: &str, kind: ConflictKind, rec: Option
         let found = organizations.into_iter().flatten().find(|o| o.get("id").and_then(Value::as_str) == Some(org));
         found.and_then(|o| o.get("name")).and_then(Value::as_str).map(String::from)
     });
-    let label = rec.and_then(|r| item_name(keys, r)).unwrap_or_else(|| id.to_owned());
-    Conflict { id: id.to_owned(), kind, organization, organization_name, label }
+    Conflict { id: id.to_owned(), kind, organization, organization_name, label: label(keys, id, rec) }
+}
+
+/// The item's name, or the id when there is no item or its name cannot be read.
+fn label(keys: &Keys, id: &str, rec: Option<&MarkedItem>) -> String {
+    rec.and_then(|r| item_name(keys, r)).unwrap_or_else(|| id.to_owned())
 }
 
 /// The item's decrypted name, when not blank (a blob's outer `name` is null); the scan read the item with the same
