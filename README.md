@@ -98,6 +98,13 @@ a fresh glue module): the glue caches its instance, so calling its init again
 is no recovery. The buffers of the call that trapped are not wiped; they stay
 in the dead instance's memory until it is dropped.
 
+Every `WasmSession` rejection is the JSON text of one object,
+`{"code", "message", …fields}`: JS branches on `code` and shows `message`, the
+core's own text. No field carries a value, a key or ciphertext. The codes and
+their fields are listed in `crates/dybw-core-wasm/src/error.rs`. The profile's
+`apiOrigin` is the identity origin the API key was entered for; `unlock` sends
+the key nowhere else (`wrong-origin`).
+
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit:
 

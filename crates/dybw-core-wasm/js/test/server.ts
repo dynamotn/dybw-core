@@ -21,7 +21,7 @@ export function account(files: Map<string, string>, name: string): Account {
 /** The session's profile JSON for `account`. */
 export function profile(a: Account): string {
   const device = { deviceName: "test", deviceType: 8, clientName: "cli", clientVersion: "0" };
-  return JSON.stringify({ server: SERVER, email: a.email, clientId: "vectors", ...device });
+  return JSON.stringify({ server: SERVER, email: a.email, apiOrigin: SERVER, clientId: "vectors", ...device });
 }
 
 /** The harness's ports with `http` answering as the vector server for `a`; `requests` records each path. */

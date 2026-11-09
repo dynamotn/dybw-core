@@ -259,8 +259,9 @@ pub fn init(ports: HostPorts) {
     }));
 }
 
-/// A profile's session; see [`Session`]. Unstable: M6 may reshape it. Results are JSON text, errors reject with a
-/// message. Secrets come in as owned strings; local values as `ids[i]` = `values[i]`.
+/// A profile's session; see [`Session`]. Unstable: M6 may reshape it. Results are JSON text; every rejection is the
+/// JSON text of a [`crate::error::Error`], `{"code", "message", …fields}`. Secrets come in as owned strings; local
+/// values as `ids[i]` = `values[i]`. The profile's `apiOrigin` is the identity origin the API key was entered for.
 #[wasm_bindgen]
 pub struct WasmSession(Session<HostPorts>);
 
@@ -268,14 +269,14 @@ pub struct WasmSession(Session<HostPorts>);
 impl WasmSession {
     #[wasm_bindgen(constructor)]
     pub fn new(ports: HostPorts, namespace: &str) -> Result<WasmSession, String> {
-        Session::new(Rc::new(ports), namespace).map(WasmSession)
+        Ok(WasmSession(Session::new(Rc::new(ports), namespace)?))
     }
     pub async fn unlock(&self, profile: &str, client_secret: String, password: String) -> Result<String, String> {
-        self.0.unlock(profile, Zeroizing::new(client_secret), Zeroizing::new(password)).await
+        Ok(self.0.unlock(profile, Zeroizing::new(client_secret), Zeroizing::new(password)).await?)
     }
     #[wasm_bindgen(js_name = unlockCached)]
     pub async fn unlock_cached(&self, profile: &str, password: String) -> Result<String, String> {
-        self.0.unlock_cached(profile, Zeroizing::new(password)).await
+        Ok(self.0.unlock_cached(profile, Zeroizing::new(password)).await?)
     }
     /// Never throws: every method takes `&self`, so no wasm-bindgen borrow can refuse it.
     pub fn lock(&self) {
@@ -283,30 +284,30 @@ impl WasmSession {
     }
     #[wasm_bindgen(js_name = deviceId)]
     pub async fn device_id(&self) -> Result<String, String> {
-        self.0.device_id().await
+        Ok(self.0.device_id().await?)
     }
     #[wasm_bindgen(js_name = acceptKdf)]
     pub async fn accept_kdf(&self, kdf: &str, origin: &str) -> Result<(), String> {
-        self.0.accept_kdf(kdf, origin).await
+        Ok(self.0.accept_kdf(kdf, origin).await?)
     }
     #[wasm_bindgen(js_name = acceptSecurityVersion)]
     pub async fn accept_security_version(&self, version: u64) -> Result<(), String> {
-        self.0.accept_security_version(version).await
+        Ok(self.0.accept_security_version(version).await?)
     }
     #[wasm_bindgen(js_name = planPass)]
     pub async fn plan_pass(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
-        self.0.plan_pass(options, ids, values).await
+        Ok(self.0.plan_pass(options, ids, values).await?)
     }
     #[wasm_bindgen(js_name = runSync)]
     pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
-        self.0.run_sync(options, ids, values).await
+        Ok(self.0.run_sync(options, ids, values).await?)
     }
     /// Runs until `stop()` answers true or throws, or `lock` runs.
     #[wasm_bindgen(js_name = runHub)]
     pub async fn run_hub(&self, on_change: Function, stop: Function) -> Result<(), String> {
         // Fail closed: a `stop` that throws stops.
         let stopped = || stop.call0(&JsValue::NULL).map_or(true, |v| v.is_truthy());
-        self.0.run_hub(|| drop(on_change.call0(&JsValue::NULL)), stopped).await
+        Ok(self.0.run_hub(|| drop(on_change.call0(&JsValue::NULL)), stopped).await?)
     }
 }
 

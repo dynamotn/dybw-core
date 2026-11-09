@@ -8,7 +8,9 @@ import { account, profile, serverPorts } from "./server";
 
 type Glue = typeof import("../pkg/dybw_core_wasm.js");
 
-const wasm = () => Uint8Array.from(atob(inject("wasm")), (c) => c.charCodeAt(0));
+const LOCKED = JSON.stringify({ code: "locked", message: "Bitwarden is locked" });
+
+const wasm = () =>Uint8Array.from(atob(inject("wasm")), (c) => c.charCodeAt(0));
 
 /** A fresh glue module, so a fresh instance: the query string makes it another module. */
 async function instantiate(glue: Promise<unknown>): Promise<Glue> {
@@ -32,11 +34,11 @@ test("a panic traps, reports no value, lock still wipes a live session, and a ne
   // The trapped instance still holds the unlocked keys, which is why the host locks it before dropping it.
   await expect(live.planPass("{}", [], [])).resolves.toContain("actions");
   expect(() => live.lock()).not.toThrow();
-  await expect(live.planPass("{}", [], [])).rejects.toBe("locked");
+  await expect(live.planPass("{}", [], [])).rejects.toBe(LOCKED);
 
   const second = await instantiate(import("../pkg/dybw_core_wasm.js?instance=second"));
   expect(second).not.toBe(first);
   second.init(ports);
   const session = new second.WasmSession(hostPorts(), "obsidian");
-  await expect(session.planPass("{}", [], [])).rejects.toBe("locked");
+  await expect(session.planPass("{}", [], [])).rejects.toBe(LOCKED);
 });

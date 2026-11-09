@@ -215,6 +215,25 @@ fn api_key_bound_to_origin() {
 }
 
 #[test]
+fn the_form_is_built_without_reallocating() {
+    // Characters that encode to several bytes, so the size cannot be guessed from the raw lengths.
+    let key = ApiKey { client_secret: Zeroizing::new("s3cret value/+&=é".into()), ..key() };
+    let device = DeviceInfo { name: "Máy của Nam".into(), ..device() };
+    let form = token_form(&key, &device);
+    assert_eq!(form.capacity(), form.len(), "a buffer grown on the way would free a copy of the secret unwiped");
+    let mut expected = url::form_urlencoded::Serializer::new(String::new());
+    expected
+        .append_pair("grant_type", "client_credentials")
+        .append_pair("scope", "api")
+        .append_pair("client_id", "user.x")
+        .append_pair("client_secret", "s3cret value/+&=é")
+        .append_pair("deviceType", "21")
+        .append_pair("deviceIdentifier", "dev-1")
+        .append_pair("deviceName", "Máy của Nam");
+    assert_eq!(form.as_slice(), expected.finish().as_bytes());
+}
+
+#[test]
 fn a_bad_identity_url_sends_nothing() {
     let mut rig = Rig::new();
     rig.client.urls.identity = "not a url".into();

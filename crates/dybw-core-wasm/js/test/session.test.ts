@@ -6,7 +6,8 @@ import { account, profile, serverPorts } from "./server";
 
 const files = new Map(Object.entries(inject("files")));
 const cose = account(files, "cose-v2");
-const LOCKED = "locked";
+/** Every rejection is the JSON text `{"code", "message", …fields}`. */
+const LOCKED = JSON.stringify({ code: "locked", message: "Bitwarden is locked" });
 
 beforeAll(async () => {
   const wasm = Uint8Array.from(atob(inject("wasm")), (c) => c.charCodeAt(0));
@@ -69,7 +70,11 @@ test("a session unlocks, plans and syncs a local value, and locks", async () => 
   await expect(s.planPass("{}", [], [])).rejects.toBe(LOCKED);
   await expect(s.runSync("{}", [], [])).rejects.toBe(LOCKED);
   await expect(s.runHub(() => {}, () => false)).rejects.toBe(LOCKED);
-  await expect(s.unlock(profile(cose), "vectors", "wrong")).rejects.toBe("wrong master password");
+  const wrong = JSON.stringify({ code: "wrong-password", message: "wrong master password" });
+  await expect(s.unlock(profile(cose), "vectors", "wrong")).rejects.toBe(wrong);
+  const elsewhere = JSON.stringify({ ...JSON.parse(profile(cose)), apiOrigin: "https://identity.bitwarden.com" });
+  const refused = await s.unlock(elsewhere, "vectors", cose.password).catch((e: unknown) => JSON.parse(String(e)));
+  expect(refused.code, "an API key entered for another server is not sent").toBe("wrong-origin");
   await expect(s.planPass("{}", [], [])).rejects.toBe(LOCKED);
 
   expect(drawn.length, "the session drew random bytes").toBeGreaterThan(0);
@@ -128,7 +133,7 @@ test("a port that throws synchronously fails the call, leaves the session usable
   const sync = await settled(s.runSync("{}", [], [])).catch((e: unknown) => e);
   expect(noUrl(sync), `runSync rejected with ${String(sync)}`).toBe(true);
   expect(thrown.storageSave ?? 0, "storageSave threw").toBeGreaterThanOrEqual(1);
-  expect(String(sync)).toMatch(/^host storageSave threw/);
+  expect(JSON.parse(String(sync))).toMatchObject({ code: "port", message: expect.stringMatching(/^host storageSave threw/) });
   throwing = "";
   await expect(settled(s.planPass("{}", [], []))).resolves.toContain("actions");
 

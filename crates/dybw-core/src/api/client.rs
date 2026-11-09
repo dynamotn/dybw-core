@@ -123,6 +123,28 @@ pub fn origin_of(url: &str) -> Result<String, ApiError> {
         .map_err(|e| ApiError::Invalid(format!("invalid URL: {e}")))
 }
 
+/// The `/connect/token` form for `key`, in a buffer sized up front: growing it would free the old buffer, with the
+/// secret written so far, unwiped (C8).
+fn token_form(key: &ApiKey, device: &DeviceInfo) -> Zeroizing<Vec<u8>> {
+    use url::form_urlencoded::{Serializer, byte_serialize};
+    let device_type = device.device_type.to_string();
+    let pairs = [
+        ("grant_type", "client_credentials"),
+        ("scope", "api"),
+        ("client_id", key.client_id.as_str()),
+        ("client_secret", key.client_secret.as_str()),
+        ("deviceType", device_type.as_str()),
+        ("deviceIdentifier", device.identifier.as_str()),
+        ("deviceName", device.name.as_str()),
+    ];
+    let encoded = |s: &str| byte_serialize(s.as_bytes()).map(str::len).sum::<usize>();
+    // Each pair is `name=value`, joined by `&`.
+    let len = pairs.iter().map(|(n, v)| encoded(n) + 1 + encoded(v) + 1).sum::<usize>() - 1;
+    let mut form = Serializer::new(String::with_capacity(len));
+    form.extend_pairs(pairs);
+    Zeroizing::new(form.finish().into_bytes())
+}
+
 pub struct ApiKey {
     /// The only identity origin this key may be sent to.
     pub origin: String,
@@ -296,15 +318,7 @@ impl<H: Http, C: Clock> Client<H, C> {
         if !self.http.refuses_redirects() {
             return Err(ApiError::RedirectsNotRefused);
         }
-        let mut form = url::form_urlencoded::Serializer::new(String::new());
-        form.append_pair("grant_type", "client_credentials")
-            .append_pair("scope", "api")
-            .append_pair("client_id", &key.client_id)
-            .append_pair("client_secret", key.client_secret.as_str())
-            .append_pair("deviceType", &self.device.device_type.to_string())
-            .append_pair("deviceIdentifier", &self.device.identifier)
-            .append_pair("deviceName", &self.device.name);
-        let body = Zeroizing::new(form.finish().into_bytes());
+        let body = token_form(key, &self.device);
         let headers = vec![("Content-Type".to_owned(), "application/x-www-form-urlencoded; charset=utf-8".to_owned())];
         let url = format!("{}/connect/token", self.urls.identity);
         let res = parse_json(&self.call(Method::Post, url, headers, Some(body), self.response_limit).await?);

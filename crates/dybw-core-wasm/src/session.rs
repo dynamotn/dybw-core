@@ -1,7 +1,8 @@
 //! A profile's session for the JS host. The keys, the client and the device's sync state (the planner's base) stay
-//! here; JS gets results as JSON text and errors as messages without a value. The state is saved through `Storage`
+//! here; JS gets results as JSON text and errors as [`Error`]s, which carry no value. The state is saved through `Storage`
 //! as the plugin's JSON (spec §7). Unstable: M6 may reshape it.
 
+use crate::error::Error;
 use crate::host::Host;
 use crate::ports::Ports;
 use dybw_core::api::{self, ApiKey, Client, DeviceInfo, Hub, HubOptions, hub_url, origin_of, resolve_server_urls};
@@ -23,22 +24,14 @@ use zeroize::Zeroizing;
 
 /// The storage key of the device's sync state.
 pub const STATE: &str = "sync-state";
-/// What every method that needs the keys answers once locked.
-pub const LOCKED: &str = "locked";
-/// What a method that needs the keys answers while another call has them.
-pub const BUSY: &str = "busy";
 /// The warning of an unlock that found a saved sync state it cannot read; the state starts over.
 pub const STATE_UNREADABLE: &str = "the saved sync state is unreadable: it starts over";
 
 static NO_OVERRIDES: BTreeMap<String, ConflictOverride> = BTreeMap::new();
 static NO_ANSWERS: BTreeMap<String, (HistoryQuestion, HistoryAnswer)> = BTreeMap::new();
 
-fn text(e: impl ToString) -> String {
-    e.to_string()
-}
-
-fn parse<'a, T: Deserialize<'a>>(json: &'a str) -> Result<T, String> {
-    serde_json::from_str(json).map_err(text)
+fn parse<'a, T: Deserialize<'a>>(json: &'a str) -> Result<T, Error> {
+    Ok(serde_json::from_str(json)?)
 }
 
 /// A KDF as the vectors' account files write it.
@@ -105,6 +98,9 @@ impl From<Policy> for sync::Policy {
 struct Profile {
     server: String,
     email: String,
+    /// The identity origin the API key was entered for; `unlock` refuses to send it anywhere else.
+    #[serde(default)]
+    api_origin: String,
     #[serde(default)]
     client_id: String,
     #[serde(default)]
@@ -137,9 +133,9 @@ struct Local {
 
 impl Local {
     /// `values` is already wrapped: the caller does it before any check that could drop them.
-    fn new(ids: Vec<String>, values: Vec<Zeroizing<String>>) -> Result<Local, String> {
+    fn new(ids: Vec<String>, values: Vec<Zeroizing<String>>) -> Result<Local, Error> {
         if ids.len() != values.len() {
-            return Err("ids and values differ in length".into());
+            return Err(Error::invalid("ids and values differ in length"));
         }
         Ok(Local { values: ids.into_iter().zip(values).collect(), written: BTreeSet::new() })
     }
@@ -193,11 +189,11 @@ pub struct Session<H: Host> {
 
 impl<H: Host> Session<H> {
     /// `namespace` is `"obsidian"` or `"bwss"`.
-    pub fn new(host: Rc<H>, namespace: &str) -> Result<Self, String> {
+    pub fn new(host: Rc<H>, namespace: &str) -> Result<Self, Error> {
         let ns = match namespace {
             "obsidian" => &Namespace::OBSIDIAN,
             "bwss" => &Namespace::BWSS,
-            _ => return Err("unknown namespace".into()),
+            _ => return Err(Error::invalid("unknown namespace")),
         };
         let (open, generation, busy) = (Cell::new(None), Cell::new(0), Cell::new(false));
         Ok(Session { ports: Ports(host), ns, open, generation, busy })
@@ -208,12 +204,12 @@ impl<H: Host> Session<H> {
     }
 
     /// Why there are no keys to hand out.
-    fn absent(&self) -> String {
-        if self.busy.get() { BUSY } else { LOCKED }.into()
+    fn absent(&self) -> Error {
+        if self.busy.get() { Error::busy() } else { Error::locked() }
     }
 
     /// Takes the keys out for one call, with the generation to put them back under.
-    fn take(&self) -> Result<(Open<H>, u64), String> {
+    fn take(&self) -> Result<(Open<H>, u64), Error> {
         let open = self.open.take().ok_or_else(|| self.absent())?;
         self.busy.set(true);
         Ok((open, self.generation.get()))
@@ -235,22 +231,22 @@ impl<H: Host> Session<H> {
         out
     }
 
-    pub async fn device_id(&self) -> Result<String, String> {
-        profile::device_id(&self.ports, &self.ports).await.map_err(text)
+    pub async fn device_id(&self) -> Result<String, Error> {
+        Ok(profile::device_id(&self.ports, &self.ports).await?)
     }
 
-    pub async fn accept_kdf(&self, kdf: &str, origin: &str) -> Result<(), String> {
-        profile::accept_kdf(&self.ports, parse::<Kdf>(kdf)?.into(), origin).await.map_err(text)
+    pub async fn accept_kdf(&self, kdf: &str, origin: &str) -> Result<(), Error> {
+        Ok(profile::accept_kdf(&self.ports, parse::<Kdf>(kdf)?.into(), origin).await?)
     }
 
-    pub async fn accept_security_version(&self, version: u64) -> Result<(), String> {
-        profile::accept_security_version(&self.ports, version).await.map_err(text)
+    pub async fn accept_security_version(&self, version: u64) -> Result<(), Error> {
+        Ok(profile::accept_security_version(&self.ports, version).await?)
     }
 
     /// A client for the profile's server, not logged in, and the identity origin.
-    async fn client(&self, p: &Profile) -> Result<(Client<Ports<H>, Ports<H>>, String, String), String> {
-        let urls = resolve_server_urls(&p.server).map_err(text)?;
-        let origin = origin_of(&urls.identity).map_err(text)?;
+    async fn client(&self, p: &Profile) -> Result<(Client<Ports<H>, Ports<H>>, String, String), Error> {
+        let urls = resolve_server_urls(&p.server)?;
+        let origin = origin_of(&urls.identity)?;
         let notifications = urls.notifications.clone();
         let device = DeviceInfo {
             identifier: self.device_id().await?,
@@ -259,40 +255,42 @@ impl<H: Host> Session<H> {
             client_name: p.client_name.clone(),
             client_version: p.client_version.clone(),
         };
-        let client = Client::new(self.port(), self.port(), urls, device).map_err(text)?;
+        let client = Client::new(self.port(), self.port(), urls, device)?;
         Ok((client, origin, notifications))
     }
 
-    /// Logs in with the API key, then unlocks (`profile::unlock`). Locks first; a `lock` while it runs wins.
+    /// Logs in with the API key, then unlocks (`profile::unlock`). Locks first; a `lock` while it runs wins. The
+    /// key goes only to the profile's `apiOrigin`: another identity origin is refused with `wrong-origin`.
     pub async fn unlock(
         &self,
         profile_json: &str,
         client_secret: Zeroizing<String>,
         password: Zeroizing<String>,
-    ) -> Result<String, String> {
+    ) -> Result<String, Error> {
         let generation = self.lock();
         let p: Profile = parse(profile_json)?;
         let (mut client, origin, notifications) = self.client(&p).await?;
-        let key = ApiKey { origin, client_id: p.client_id, client_secret };
+        let key = ApiKey { origin: p.api_origin, client_id: p.client_id, client_secret };
         let allowed = p.organizations.into();
         let (ports, ns) = (&self.ports, self.ns);
         let unlocked = profile::unlock(&mut client, ports, &key, &p.email, password, ports, ports, ns, &allowed)
             .await
-            .map_err(text)?;
+            .map_err(|e| Error::from(e).at(&origin))?;
         self.open(client, notifications, unlocked, allowed, generation).await
     }
 
     /// Unlocks from the profile's `cachedSync` without the network (`profile::unlock_cached`); the client stays
     /// logged out. Locks first; a `lock` while it runs wins.
-    pub async fn unlock_cached(&self, profile_json: &str, password: Zeroizing<String>) -> Result<String, String> {
+    pub async fn unlock_cached(&self, profile_json: &str, password: Zeroizing<String>) -> Result<String, Error> {
         let generation = self.lock();
         let p: Profile = parse(profile_json)?;
         let (client, origin, notifications) = self.client(&p).await?;
         let cached = CachedSync { sync: p.cached_sync, prelogin_kdf: p.prelogin_kdf.map(Into::into), email: p.email };
         let allowed = p.organizations.into();
         let (ports, ns) = (&self.ports, self.ns);
-        let unlocked =
-            profile::unlock_cached(cached, ports, &origin, password, ports, ports, ns, &allowed).await.map_err(text)?;
+        let unlocked = profile::unlock_cached(cached, ports, &origin, password, ports, ports, ns, &allowed)
+            .await
+            .map_err(|e| Error::from(e).at(&origin))?;
         self.open(client, notifications, unlocked, allowed, generation).await
     }
 
@@ -303,8 +301,8 @@ impl<H: Host> Session<H> {
         unlocked: Unlocked,
         allowed: Organizations,
         generation: u64,
-    ) -> Result<String, String> {
-        let raw = Storage::load(&self.ports, STATE).await.map_err(text)?;
+    ) -> Result<String, Error> {
+        let raw = Storage::load(&self.ports, STATE).await?;
         // `None` saved nothing; `Some(None)` saved something that is not JSON, which is reported, not hidden.
         let parsed: Option<Option<Value>> = raw.map(|b| serde_json::from_slice(&b).ok());
         let unreadable = matches!(parsed, Some(None));
@@ -319,7 +317,7 @@ impl<H: Host> Session<H> {
             "warnings": warnings,
         });
         if self.generation.get() != generation {
-            return Err(LOCKED.into());
+            return Err(Error::locked());
         }
         let unmarked = UnmarkedCache::default();
         self.open.set(Some(Open { keys: Keys { client, notifications, unlocked, allowed, unmarked }, state }));
@@ -337,7 +335,7 @@ impl<H: Host> Session<H> {
     }
 
     /// Plans one pass (`sync::plan_pass`) over the local values `ids[i]` = `values[i]`; applies nothing.
-    pub async fn plan_pass(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
+    pub async fn plan_pass(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, Error> {
         let values = wrap(values);
         let o: SyncOptions = parse(options)?;
         let local = Local::new(ids, values)?;
@@ -347,7 +345,7 @@ impl<H: Host> Session<H> {
             sync::plan_pass(&mut ctx, &open.state, &local).await
         };
         self.put(open, generation);
-        let plan = plan.map_err(text)?;
+        let plan = plan?;
         let actions: Vec<Value> = plan.actions.iter().map(action).collect();
         Ok(json!({ "actions": actions, "massClear": plan.mass_clear }).to_string())
     }
@@ -355,7 +353,7 @@ impl<H: Host> Session<H> {
     /// One sync (`sync::run_sync`), stopped by `lock`. The values it wrote, then the state, are saved even when it
     /// failed partway, until `lock` runs: a newer sync may have saved since, and these values without
     /// their state would be pushed over the newer ones. What it pulled is pulled again; what it pushed is adopted.
-    pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
+    pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, Error> {
         let values = wrap(values);
         let o: SyncOptions = parse(options)?;
         let mut local = Local::new(ids, values)?;
@@ -368,7 +366,7 @@ impl<H: Host> Session<H> {
         };
         let saved = self.save(generation, &mut open.state, &before, &local).await;
         self.put(open, generation);
-        let report = report.map_err(text)?;
+        let report = report?;
         saved?;
         Ok(report_json(&report).to_string())
     }
@@ -383,8 +381,8 @@ impl<H: Host> Session<H> {
         state: &mut DeviceState,
         before: &DeviceState,
         local: &Local,
-    ) -> Result<(), String> {
-        let live = || if self.generation.get() == generation { Ok(()) } else { Err(String::from(LOCKED)) };
+    ) -> Result<(), Error> {
+        let live = || if self.generation.get() == generation { Ok(()) } else { Err(Error::locked()) };
         let mut failed = Ok(());
         for (id, value) in local.values.iter().filter(|(id, _)| local.written.contains(*id)) {
             live()?;
@@ -395,17 +393,17 @@ impl<H: Host> Session<H> {
                 let scope = before.pending_scopes.get_key_value(id).map(|(k, v)| (k.clone(), v.clone()));
                 state.pending_scopes.extend(scope);
                 state.pending_creates.extend(before.pending_creates.iter().filter(|p| *p == id).cloned());
-                failed = failed.and(Err(text(e)));
+                failed = failed.and(Err(e.into()));
             }
         }
         live()?;
-        Storage::save(&self.ports, STATE, to_plugin_json(state).to_string().as_bytes()).await.map_err(text)?;
+        Storage::save(&self.ports, STATE, to_plugin_json(state).to_string().as_bytes()).await?;
         failed
     }
 
     /// Keeps the hub up (`api::run_hub`) until `stop` or `lock`, calling `on_change` when the vault changed
     /// elsewhere. It holds no key: it reads the access token for each attempt.
-    pub async fn run_hub(&self, on_change: impl FnMut(), stop: impl Fn() -> bool) -> Result<(), String> {
+    pub async fn run_hub(&self, on_change: impl FnMut(), stop: impl Fn() -> bool) -> Result<(), Error> {
         let device_id = self.peek(|o| o.state.device_id.clone()).ok_or_else(|| self.absent())?;
         let generation = self.generation.get();
         let mut hub = Hub::new(HubOptions::default(), device_id);

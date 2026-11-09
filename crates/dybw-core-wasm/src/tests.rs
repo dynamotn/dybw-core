@@ -148,7 +148,7 @@ impl Host for MockHost {
         })
         .await;
         if self.fail_secret_save.get() {
-            return Err("no secret storage".into());
+            return Err("port".into());
         }
         self.secrets.borrow_mut().insert(key.into(), value.into());
         Ok(())
@@ -408,7 +408,8 @@ fn a_dropped_socket_is_closed() {
 #[expect(clippy::indexing_slicing, reason = "tests")]
 mod session {
     use super::MockHost;
-    use crate::session::{BUSY, LOCKED, STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
+    use crate::error::{BUSY, Error, INVALID, LOCKED};
+    use crate::session::{STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
     use dybw_core::crypto::{AwsLcRsa, KdfParams};
     use dybw_core::profile::{KdfSource, UnlockWarning};
     use dybw_core::sync::{Action, ActionError, ApplyError, Conflict, ConflictKind, SyncReport};
@@ -425,7 +426,7 @@ mod session {
     use zeroize::Zeroizing;
 
     fn files() -> Files {
-        Files::from_dir(&vectors_dir().unwrap_or_default()).unwrap_or_else(|e| panic!("{e}"))
+        Files::from_dir(&vectors_dir().unwrap_or_default()).unwrap_or_else(|e| panic!("{e:?}"))
     }
 
     fn account(name: &str) -> Value {
@@ -441,12 +442,22 @@ mod session {
         host
     }
 
+    const ORIGIN: &str = "https://vectors.invalid";
+
     fn profile(name: &str) -> String {
         json!({
-            "server": "https://vectors.invalid", "email": account(name)["email"], "clientId": "vectors",
+            "server": ORIGIN, "email": account(name)["email"], "apiOrigin": ORIGIN, "clientId": "vectors",
             "deviceName": "test", "deviceType": 8, "clientName": "cli", "clientVersion": "0",
         })
         .to_string()
+    }
+
+    fn code(e: Error) -> String {
+        e.code().to_owned()
+    }
+
+    fn message(e: Error) -> String {
+        e.message().to_owned()
     }
 
     fn password(name: &str) -> Zeroizing<String> {
@@ -454,17 +465,17 @@ mod session {
     }
 
     fn session(host: &Rc<MockHost>) -> Session<MockHost> {
-        Session::new(host.clone(), "obsidian").unwrap_or_else(|e| panic!("{e}"))
+        Session::new(host.clone(), "obsidian").unwrap_or_else(|e| panic!("{e:?}"))
     }
 
-    fn unlock(s: &Session<MockHost>, name: &str) -> Result<Value, String> {
+    fn unlock(s: &Session<MockHost>, name: &str) -> Result<Value, Error> {
         let out = block_on(s.unlock(&profile(name), Zeroizing::new("vectors".into()), password(name)))?;
         Ok(serde_json::from_str(&out).unwrap_or_default())
     }
 
     fn plan(s: &Session<MockHost>, ids: &[&str], values: &[&str]) -> Result<Value, String> {
         let own = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect();
-        let out = block_on(s.plan_pass("{}", own(ids), own(values)))?;
+        let out = block_on(s.plan_pass("{}", own(ids), own(values))).map_err(code)?;
         Ok(serde_json::from_str(&out).unwrap_or_default())
     }
 
@@ -473,7 +484,7 @@ mod session {
         let host = host("cose-v2", vec![]);
         let s = session(&host);
         let summary = unlock(&s, "cose-v2");
-        let summary = summary.unwrap_or_else(|e| panic!("{e}"));
+        let summary = summary.unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(summary["securityVersion"], 2);
         assert_eq!(summary["userKeyId"].as_str().map(str::len), Some(22));
         assert_eq!(summary["orgProblems"], json!([]));
@@ -481,13 +492,13 @@ mod session {
 
         s.lock();
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
-        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])), Err(LOCKED.into()));
-        assert_eq!(block_on(s.run_hub(|| {}, || false)), Err(LOCKED.into()));
+        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])).map_err(code), Err(LOCKED.into()));
+        assert_eq!(block_on(s.run_hub(|| {}, || false)).map_err(code), Err(LOCKED.into()));
 
         // A refused unlock leaves it locked.
         assert_eq!(unlock(&s, "cose-v2").map(|_| ()), Ok(()));
         let wrong = block_on(s.unlock(&profile("cose-v2"), Zeroizing::new("v".into()), Zeroizing::new("no".into())));
-        assert_eq!(wrong, Err("wrong master password".into()));
+        assert_eq!(wrong.map_err(code), Err("wrong-password".into()));
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
     }
 
@@ -502,7 +513,7 @@ mod session {
         let expected = json!({ "actions": [{ "kind": "pull", "id": "alpha" }], "massClear": null });
         assert_eq!(plan(&s, &[], &[]), Ok(expected));
         let report = block_on(s.run_sync(r#"{"policy":"prefer-remote"}"#, vec![], vec![]));
-        let report: Value = serde_json::from_str(&report.unwrap_or_else(|e| panic!("{e}"))).unwrap_or_default();
+        let report: Value = serde_json::from_str(&report.unwrap_or_else(|e| panic!("{e:?}"))).unwrap_or_default();
         assert_eq!(report["pulled"], json!(["alpha"]));
         assert_eq!(report["passes"], 1);
         assert!(host.store.borrow().contains_key(STATE));
@@ -546,12 +557,14 @@ mod session {
         p["cachedSync"] = json!({ "profile": keys.profile, "folders": [], "ciphers": [] });
         p["preloginKdf"] = json!({ "type": "pbkdf2", "iterations": 600_000 });
         p["organizations"] = json!("all");
+        let wrong = block_on(s.unlock_cached(&p.to_string(), Zeroizing::new("no".into())));
+        assert_eq!(wrong.map_err(code), Err("wrong-password".into()));
         let out = block_on(s.unlock_cached(&p.to_string(), password("pbkdf2")));
         assert!(out.is_ok_and(|o| o.contains("\"securityVersion\":0")));
         assert!(host.http_seen.borrow().is_empty());
         // The client is logged out: a sync fails, and the state is saved anyway.
-        assert_eq!(plan(&s, &[], &[]), Err("not logged in".into()));
-        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])), Err("not logged in".into()));
+        assert_eq!(plan(&s, &[], &[]), Err("api".into()));
+        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])).map_err(message), Err("not logged in".into()));
         assert!(host.store.borrow().contains_key(STATE));
     }
 
@@ -559,7 +572,7 @@ mod session {
     fn device_and_profile_answers() {
         let host = Rc::new(MockHost::default());
         assert!(Session::new(host.clone(), "bwss").is_ok());
-        assert_eq!(Session::new(host.clone(), "x").err(), Some("unknown namespace".into()));
+        assert_eq!(Session::new(host.clone(), "x").err().map(message), Some("unknown namespace".into()));
         let s = session(&host);
         let id = block_on(s.device_id()).unwrap_or_default();
         assert_eq!(id.len(), 36);
@@ -567,7 +580,7 @@ mod session {
         assert_eq!(block_on(s.accept_kdf(r#"{"type":"pbkdf2","iterations":600000}"#, "https://o")), Ok(()));
         assert!(host.store.borrow().contains_key("kdf-pin"));
         let low = block_on(s.accept_kdf(r#"{"type":"argon2id","iterations":1,"memory":64,"parallelism":4}"#, "o"));
-        assert!(low.is_err_and(|e| e.contains("out of range")));
+        assert!(low.is_err_and(|e| e.code() == INVALID && e.message().contains("out of range")));
         assert!(block_on(s.accept_kdf("{", "o")).is_err());
         assert_eq!(block_on(s.accept_security_version(3)), Ok(()));
         assert_eq!(host.store.borrow().get("security-version").map(Vec::as_slice), Some(&b"3"[..]));
@@ -577,18 +590,18 @@ mod session {
         let mut p: Value = serde_json::from_str(&profile("pbkdf2")).unwrap_or_default();
         p["server"] = json!("http://example.com");
         let out = block_on(s.unlock_cached(&p.to_string(), Zeroizing::default()));
-        assert!(out.is_err_and(|e| e.contains("https://")));
+        assert!(out.is_err_and(|e| e.code() == INVALID && e.message().contains("https://")));
         p["server"] = json!("https://vectors.invalid");
         p["deviceName"] = json!("a\nb");
         let out = block_on(s.unlock_cached(&p.to_string(), Zeroizing::default()));
-        assert!(out.is_err_and(|e| e.contains("control characters")));
+        assert!(out.is_err_and(|e| e.code() == INVALID && e.message().contains("control characters")));
         assert!(block_on(s.unlock_cached("{", Zeroizing::default())).is_err());
         // The redirect-following host is refused before credentials leave.
         let out = block_on(s.unlock(&profile("pbkdf2"), Zeroizing::default(), Zeroizing::default()));
-        assert!(out.is_err_and(|e| e.contains("redirect")));
+        assert!(out.is_err_and(|e| e.code() == "api" && e.message().contains("redirect")));
 
         host.fail.set(true);
-        assert_eq!(block_on(s.device_id()), Err("host port failed: boom".into()));
+        assert_eq!(block_on(s.device_id()).map_err(message), Err("host port failed: boom".into()));
         assert!(block_on(s.unlock(&profile("pbkdf2"), Zeroizing::default(), Zeroizing::default())).is_err());
     }
 
@@ -597,14 +610,14 @@ mod session {
         let host = host("pbkdf2", vec![]);
         let s = session(&host);
         assert!(unlock(&s, "pbkdf2").is_ok());
-        assert_eq!(plan(&s, &["a"], &[]), Err("ids and values differ in length".into()));
+        assert_eq!(plan(&s, &["a"], &[]), Err(INVALID.into()));
         assert!(block_on(s.run_sync("{", vec![], vec![])).is_err());
         assert!(block_on(s.run_sync("{}", vec!["a".into()], vec![])).is_err());
         let rollback = block_on(s.plan_pass(r#"{"policy":"prefer-local","acceptRollback":true}"#, vec![], vec![]));
         assert!(rollback.is_ok());
         host.fail.set(true);
         let failed = block_on(s.run_sync("{}", vec![], vec![]));
-        assert!(failed.is_err_and(|e| e.contains("boom")));
+        assert!(failed.is_err_and(|e| e.code() == "api" && e.message().contains("boom")));
         host.fail.set(false);
         // The host is back: the next sync runs.
         assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
@@ -696,9 +709,10 @@ mod session {
         let host = host("pbkdf2", vec![]);
         let s = session(&host);
         let one = || vec![String::from("v")];
-        assert_eq!(block_on(s.plan_pass("{}", vec!["a".into()], one())), Err(LOCKED.into()));
-        assert_eq!(block_on(s.run_sync("{}", vec!["a".into()], one())), Err(LOCKED.into()));
-        assert_eq!(block_on(s.plan_pass("{}", vec![], one())), Err("ids and values differ in length".into()));
+        assert_eq!(block_on(s.plan_pass("{}", vec!["a".into()], one())).map_err(code), Err(LOCKED.into()));
+        assert_eq!(block_on(s.run_sync("{}", vec!["a".into()], one())).map_err(code), Err(LOCKED.into()));
+        let differ = block_on(s.plan_pass("{}", vec![], one())).map_err(message);
+        assert_eq!(differ, Err("ids and values differ in length".into()));
         assert!(block_on(s.run_sync("{", vec![], one())).is_err());
     }
 
@@ -708,7 +722,7 @@ mod session {
         let s = session(&host);
         assert!(unlock(&s, "pbkdf2").is_ok());
         host.fail_secret_save.set(true);
-        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])), Err("no secret storage".into()));
+        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])).map_err(code), Err("port".into()));
         let saved = host.store.borrow().get(STATE).cloned().unwrap_or_default();
         let saved: Value = serde_json::from_slice(&saved).unwrap_or_default();
         assert_eq!(saved["base"], json!({}), "the base does not record a pull the host does not hold");
@@ -756,7 +770,7 @@ mod session {
         let s = session(&host);
         assert!(unlock(&s, "pbkdf2").is_ok());
         host.fail_secret_save.set(true);
-        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])), Err("no secret storage".into()));
+        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])).map_err(code), Err("port".into()));
         let saved = host.store.borrow().get(STATE).cloned().unwrap_or_default();
         let saved: Value = serde_json::from_slice(&saved).unwrap_or_default();
         assert_eq!(saved["pendingCreates"], json!(["alpha"]));
@@ -778,7 +792,7 @@ mod session {
         assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
         let newer = host.store.borrow().get(STATE).cloned();
         assert!(newer.as_deref().is_some_and(|b| String::from_utf8_lossy(b).contains("alpha")));
-        assert_eq!(block_on(old), Err("Bitwarden was locked during the sync".into()));
+        assert_eq!(block_on(old).map_err(message), Err("Bitwarden was locked during the sync".into()));
         assert_eq!(host.store.borrow().get(STATE).cloned(), newer, "the stopped sync saved nothing");
     }
 
@@ -795,7 +809,7 @@ mod session {
         let mut sync = pin!(s.run_sync("{}", vec![], vec![]));
         assert!(sync.as_mut().poll(&mut cx).is_pending());
         s.lock();
-        assert_eq!(block_on(sync), Err(LOCKED.into()));
+        assert_eq!(block_on(sync).map_err(code), Err(LOCKED.into()));
         let mut saved: Vec<String> = host.secrets.borrow().keys().cloned().collect();
         saved.sort();
         (saved, host.store.borrow().contains_key(STATE))
@@ -825,7 +839,7 @@ mod session {
         assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()));
         assert_eq!(calls.get(), 3, "the hub stopped at its first check after lock");
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
-        assert_eq!(block_on(s.run_hub(|| {}, || false)), Err(LOCKED.into()));
+        assert_eq!(block_on(s.run_hub(|| {}, || false)).map_err(code), Err(LOCKED.into()));
     }
 
     #[test]
@@ -839,11 +853,11 @@ mod session {
         assert!(sync.as_mut().poll(&mut cx).is_pending());
         // A second call while the first has the keys is refused, not thrown.
         assert_eq!(plan(&s, &[], &[]), Err(BUSY.into()));
-        assert_eq!(block_on(s.run_hub(|| {}, || true)), Err(BUSY.into()));
+        assert_eq!(block_on(s.run_hub(|| {}, || true)).map_err(code), Err(BUSY.into()));
         s.lock();
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
         // The sync stops before applying anything, and its keys are dropped, not put back.
-        assert_eq!(block_on(sync), Err("Bitwarden was locked during the sync".into()));
+        assert_eq!(block_on(sync).map_err(message), Err("Bitwarden was locked during the sync".into()));
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
         assert!(host.secrets.borrow().is_empty());
     }
@@ -858,7 +872,7 @@ mod session {
         let mut unlocking = pin!(s.unlock(&profile, Zeroizing::new("v".into()), pw));
         assert!(unlocking.as_mut().poll(&mut cx).is_pending());
         s.lock();
-        assert_eq!(block_on(unlocking), Err(LOCKED.into()));
+        assert_eq!(block_on(unlocking).map_err(code), Err(LOCKED.into()));
         assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()));
     }
 
@@ -869,6 +883,160 @@ mod session {
         let s = session(&host);
         let summary = unlock(&s, "pbkdf2").unwrap_or_default();
         assert_eq!(summary["warnings"], json!([STATE_UNREADABLE]));
+    }
+
+    /// `profile_json` with `key` set to `value`.
+    fn with(profile_json: &str, key: &str, value: Value) -> String {
+        let mut p: Value = serde_json::from_str(profile_json).unwrap_or_default();
+        p[key] = value;
+        p.to_string()
+    }
+
+    fn unlock_with(s: &Session<MockHost>, profile_json: &str, name: &str) -> Result<String, Error> {
+        block_on(s.unlock(profile_json, Zeroizing::new("vectors".into()), password(name)))
+    }
+
+    #[test]
+    fn an_api_key_for_another_origin_is_refused() {
+        let host = host("pbkdf2", vec![]);
+        let s = session(&host);
+        let other = with(&profile("pbkdf2"), "apiOrigin", json!("https://identity.bitwarden.com"));
+        let e = unlock_with(&s, &other, "pbkdf2").err();
+        assert_eq!(e.as_ref().map(Error::code), Some("wrong-origin"));
+        assert_eq!(e.map(message), Some("the API key belongs to another server".into()));
+        // A profile without `apiOrigin` names no server, so the key goes nowhere.
+        let mut none: Value = serde_json::from_str(&profile("pbkdf2")).unwrap_or_default();
+        none.as_object_mut().map(|p| p.remove("apiOrigin"));
+        assert_eq!(unlock_with(&s, &none.to_string(), "pbkdf2").map_err(code), Err("wrong-origin".into()));
+        assert!(host.http_seen.borrow().is_empty(), "no request may leave");
+        assert!(unlock(&s, "pbkdf2").is_ok(), "the origin it was entered for logs in");
+    }
+
+    #[test]
+    fn a_rejection_reaches_js_as_json() {
+        let host = host("pbkdf2", vec![]);
+        let e = block_on(session(&host).plan_pass("{}", vec![], vec![])).err().map(String::from);
+        let e: Value = serde_json::from_str(&e.unwrap_or_default()).unwrap_or_default();
+        assert_eq!(e, json!({ "code": "locked", "message": "Bitwarden is locked" }));
+    }
+
+    #[test]
+    fn a_weakened_kdf_names_both_kdfs_and_the_origin() {
+        let host = host("pbkdf2", vec![]);
+        let s = session(&host);
+        assert!(block_on(s.accept_kdf(r#"{"type":"pbkdf2","iterations":700000}"#, ORIGIN)).is_ok());
+        let e = unlock(&s, "pbkdf2").err().unwrap_or_else(Error::locked);
+        assert_eq!(e.code(), "kdf-weakened");
+        assert_eq!(e.field("pinned"), Some(&json!({ "type": "pbkdf2", "iterations": 700_000 })));
+        assert_eq!(e.field("offered"), Some(&json!({ "type": "pbkdf2", "iterations": 600_000 })));
+        assert_eq!(e.field("source"), Some(&json!("prelogin")));
+        assert_eq!(e.field("origin"), Some(&json!(ORIGIN)));
+        assert!(e.message().contains("weaker"));
+        // `offered` and `origin` are what `acceptKdf` takes: accepting them unlocks.
+        let (offered, origin) = (e.field("offered").map(Value::to_string), e.field("origin").and_then(Value::as_str));
+        assert!(block_on(s.accept_kdf(&offered.unwrap_or_default(), origin.unwrap_or_default())).is_ok());
+        assert!(unlock(&s, "pbkdf2").is_ok());
+    }
+
+    #[test]
+    fn an_unreadable_kdf_pin_is_its_own_code() {
+        let host = host("pbkdf2", vec![]);
+        host.store.borrow_mut().insert("kdf-pin".into(), b"{".to_vec());
+        assert_eq!(unlock(&session(&host), "pbkdf2").map_err(code), Err("kdf-pin-unreadable".into()));
+    }
+
+    #[test]
+    fn a_security_downgrade_names_both_versions() {
+        let host = host("cose-v2", vec![]);
+        let s = session(&host);
+        assert!(block_on(s.accept_security_version(5)).is_ok());
+        let e = unlock(&s, "cose-v2").err().unwrap_or_else(Error::locked);
+        assert_eq!(e.code(), "security-downgrade");
+        assert_eq!((e.field("seen"), e.field("offered")), (Some(&json!(5)), Some(&json!(2))));
+    }
+
+    #[test]
+    fn a_security_state_fault_is_named() {
+        let host = host("cose", vec![]);
+        let e = unlock(&session(&host), "cose").err().unwrap_or_else(Error::locked);
+        assert_eq!((e.code(), e.field("fault")), ("security-state", Some(&json!("missing"))));
+    }
+
+    #[test]
+    fn a_mass_clear_counts_the_clears() {
+        let raw = files().get("generated/obsidian/sync/multi-id-sorted.json").unwrap_or_default().to_owned();
+        let scenario: Value = serde_json::from_str(&raw).unwrap_or_default();
+        let host = host("pbkdf2", scenario["ciphers"].as_array().cloned().unwrap_or_default());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
+        let (ids, values): (Vec<String>, Vec<String>) = host.secrets.borrow().clone().into_iter().unzip();
+        // Every synced item disappeared from Bitwarden.
+        let keys = block_on(dybw_vectors::keys::account_keys(&files(), "pbkdf2", false, &AwsLcRsa));
+        *host.server.borrow_mut() = Some(VectorServer::new(keys.profile, vec![], keys.prelogin));
+        let e = block_on(s.run_sync("{}", ids, values)).err().unwrap_or_else(Error::locked);
+        assert_eq!((e.code(), e.field("clears"), e.field("base")), ("mass-clear", Some(&json!(3)), Some(&json!(3))));
+    }
+
+    #[test]
+    fn an_http_failure_carries_its_status() {
+        let host = Rc::new(MockHost::default());
+        host.refuses.set(true);
+        *host.http_answer.borrow_mut() = (500, Vec::new());
+        let e = unlock(&session(&host), "pbkdf2").err().unwrap_or_else(Error::locked);
+        assert_eq!((e.code(), e.field("status")), ("api", Some(&json!(500))));
+    }
+
+    #[test]
+    fn a_failed_port_is_its_own_code() {
+        let host = Rc::new(MockHost::default());
+        host.fail.set(true);
+        assert_eq!(block_on(session(&host).device_id()).map_err(code), Err("port".into()));
+        assert_eq!(block_on(session(&host).accept_security_version(1)).map_err(code), Err("port".into()));
+    }
+
+    #[test]
+    fn every_core_error_maps_to_a_code() {
+        use dybw_core::api::ApiError;
+        use dybw_core::crypto::CryptoError;
+        use dybw_core::profile::{ProfileError, SecurityFault};
+        let api = |e: ApiError| Error::from(e).code().to_owned();
+        assert_eq!(api(ApiError::Http { status: 404, message: String::new() }), "api");
+        for e in [
+            ApiError::Network("n".into()),
+            ApiError::Protocol("p".into()),
+            ApiError::RedirectsNotRefused,
+            ApiError::NotLoggedIn,
+            ApiError::TooLarge,
+            ApiError::NotSynced,
+        ] {
+            assert_eq!(api(e), "api");
+        }
+        assert_eq!(api(ApiError::Invalid("i".into())), INVALID);
+        assert_eq!(api(ApiError::WrongOrigin), "wrong-origin");
+        assert_eq!(Error::from(ApiError::TooLarge).field("status"), None);
+
+        let crypto = |e: CryptoError| Error::from(ProfileError::Crypto(e)).code().to_owned();
+        assert_eq!(crypto(CryptoError::Port("p".into())), "port");
+        for e in [CryptoError::Malformed, CryptoError::BadMac, CryptoError::Kdf("k".into()), CryptoError::WrongKey] {
+            assert_eq!(crypto(e), INVALID);
+        }
+        assert_eq!(Error::from(ProfileError::IncompleteUnlockData).code(), INVALID);
+        assert_eq!(Error::from(ProfileError::Api(ApiError::WrongOrigin)).code(), "wrong-origin");
+
+        let fault = |f| Error::from(ProfileError::SecurityState(f)).field("fault").cloned();
+        assert_eq!(fault(SecurityFault::Invalid), Some(json!("invalid")));
+        assert_eq!(fault(SecurityFault::StoredUnreadable), Some(json!("stored-unreadable")));
+
+        let argon = KdfParams::Argon2id { iterations: 3, memory_mib: 64, parallelism: 4 };
+        let weak = ProfileError::KdfWeakened { pinned: argon, offered: argon, kdf_source: KdfSource::SyncUnlockData };
+        let weak = Error::from(weak).at("https://o");
+        let expected = json!({ "type": "argon2id", "iterations": 3, "memory": 64, "parallelism": 4 });
+        assert_eq!(weak.field("pinned"), Some(&expected));
+        assert_eq!(weak.field("source"), Some(&json!("sync-unlock-data")));
+        assert_eq!(weak.field("origin"), Some(&json!("https://o")));
+        // Only a weakened KDF takes the origin.
+        assert_eq!(Error::busy().at("https://o"), Error::busy());
     }
 }
 
@@ -904,7 +1072,7 @@ mod vectors {
     use std::rc::Rc;
 
     fn files() -> Files {
-        Files::from_dir(&vectors_dir().unwrap_or_default()).unwrap_or_else(|e| panic!("{e}"))
+        Files::from_dir(&vectors_dir().unwrap_or_default()).unwrap_or_else(|e| panic!("{e:?}"))
     }
 
     fn real() -> Ports<MockHost> {
@@ -923,7 +1091,7 @@ mod vectors {
         let dir = vectors_dir().unwrap_or_default();
         for sub in ["generated", "accounts", "crypto"] {
             let root = dir.join(sub);
-            let all = Files::from_dir(&root).unwrap_or_else(|e| panic!("{e}"));
+            let all = Files::from_dir(&root).unwrap_or_else(|e| panic!("{e:?}"));
             for name in walk(&root) {
                 map.insert(format!("{sub}/{name}"), all.get(&name).unwrap_or_default().to_owned());
             }

@@ -10,6 +10,7 @@
 
 #[cfg(target_arch = "wasm32")]
 mod bindings;
+pub mod error;
 pub mod host;
 pub mod ports;
 pub mod session;
