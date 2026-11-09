@@ -4,3 +4,4 @@ target/
 tools/
 target-wasm/
 crates/dybw-core-wasm/js/node_modules/
+crates/dybw-core-wasm/js/pkg/

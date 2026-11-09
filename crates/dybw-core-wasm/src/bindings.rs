@@ -11,6 +11,8 @@
 //! `Zeroizing`. Every answer is type-checked: a host that answers the wrong type gets an error, never a default.
 
 use crate::host::{Host, RecvFuture};
+#[cfg(feature = "vectors")]
+use crate::ports::Ports;
 use crate::session::Session;
 use dybw_core::ports::Frame;
 use js_sys::{Array, Function, Promise, Uint8Array};
@@ -262,4 +264,27 @@ impl WasmSession {
         let stopped = || stop.call0(&JsValue::NULL).is_ok_and(|v| v.is_truthy());
         self.0.run_hub(|| drop(on_change.call0(&JsValue::NULL)), stopped).await
     }
+}
+
+/// The vector files JS read (`path -> text`); an entry that is not two strings is no file, so its run reports it
+/// missing.
+#[cfg(feature = "vectors")]
+fn vector_files(map: &js_sys::Map) -> dybw_vectors::Files {
+    let mut files = std::collections::BTreeMap::new();
+    map.for_each(&mut |text, path| drop(path.as_string().zip(text.as_string()).map(|(p, t)| files.insert(p, t))));
+    dybw_vectors::Files::from_map(files)
+}
+
+/// See [`crate::vectors::run_vectors_json`].
+#[cfg(feature = "vectors")]
+#[wasm_bindgen(js_name = runVectors)]
+pub async fn run_vectors(files: js_sys::Map, ports: HostPorts) -> String {
+    crate::vectors::run_vectors_json(&vector_files(&files), &Ports(Rc::new(ports))).await
+}
+
+/// See [`crate::vectors::run_known_answers_json`].
+#[cfg(feature = "vectors")]
+#[wasm_bindgen(js_name = runKnownAnswers)]
+pub async fn run_known_answers(files: js_sys::Map, ports: HostPorts) -> String {
+    crate::vectors::run_known_answers_json(&vector_files(&files), &Ports(Rc::new(ports))).await
 }

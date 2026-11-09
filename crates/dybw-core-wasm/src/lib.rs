@@ -7,6 +7,8 @@ mod bindings;
 pub mod host;
 pub mod ports;
 pub mod session;
+#[cfg(feature = "vectors")]
+pub mod vectors;
 
 #[cfg(test)]
 mod tests;

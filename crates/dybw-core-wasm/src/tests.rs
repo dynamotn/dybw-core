@@ -1,5 +1,6 @@
 use crate::host::{Host, RSA_KEY_ERROR, RecvFuture};
 use crate::ports::Ports;
+use dybw_core::crypto::{AwsLcRsa, NativeArgon2};
 use dybw_core::ports::{
     Argon2Input, Clock, EventSocket, Events, Frame, Http, HttpRequest, KdfRunner, Method, OaepHash, Random, RsaOaep,
     Secrets, Storage,
@@ -48,6 +49,8 @@ struct MockHost {
     fail_secret_save: Cell<bool>,
     /// When set, `http` is this fake Bitwarden server.
     server: RefCell<Option<VectorServer>>,
+    /// `argon2id` and `rsa_oaep_decrypt` compute for real (`NativeArgon2`, `AwsLcRsa`), with the host's texts.
+    real: Cell<bool>,
 }
 
 impl MockHost {
@@ -151,6 +154,17 @@ impl Host for MockHost {
         parallelism: u32,
     ) -> Result<Zeroizing<Vec<u8>>, String> {
         self.check()?;
+        if self.real.get() {
+            let input = Argon2Input {
+                password: Zeroizing::new(password.into()),
+                salt: *salt,
+                iterations,
+                memory_kib,
+                parallelism,
+            };
+            let out = NativeArgon2.argon2id(input).await.map_err(|e| e.0)?;
+            return Ok(Zeroizing::new(out.to_vec()));
+        }
         self.kdf_seen.borrow_mut().push((password.into(), *salt, iterations, memory_kib, parallelism));
         Ok(Zeroizing::new(vec![9; self.kdf_len.get()]))
     }
@@ -160,6 +174,11 @@ impl Host for MockHost {
         hash: &str,
         ciphertext: &[u8],
     ) -> Result<Zeroizing<Vec<u8>>, String> {
+        if self.real.get() {
+            let hash = if hash == "SHA-1" { OaepHash::Sha1 } else { OaepHash::Sha256 };
+            let out = AwsLcRsa.decrypt(pkcs8, hash, ciphertext).await;
+            return out.map_err(|e| e.0.replace("the account's private key cannot be read", RSA_KEY_ERROR));
+        }
         self.rsa_seen.borrow_mut().push((pkcs8.into(), hash.into(), ciphertext.into()));
         self.rsa_error.borrow().clone().map_or(Ok(Zeroizing::new(b"plain".to_vec())), Err)
     }
@@ -811,5 +830,218 @@ mod session {
         let s = session(&host);
         let summary = unlock(&s, "pbkdf2").unwrap_or_default();
         assert_eq!(summary["warnings"], json!([STATE_UNREADABLE]));
+    }
+}
+
+/// The real crypto behind the mock answers with the host's texts.
+#[test]
+fn the_mock_computes_for_real() {
+    let p = ports();
+    p.0.real.set(true);
+    for hash in [OaepHash::Sha1, OaepHash::Sha256] {
+        assert_eq!(err(block_on(p.decrypt(b"not a key", hash, b"c"))), "the account's private key cannot be read");
+    }
+    let mut input = kdf_input();
+    input.memory_kib = 64;
+    assert_eq!(block_on(p.argon2id(input)).map(|k| k.len()).ok(), Some(32));
+    let mut input = kdf_input();
+    input.memory_kib = 0;
+    assert!(block_on(p.argon2id(input)).is_err());
+}
+
+#[cfg(feature = "vectors")]
+#[expect(clippy::indexing_slicing, reason = "tests")]
+mod vectors {
+    use super::{MockHost, Ports};
+    use crate::vectors::{cbor_json, msg_is, run_known_answers_json, run_vectors_json, unb64, unhex};
+    use dybw_core::api::Msg;
+    use dybw_core::crypto::{AwsLcRsa, Cbor};
+    use dybw_core::testing::block_on;
+    use dybw_vectors::{Files, Kind, run_all, vectors_dir};
+    use serde_json::{Value, json};
+    use std::collections::BTreeMap;
+    use std::rc::Rc;
+
+    fn files() -> Files {
+        Files::from_dir(&vectors_dir().unwrap_or_default()).unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    fn real() -> Ports<MockHost> {
+        let host = MockHost::default();
+        host.real.set(true);
+        Ports(Rc::new(host))
+    }
+
+    fn parse(json: &str) -> Value {
+        serde_json::from_str(json).unwrap_or_default()
+    }
+
+    /// Every file of the vectors, with `rel` replaced by `text`.
+    fn with(rel: &str, text: &str) -> Files {
+        let mut map: BTreeMap<String, String> = BTreeMap::new();
+        let dir = vectors_dir().unwrap_or_default();
+        for sub in ["generated", "accounts", "crypto"] {
+            let root = dir.join(sub);
+            let all = Files::from_dir(&root).unwrap_or_else(|e| panic!("{e}"));
+            for name in walk(&root) {
+                map.insert(format!("{sub}/{name}"), all.get(&name).unwrap_or_default().to_owned());
+            }
+        }
+        map.insert(rel.into(), text.into());
+        Files::from_map(map)
+    }
+
+    fn walk(dir: &std::path::Path) -> Vec<String> {
+        let mut out = Vec::new();
+        for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+            let (path, name) = (entry.path(), entry.file_name().to_string_lossy().into_owned());
+            if path.is_dir() {
+                out.extend(walk(&path).into_iter().map(|n| format!("{name}/{n}")));
+            } else {
+                out.push(name);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn every_vector_runs_over_the_host() {
+        let files = files();
+        let out = parse(&block_on(run_vectors_json(&files, &real())));
+        assert_eq!(out["failures"], json!([]));
+        let mut native = 0;
+        for ns in ["bwss", "obsidian"] {
+            for kind in Kind::ALL {
+                native += block_on(run_all(&files, ns, kind, &AwsLcRsa)).len();
+            }
+        }
+        assert_eq!(out["results"].as_array().map(Vec::len), Some(native));
+        assert!(native >= 211, "{native}");
+    }
+
+    #[test]
+    fn a_vector_that_fails_is_reported() {
+        let files = Files::from_map(BTreeMap::from([("generated/bwss/a.json".to_owned(), "{".to_owned())]));
+        let out = parse(&block_on(run_vectors_json(&files, &real())));
+        assert_eq!(out["results"].as_array().map(Vec::len), Some(3), "one entry per kind");
+        assert!(out["results"][0][1].as_str().is_some_and(|e| e.starts_with("generated/bwss/a.json: ")));
+        assert_eq!(out["failures"].as_array().map(Vec::len), Some(3));
+    }
+
+    #[test]
+    fn the_known_answers_pass_over_the_host() {
+        let out = parse(&block_on(run_known_answers_json(&files(), &real())));
+        let names = ["pbkdf2", "argon2id", "cose", "sdk", "msgpack", "marks"];
+        assert_eq!(out, json!({ "results": names.map(|n| json!([n, null])), "failures": [] }));
+    }
+
+    fn answers(files: &Files) -> Vec<String> {
+        let out = parse(&block_on(run_known_answers_json(files, &real())));
+        out["failures"].as_array().into_iter().flatten().map(|f| f.as_str().unwrap_or_default().to_owned()).collect()
+    }
+
+    #[test]
+    fn missing_files_fail_every_known_answer() {
+        let failures = answers(&Files::from_map(BTreeMap::new()));
+        assert_eq!(failures.len(), 6);
+        assert!(failures[0].starts_with("pbkdf2: crypto/vectors.json is missing"), "{failures:?}");
+        let broken = answers(&with("crypto/vectors.json", "{"));
+        assert!(broken[0].starts_with("pbkdf2: EOF"), "{broken:?}");
+        let account = answers(&with("accounts/pbkdf2.json", "{}"));
+        assert_eq!(account, ["marks: malformed encrypted string or key"]);
+    }
+
+    /// Changes `pointer` of `rel` to `value` and answers the failures.
+    fn tampered(rel: &str, pointer: &str, value: Value) -> Vec<String> {
+        let mut v: Value = serde_json::from_str(files().get(rel).unwrap_or_default()).unwrap_or_default();
+        if let Some(slot) = v.pointer_mut(pointer) {
+            *slot = value;
+        }
+        answers(&with(rel, &v.to_string()))
+    }
+
+    #[test]
+    fn a_wrong_answer_names_what_differs() {
+        let cases = [
+            ("crypto/vectors.json", "/pbkdf2/masterKey", json!("AAAA"), "pbkdf2: masterKey differs"),
+            ("crypto/vectors.json", "/argon2id/stretched", json!("AAAA"), "argon2id: stretched differs"),
+            ("crypto/vectors.json", "/pbkdf2/masterPasswordHash", json!("x"), "pbkdf2: hash differs"),
+            ("crypto/vectors.json", "/encStrings", json!([]), "pbkdf2: an empty list"),
+            ("crypto/cose-vectors.json", "/accounts/0/texts/0/plain", json!("x"), "cose: text differs"),
+            ("crypto/cose-vectors.json", "/accounts/0/privateKey/pkcs8", json!("AAAA"), "cose: pkcs8 differs"),
+            ("crypto/cose-vectors.json", "/accounts/0/itemKeys/0/key", json!("AAAA"), "cose: itemKey differs"),
+            ("crypto/cose-vectors.json", "/accounts/0/itemKeys/0/fieldPlain", json!("x"), "cose: field differs"),
+            ("crypto/sdk-m3.json", "/v1/card/plaintext", json!(null), "sdk: card differs"),
+            ("crypto/sdk-m3.json", "/v1", json!({}), "sdk: an empty object"),
+            ("crypto/sdk-m3.json", "/sealed/plaintext", json!(null), "sdk: sealed differs"),
+            ("crypto/msgpack.json", "/0/expected", json!("x"), "msgpack: "),
+            ("crypto/marks.json", "/0/mark", json!("x"), "marks: mark differs"),
+        ];
+        for (rel, pointer, value, want) in cases {
+            let got = tampered(rel, pointer, value);
+            assert!(got.len() == 1 && got[0].starts_with(want), "{rel}{pointer}: {got:?}");
+        }
+        // A key, an envelope or a msgpack that cannot be read names the crypto error.
+        let bad_key = tampered("crypto/cose-vectors.json", "/accounts/0/userKey", json!("AAAA"));
+        assert_eq!(bad_key, ["cose: malformed encrypted string or key"]);
+        let bad_blob = tampered("crypto/sdk-m3.json", "/sealed/TEST_VECTOR_SEALED_BLOB/value", json!("{"));
+        assert!(bad_blob[0].starts_with("sdk: EOF"), "{bad_blob:?}");
+        let bad_hex = tampered("crypto/msgpack.json", "/0/hex", json!(""));
+        assert_eq!(bad_hex, ["msgpack: truncated MessagePack data"]);
+    }
+
+    #[test]
+    fn base64_and_hex_decode() {
+        assert_eq!(unb64("TWFu"), b"Man");
+        assert_eq!(unb64("TWE="), b"Ma");
+        assert_eq!(unb64("TQ=="), b"M");
+        assert_eq!(unb64("+/+/"), [0xfb, 0xff, 0xbf]);
+        assert_eq!(unb64("az09"), [0x6b, 0x3d, 0x3d]);
+        assert_eq!(unb64("T"), b"");
+        assert_eq!(unhex("00fFzz7"), [0, 255, 0]);
+    }
+
+    #[test]
+    fn cbor_becomes_json() {
+        let map = Cbor::Map(vec![
+            (Cbor::text("a"), Cbor::Array(vec![Cbor::Uint(1), Cbor::Nint(0), Cbor::Nint(u64::MAX)])),
+            (Cbor::Uint(7), Cbor::Bool(true)),
+            (Cbor::text("n"), Cbor::Null),
+            (Cbor::text("b"), Cbor::bytes(vec![1])),
+        ]);
+        let want = json!({ "a": [1, -1, i64::MIN], "7": true, "n": null, "b": "<bytes>" });
+        assert_eq!(cbor_json(&map), want);
+    }
+
+    #[test]
+    fn msgpack_values_match_only_their_json() {
+        let yes = [
+            (Msg::Nil, json!(null)),
+            (Msg::Bool(true), json!(true)),
+            (Msg::Int(-3), json!(-3)),
+            (Msg::Float(1.5), json!(1.5)),
+            (Msg::Str("s".into()), json!("s")),
+            (Msg::Array(vec![Msg::Nil]), json!([null])),
+            (Msg::Map(vec![("k".into(), Msg::Nil)]), json!({ "k": null })),
+            (Msg::Bin(vec![1, 2]), json!({ "$bin": "0102" })),
+            (Msg::Int(1 << 70), json!({ "$big": (1_i128 << 70).to_string() })),
+            (Msg::Timestamp { seconds: 2, nanos: 5_000_000 }, json!({ "$date": 2005 })),
+        ];
+        for (m, j) in &yes {
+            assert!(msg_is(m, j), "{m:?}");
+        }
+        let no = [
+            (Msg::Int(1), json!(1.5)),
+            (Msg::Array(vec![Msg::Nil]), json!([])),
+            (Msg::Array(vec![Msg::Nil]), json!([true])),
+            (Msg::Map(vec![("k".into(), Msg::Nil)]), json!({})),
+            (Msg::Map(vec![("k".into(), Msg::Nil)]), json!({ "j": null })),
+            (Msg::Map(vec![("k".into(), Msg::Nil)]), json!({ "k": true })),
+            (Msg::Bin(vec![1]), json!("01")),
+            (Msg::Ext(1, vec![]), json!(null)),
+        ];
+        for (m, j) in &no {
+            assert!(!msg_is(m, j), "{m:?}");
+        }
     }
 }

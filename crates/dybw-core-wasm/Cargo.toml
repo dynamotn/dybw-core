@@ -9,8 +9,13 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+# `runVectors` and `runKnownAnswers` for the JS harness (`js/`).
+vectors = ["dep:dybw-vectors"]
+
 [dependencies]
 dybw-core = { path = "../dybw-core", default-features = false }
+dybw-vectors = { path = "../dybw-vectors", default-features = false, optional = true }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 zeroize = "1.9.1"

@@ -223,18 +223,20 @@ impl dybw_core::ports::RsaOaep for LateRsa {
 #[test]
 fn the_runner_awaits_a_late_rsa_port() {
     let files = files();
-    let orgs = files
-        .scenarios("obsidian")
-        .unwrap()
-        .iter()
-        .filter(|s| Kind::Read.has(&s.expect))
-        .filter(|s| s.options.organizations)
-        .count();
-    assert!(orgs > 0, "no organization read vector");
-    let late = LateRsa(std::cell::Cell::new(0));
-    let got = poll_until_ready(run_all(&files, "obsidian", Kind::Read, &late));
-    let want = poll_until_ready(run_all(&files, "obsidian", Kind::Read, &AwsLcRsa));
-    assert!(late.0.get() > 0, "the late port was never asked");
-    assert_eq!(got, want);
-    check(got, &expected_failures()).unwrap();
+    for kind in [Kind::Read, Kind::Plan] {
+        let orgs = files
+            .scenarios("obsidian")
+            .unwrap()
+            .iter()
+            .filter(|s| kind.has(&s.expect))
+            .filter(|s| s.options.organizations)
+            .count();
+        assert!(orgs > 0, "no organization {kind:?} vector");
+        let late = LateRsa(std::cell::Cell::new(0));
+        let got = poll_until_ready(run_all(&files, "obsidian", kind, &late));
+        let want = poll_until_ready(run_all(&files, "obsidian", kind, &AwsLcRsa));
+        assert!(late.0.get() > 0, "{kind:?}: the late port was never asked");
+        assert_eq!(got, want);
+        check(got, &expected_failures()).unwrap();
+    }
 }
