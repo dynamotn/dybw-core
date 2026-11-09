@@ -176,3 +176,27 @@ test("a conflict reaches JS with its label and organization", async () => {
   ]);
   s.lock();
 });
+
+test("a remembered user key unlocks again without the password, and only while it opens the private key", async () => {
+  const org = account(files, "org");
+  const { ports: p, requests } = serverPorts(org, { privateKey: await wrappedPrivateKey(org) });
+  const s = new WasmSession(p, "obsidian");
+  await expect(Promise.resolve().then(() => s.exportUserKey())).rejects.toBe(LOCKED);
+  const summary = JSON.parse(await s.unlock(profile(org), "vectors", org.password));
+  const key = s.exportUserKey();
+  expect(key).toBe(org.userKey);
+  s.lock();
+  await expect(Promise.resolve().then(() => s.exportUserKey())).rejects.toBe(LOCKED);
+
+  requests.length = 0;
+  const again = JSON.parse(await s.unlockWithKey(profile(org), "vectors", key));
+  expect(again.userKeyId).toBe(summary.userKeyId);
+  expect(requests, "login and sync, no prelogin").toEqual(["POST /identity/connect/token", "GET /api/sync"]);
+  expect(JSON.parse(await s.planPass("{}", [], []))).toEqual({ actions: [], massClear: null });
+
+  const wrong = JSON.stringify({ code: "wrong-password", message: "wrong master password" });
+  await expect(s.unlockWithKey(profile(org), "vectors", cose.userKey)).rejects.toBe(wrong);
+  await expect(s.planPass("{}", [], [])).rejects.toBe(LOCKED);
+  const bad = await s.unlockWithKey(profile(org), "vectors", "not base64!").catch((e: unknown) => JSON.parse(String(e)));
+  expect(bad.code).toBe("invalid");
+});

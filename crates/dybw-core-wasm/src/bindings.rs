@@ -2,7 +2,8 @@
 //! only: what they call is covered by the native tests, this file by the WASM harness.
 //!
 //! Zeroization (D14): a secret export parameter is an owned `String`, which the glue copies into WASM memory and
-//! hands over (never `&str`, which it frees unwiped); no export returns a secret. Residue can escape: for a string
+//! hands over (never `&str`, which it frees unwiped). No export returns a secret but `exportUserKey`, whose base64
+//! text spec §6.2 lets cross for SecretStorage; the glue frees its returned buffer unwiped. Residue can escape: for a string
 //! that is not ASCII, `passStringToWasm0` writes the ASCII prefix into a buffer of the string's UTF-16 length, then
 //! `realloc`s it twice (grow, then shrink to the UTF-8 length), and either move frees the old chunk unwiped: the
 //! prefix, or the whole value (accepted in D14). A secret that must not leave that residue can come in as a
@@ -273,6 +274,20 @@ impl WasmSession {
     }
     pub async fn unlock(&self, profile: &str, client_secret: String, password: String) -> Result<String, String> {
         Ok(self.0.unlock(profile, Zeroizing::new(client_secret), Zeroizing::new(password)).await?)
+    }
+    #[wasm_bindgen(js_name = unlockWithKey)]
+    pub async fn unlock_with_key(
+        &self,
+        profile: &str,
+        client_secret: String,
+        user_key: String,
+    ) -> Result<String, String> {
+        Ok(self.0.unlock_with_key(profile, Zeroizing::new(client_secret), Zeroizing::new(user_key)).await?)
+    }
+    /// The user key, base64: the plugin calls it only when the user turned "remember unlock" on.
+    #[wasm_bindgen(js_name = exportUserKey)]
+    pub fn export_user_key(&self) -> Result<String, String> {
+        Ok(self.0.export_user_key()?)
     }
     #[wasm_bindgen(js_name = unlockCached)]
     pub async fn unlock_cached(&self, profile: &str, password: String) -> Result<String, String> {

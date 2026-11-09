@@ -105,6 +105,18 @@ their fields are listed in `crates/dybw-core-wasm/src/error.rs`. The profile's
 `apiOrigin` is the identity origin the API key was entered for; `unlock` sends
 the key nowhere else (`wrong-origin`).
 
+"Remember unlock": `exportUserKey(): string`, synchronous, gives the user key
+as base64 (`locked`, or `busy` while another call has the keys, otherwise).
+It is one of the secrets spec §6.2 lets cross as a JS string, for SecretStorage:
+the plugin calls it only when the user turned "remember unlock" on.
+`unlockWithKey(profile, clientSecret, userKeyB64): Promise<string>` unlocks with
+it instead of the password: the same login (API key, `apiOrigin`, ADR 0018) and
+`/sync`, no KDF, so the KDF pin is neither read nor written. The key must open
+the account's private key, else `wrong-password` and nothing is saved (the
+plugin then forgets the key and asks for the password); then the security state
+checks run as for a password. A key that is not base64 or no key is `invalid`,
+before any request. It answers the same summary as `unlock`.
+
 A host whose `http` follows redirects (`refusesRedirects()` answers `false`)
 gets ADR 0018's rule: the API key and the bearer token go only to Bitwarden
 cloud (`identity.bitwarden.com`, `identity.bitwarden.eu`) or to an identity

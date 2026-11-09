@@ -4,13 +4,13 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of, resolve_server_urls};
 use dybw_core::crypto::{
-    AwsLcRsa, CryptoError, KdfParams, NativeArgon2, SymmetricKey, derive_master_key, hash_master_password,
-    unwrap_signing_key, verify_security_state,
+    AwsLcRsa, ContentFormat, CryptoError, KdfParams, NativeArgon2, SymmetricKey, derive_master_key,
+    hash_master_password, unwrap_signing_key, verify_security_state,
 };
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
 use dybw_core::profile::{
     CachedSync, KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf,
-    accept_security_version, unlock, unlock_cached,
+    accept_security_version, unlock, unlock_cached, unlock_with_key,
 };
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations};
@@ -1136,4 +1136,132 @@ fn cached_unlock_without_prelogin_kdf_needs_source_one() {
     one["userDecryption"] = unlock_data(&wrapped, 600_000, &acc.email)["userDecryption"].clone();
     let unlocked = cached_unlock(one, None, &acc.email, &acc.password, &MemStorage::default()).unwrap();
     assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&account("pbkdf2")["userKey"]));
+}
+
+// Unlock with a remembered user key (M6 C5): the login, `/sync`, private key and security state checks, no KDF.
+
+/// Unlocks `profile` with `user` instead of a password, on `storage`.
+fn key_unlock(profile: Value, user: SymmetricKey, storage: &MemStorage, allowed: &Organizations) -> Outcome {
+    let seen = std::rc::Rc::default();
+    // A prelogin that would fail if it were asked.
+    let inner = VectorServer::new(profile, vec![], json!({ "kdf": 9 }));
+    let server = Recording { inner, seen: std::rc::Rc::clone(&seen), extra: Value::Null };
+    let mut api = Client::new(server, FixedClock { now_ms: 0 }, urls(), device()).unwrap();
+    let result = block_on(unlock_with_key(&mut api, storage, &api_key(), user, &AwsLcRsa, &Namespace::BWSS, allowed));
+    let seen = seen.borrow().clone();
+    Outcome { result, seen }
+}
+
+fn user_key(name: &str) -> SymmetricKey {
+    SymmetricKey::from_bytes(&b64(&account(name)["userKey"])).unwrap()
+}
+
+fn profile_of(name: &str) -> Value {
+    account_keys(&vectors_dir().unwrap(), name, false).profile
+}
+
+/// The `cose-v2` account's sync profile with a private key wrapped under its COSE user key (type 7).
+fn cose_v2_with_private_key() -> Value {
+    let mut profile = profile_of("cose-v2");
+    let wrapped = user_key("cose-v2").encrypt_as(b"pkcs8", ContentFormat::Pkcs8, &SeededRandom::new(5)).unwrap();
+    profile["privateKey"] = json!(wrapped);
+    profile
+}
+
+#[test]
+fn a_remembered_legacy_key_unlocks_without_a_kdf() {
+    let storage = MemStorage::default();
+    let out = key_unlock(profile_of("org"), user_key("org"), &storage, &Organizations::All);
+    let unlocked = out.result.unwrap();
+    assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&account("org")["userKey"]));
+    assert_eq!(unlocked.keys.orgs.len(), account("org")["organizations"].as_array().unwrap().len());
+    assert!(unlocked.org_problems.is_empty() && unlocked.warnings.is_empty());
+    assert_eq!(unlocked.security_version, 0);
+    assert_eq!(out.seen.len(), 2, "login and sync only: {:?}", out.seen);
+    assert!(out.seen[0].contains("/connect/token") && out.seen[1].contains("/api/sync"), "{:?}", out.seen);
+    // No KDF ran: no pin is written, and none is changed.
+    assert_eq!(pin_of(&storage), None);
+    assert_eq!(stored_version(&storage), None);
+    pin(&storage, ARGON_FLOOR, &origin());
+    assert!(key_unlock(profile_of("org"), user_key("org"), &storage, &Organizations::None).result.is_ok());
+    assert_eq!(pin_of(&storage), Some(KdfPin { params: ARGON_FLOOR, origin: origin() }));
+}
+
+#[test]
+fn a_remembered_cose_key_unlocks_with_its_security_state() {
+    let storage = MemStorage::default();
+    let out = key_unlock(cose_v2_with_private_key(), user_key("cose-v2"), &storage, &Organizations::None);
+    let unlocked = out.result.unwrap();
+    assert_eq!((unlocked.security_version, unlocked.keys.security_version), (2, 2));
+    assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&account("cose-v2")["userKey"]));
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"2"[..]));
+    assert_eq!(pin_of(&storage), None);
+}
+
+/// A key that does not open the private key (another account's, or the account's before a rotation) is refused as
+/// a wrong password, and nothing is saved.
+#[test]
+fn a_key_that_does_not_open_the_private_key_is_refused() {
+    let cases: Vec<(&str, Value, SymmetricKey)> = vec![
+        ("another legacy key", profile_of("org"), user_key("pbkdf2")),
+        ("a COSE key for a legacy private key", profile_of("org"), user_key("cose-v2")),
+        ("a legacy key for a COSE private key", cose_v2_with_private_key(), user_key("org")),
+        ("another COSE key", cose_v2_with_private_key(), user_key("cose")),
+        ("no private key to check", profile_of("pbkdf2"), user_key("pbkdf2")),
+    ];
+    for (what, profile, user) in cases {
+        let storage = MemStorage::default();
+        block_on(storage.save("security-version", b"1")).unwrap();
+        let Err(err) = key_unlock(profile, user, &storage, &Organizations::All).result else {
+            panic!("{what}: unlocked")
+        };
+        assert!(matches!(err, ProfileError::WrongPassword), "{what}: {err:?}");
+        assert_eq!(stored_version(&storage).as_deref(), Some(&b"1"[..]), "{what}");
+        assert_eq!(pin_of(&storage), None, "{what}");
+    }
+    // The private key under `accountKeys` counts as well.
+    let mut profile = profile_of("org");
+    let wrapped = profile.as_object_mut().unwrap().remove("privateKey").unwrap();
+    profile["accountKeys"] = json!({ "publicKeyEncryptionKeyPair": { "wrappedPrivateKey": wrapped } });
+    assert!(key_unlock(profile.clone(), user_key("org"), &MemStorage::default(), &Organizations::None).result.is_ok());
+    let err = key_unlock(profile, user_key("pbkdf2"), &MemStorage::default(), &Organizations::None).result;
+    assert!(matches!(err, Err(ProfileError::WrongPassword)));
+}
+
+#[test]
+fn a_remembered_key_gets_the_security_state_checks() {
+    // A version below the saved one.
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"3")).unwrap();
+    let err = key_unlock(cose_v2_with_private_key(), user_key("cose-v2"), &storage, &Organizations::None).result;
+    assert!(matches!(err, Err(ProfileError::SecurityDowngrade { seen: 3, offered: 2 })), "{:?}", err.err());
+    assert_eq!(stored_version(&storage).as_deref(), Some(&b"3"[..]));
+    // A legacy key after v2.
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"2")).unwrap();
+    let err = key_unlock(profile_of("org"), user_key("org"), &storage, &Organizations::None).result;
+    assert!(matches!(err, Err(ProfileError::SecurityDowngrade { seen: 2, offered: 0 })), "{:?}", err.err());
+    // A forged or missing state.
+    let mut forged = cose_v2_with_private_key();
+    forged["accountKeys"]["securityState"]["securityState"] = json!("!");
+    let storage = MemStorage::default();
+    let err = key_unlock(forged, user_key("cose-v2"), &storage, &Organizations::None).result;
+    assert!(matches!(err, Err(ProfileError::SecurityState(SecurityFault::Invalid))), "{:?}", err.err());
+    assert_eq!(stored_version(&storage), None);
+    let mut missing = cose_v2_with_private_key();
+    missing.as_object_mut().unwrap().remove("accountKeys");
+    let err = key_unlock(missing, user_key("cose-v2"), &MemStorage::default(), &Organizations::None).result;
+    assert!(matches!(err, Err(ProfileError::SecurityState(SecurityFault::Missing))), "{:?}", err.err());
+}
+
+/// The API key goes only to the origin it was entered for, as with a password.
+#[test]
+fn a_remembered_key_logs_in_only_at_the_api_key_origin() {
+    let server = VectorServer::new(profile_of("org"), vec![], json!({ "kdf": 9 }));
+    let mut api = Client::new(server, FixedClock { now_ms: 0 }, urls(), device()).unwrap();
+    let key = ApiKey { origin: "https://identity.bitwarden.com".into(), ..api_key() };
+    let (storage, allowed) = (MemStorage::default(), Organizations::None);
+    let err =
+        block_on(unlock_with_key(&mut api, &storage, &key, user_key("org"), &AwsLcRsa, &Namespace::BWSS, &allowed));
+    assert!(matches!(err, Err(ProfileError::Api(dybw_core::api::ApiError::WrongOrigin))), "{:?}", err.err());
 }

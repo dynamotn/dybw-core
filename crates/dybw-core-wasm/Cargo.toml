@@ -12,10 +12,10 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # `runVectors` and `runKnownAnswers` for the JS harness (`js/`).
-vectors = ["dep:dybw-vectors", "dep:base64"]
+vectors = ["dep:dybw-vectors"]
 
 [dependencies]
-base64 = { version = "0.23.1", optional = true }
+base64 = "0.23.1"
 dybw-core = { path = "../dybw-core", default-features = false }
 dybw-vectors = { path = "../dybw-vectors", default-features = false, optional = true }
 serde = { version = "1.0.229", features = ["derive"] }

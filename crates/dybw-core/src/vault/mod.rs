@@ -9,7 +9,7 @@ pub mod scan;
 pub mod write;
 
 pub use namespace::{Encodings, IdProblem, Namespace};
-pub use orgs::{OrgProblem, unlock_organizations};
+pub use orgs::{OrgProblem, unlock_organizations, wrapped_private_key};
 pub use scan::{
     Duplicate, ItemMeta, MarkedItem, Scan, ScanReport, SkipReason, Uninspectable, UnmarkedCache, ValueSource,
     item_meta, scan, scan_vault, scan_vault_with,

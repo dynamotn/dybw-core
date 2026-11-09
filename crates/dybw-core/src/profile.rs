@@ -6,7 +6,7 @@ use crate::crypto::{
     CryptoError, KdfParams, Marker, SymmetricKey, derive_master_key, unwrap_signing_key, verify_security_state,
 };
 use crate::ports::{Clock, Http, KdfRunner, PortError, Random, RsaOaep, Storage};
-use crate::vault::{Keys, Namespace, OrgProblem, Organizations, unlock_organizations};
+use crate::vault::{Keys, Namespace, OrgProblem, Organizations, unlock_organizations, wrapped_private_key};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD as B64};
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -401,7 +401,19 @@ async fn finish_unlock(
         e => ProfileError::Crypto(e),
     })?;
     drop(stretched);
-    let version = security_version(&sync, &user)?;
+    let version = check_security(&sync, &user, storage).await?;
+    if pinned != Some(params) {
+        save_pin(storage, params, origin).await?;
+    }
+    let warnings =
+        if params.meets_floors() { vec![] } else { vec![UnlockWarning::KdfBelowFloor { params, kdf_source: source }] };
+    Ok(open_keys(sync, user, version, warnings, rsa, ns, allowed).await)
+}
+
+/// ADR 0019 on an opened user key: a COSE key needs a valid signed security state, a version below the saved one
+/// stops the unlock, and a higher one is saved. Answers the verified version.
+async fn check_security(sync: &Value, user: &SymmetricKey, storage: &impl Storage) -> Result<u64, ProfileError> {
+    let version = security_version(sync, user)?;
     let seen = load_security_version(storage).await?;
     if version < seen {
         return Err(ProfileError::SecurityDowngrade { seen, offered: version });
@@ -409,21 +421,52 @@ async fn finish_unlock(
     if version > seen {
         accept_security_version(storage, version).await?;
     }
-    if pinned != Some(params) {
-        save_pin(storage, params, origin).await?;
-    }
-    let warnings =
-        if params.meets_floors() { vec![] } else { vec![UnlockWarning::KdfBelowFloor { params, kdf_source: source }] };
+    Ok(version)
+}
+
+/// The organization keys and the marker, once every check passed.
+async fn open_keys(
+    sync: Value,
+    user: SymmetricKey,
+    version: u64,
+    warnings: Vec<UnlockWarning>,
+    rsa: &impl RsaOaep,
+    ns: &Namespace,
+    allowed: &Organizations,
+) -> Unlocked {
     let profile = sync.get("profile").unwrap_or(&Value::Null);
     let (orgs, org_problems) = unlock_organizations(profile, &user, rsa, allowed).await;
     let marker = Marker::new(&user, ns.marks);
-    Ok(Unlocked {
+    Unlocked {
         keys: Keys { user, orgs, marker, security_version: version },
         sync,
         org_problems,
         warnings,
         security_version: version,
-    })
+    }
+}
+
+/// `unlock` with a user key the host remembered from an earlier unlock ("remember unlock"), instead of the
+/// password: the same API-key login and `/sync`, then the key must open the account's private key (the plugin's
+/// check: a key gone stale after a rotation, or another account's, opens nothing), then the same security state
+/// checks. No KDF runs, so the KDF pin is neither read nor written. A key that opens no private key, or an account
+/// without one to check it against, is `WrongPassword`, before anything is saved: the host forgets the key and asks
+/// for the password.
+pub async fn unlock_with_key<H: Http, C: Clock>(
+    client: &mut Client<H, C>,
+    storage: &impl Storage,
+    key: &ApiKey,
+    user: SymmetricKey,
+    rsa: &impl RsaOaep,
+    ns: &Namespace,
+    allowed: &Organizations,
+) -> Result<Unlocked, ProfileError> {
+    client.login(key).await?;
+    let sync = client.sync().await?;
+    let wrapped = sync.get("profile").and_then(wrapped_private_key).ok_or(ProfileError::WrongPassword)?;
+    user.decrypt_pkcs8(wrapped).map_err(|_| ProfileError::WrongPassword)?;
+    let version = check_security(&sync, &user, storage).await?;
+    Ok(open_keys(sync, user, version, vec![], rsa, ns, allowed).await)
 }
 
 #[cfg(all(test, feature = "testing"))]

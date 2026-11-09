@@ -5,8 +5,9 @@
 use crate::error::Error;
 use crate::host::Host;
 use crate::ports::Ports;
+use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{self, ApiKey, Client, DeviceInfo, Hub, HubOptions, hub_url, origin_of, resolve_server_urls};
-use dybw_core::crypto::KdfParams;
+use dybw_core::crypto::{KdfParams, SymmetricKey};
 use dybw_core::ports::{Secrets, Storage};
 use dybw_core::profile::{self, CachedSync, UnlockWarning, Unlocked};
 use dybw_core::sync::{
@@ -113,19 +114,19 @@ struct Profile {
     prelogin_kdf: Option<Kdf>,
 }
 
-const KINDS: [ConflictKind; 5] = [
+pub(crate) const KINDS: [ConflictKind; 5] = [
     ConflictKind::BothChanged,
     ConflictKind::LocalUnsynced,
     ConflictKind::DeletedRemotely,
     ConflictKind::OrganizationClaim,
     ConflictKind::OrganizationPush,
 ];
-const QUESTIONS: [HistoryQuestion; 2] = [HistoryQuestion::FirstWriteBack, HistoryQuestion::EvictsForeign];
-const ANSWERS: [(&str, HistoryAnswer); 2] =
+pub(crate) const QUESTIONS: [HistoryQuestion; 2] = [HistoryQuestion::FirstWriteBack, HistoryQuestion::EvictsForeign];
+pub(crate) const ANSWERS: [(&str, HistoryAnswer); 2] =
     [("write-to-login", HistoryAnswer::WriteToLogin), ("keep-separate", HistoryAnswer::KeepSeparate)];
 
 /// The one of `all` whose code is `code`.
-fn by_code<T: Copy>(all: &[T], name: impl Fn(T) -> &'static str, code: &str) -> Result<T, Error> {
+pub(crate) fn by_code<T: Copy>(all: &[T], name: impl Fn(T) -> &'static str, code: &str) -> Result<T, Error> {
     all.iter().copied().find(|t| name(*t) == code).ok_or_else(|| Error::invalid("unknown option value"))
 }
 
@@ -400,6 +401,37 @@ impl<H: Host> Session<H> {
             .await
             .map_err(|e| Error::from(e).at(&origin))?;
         self.open(client, notifications, unlocked, allowed, generation).await
+    }
+
+    /// `unlock` with the user key `exportUserKey` gave, base64, instead of the password (`profile::unlock_with_key`):
+    /// the same login and `/sync`, no KDF. A key that does not open the account's private key is `wrong-password`
+    /// and saves nothing; one that is not base64 or no key at all is `invalid`, before any request.
+    pub async fn unlock_with_key(
+        &self,
+        profile_json: &str,
+        client_secret: Zeroizing<String>,
+        user_key: Zeroizing<String>,
+    ) -> Result<String, Error> {
+        let generation = self.lock();
+        let bytes =
+            Zeroizing::new(B64.decode(user_key.as_bytes()).map_err(|_| Error::invalid("the key is not base64"))?);
+        drop(user_key);
+        let user = SymmetricKey::from_bytes(&bytes)?;
+        drop(bytes);
+        let p: Profile = parse(profile_json)?;
+        let (mut client, _, notifications) = self.client(&p).await?;
+        let key = ApiKey { origin: p.api_origin, client_id: p.client_id, client_secret };
+        let allowed = p.organizations.into();
+        let (ports, ns) = (&self.ports, self.ns);
+        let unlocked = profile::unlock_with_key(&mut client, ports, &key, user, ports, ns, &allowed).await?;
+        self.open(client, notifications, unlocked, allowed, generation).await
+    }
+
+    /// The user key, base64, for `unlockWithKey`; `locked` (or `busy`) without the keys. One of the secrets spec §6.2
+    /// lets cross as a JS string: the plugin asks for it only when the user turned "remember unlock" on.
+    pub fn export_user_key(&self) -> Result<String, Error> {
+        let key = |o: &Open<H>| B64.encode(o.keys.unlocked.keys.user.to_bytes());
+        self.peek(key).ok_or_else(|| self.absent())
     }
 
     /// Unlocks from the profile's `cachedSync` without the network (`profile::unlock_cached`); the client stays

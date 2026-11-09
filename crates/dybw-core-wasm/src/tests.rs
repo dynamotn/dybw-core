@@ -408,9 +408,9 @@ fn a_dropped_socket_is_closed() {
 #[expect(clippy::indexing_slicing, reason = "tests")]
 mod session {
     use super::MockHost;
-    use crate::error::{BUSY, Error, INVALID, LOCKED};
+    use crate::error::{BUSY, Error, INVALID, LOCKED, WRONG_PASSWORD};
     use crate::session::{STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
-    use dybw_core::crypto::{AwsLcRsa, KdfParams};
+    use dybw_core::crypto::{AwsLcRsa, ContentFormat, KdfParams};
     use dybw_core::profile::{KdfSource, UnlockWarning};
     use dybw_core::sync::{Action, ActionError, ApplyError, Conflict, ConflictKind, PassReport, Question, SyncReport};
     use dybw_core::testing::block_on;
@@ -995,6 +995,160 @@ mod session {
         let host = host("cose", vec![]);
         let e = unlock(&session(&host), "cose").err().unwrap_or_else(Error::locked);
         assert_eq!((e.code(), e.field("fault")), ("security-state", Some(&json!("missing"))));
+    }
+
+    fn key_unlock(s: &Session<MockHost>, name: &str, key: &str) -> Result<Value, Error> {
+        let (secret, key) = (Zeroizing::new("vectors".into()), Zeroizing::new(key.into()));
+        let out = block_on(s.unlock_with_key(&profile(name), secret, key))?;
+        Ok(serde_json::from_str(&out).unwrap_or_default())
+    }
+
+    fn user_key_b64(name: &str) -> String {
+        account(name)["userKey"].as_str().unwrap_or_default().to_owned()
+    }
+
+    /// `host`, with a private key under a COSE user key (no account file has one).
+    fn host_with_private_key(name: &str) -> Rc<MockHost> {
+        let keys = block_on(dybw_vectors::keys::account_keys(&files(), name, false, &AwsLcRsa));
+        let rng = dybw_core::testing::SeededRandom::new(5);
+        let mut profile = keys.profile;
+        profile["privateKey"] = json!(keys.user.encrypt_as(b"pkcs8", ContentFormat::Pkcs8, &rng).ok());
+        let host = Rc::new(MockHost::default());
+        host.refuses.set(true);
+        *host.server.borrow_mut() = Some(VectorServer::new(profile, vec![], keys.prelogin));
+        host
+    }
+
+    #[test]
+    fn a_remembered_key_unlocks_again() {
+        for (name, host) in [("org", host("org", vec![])), ("cose-v2", host_with_private_key("cose-v2"))] {
+            let s = session(&host);
+            assert_eq!(s.export_user_key().map_err(code), Err(LOCKED.into()), "{name}");
+            let summary = unlock(&s, name).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            let key = s.export_user_key().unwrap_or_default();
+            assert_eq!(key, user_key_b64(name), "{name}: the plugin's format, base64 of the padded key");
+            s.lock();
+            assert_eq!(s.export_user_key().map_err(code), Err(LOCKED.into()), "{name}");
+            let pin = host.store.borrow().get("kdf-pin").cloned();
+            host.http_seen.borrow_mut().clear();
+            let again = key_unlock(&s, name, &key).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            for field in ["userKeyId", "securityVersion", "orgProblems"] {
+                assert_eq!(again[field], summary[field], "{name}: {field}");
+            }
+            let urls: Vec<String> = host.http_seen.borrow().iter().map(|c| c.1.clone()).collect();
+            assert!(urls.len() == 2 && urls.iter().all(|u| !u.contains("prelogin")), "{name}: {urls:?}");
+            assert_eq!(host.store.borrow().get("kdf-pin").cloned(), pin, "{name}: the KDF pin is untouched");
+            assert_eq!(plan(&s, &[], &[]), Ok(json!({ "actions": [], "massClear": null })), "{name}");
+            assert_eq!(s.export_user_key(), Ok(key), "{name}");
+            s.lock();
+        }
+    }
+
+    /// A key that no longer opens the private key (another account's, or one from before a rotation) is
+    /// `wrong-password`; a key that is no key is `invalid` before any request. Neither changes what is stored.
+    #[test]
+    fn a_wrong_remembered_key_is_refused_and_changes_nothing() {
+        let host = host("org", vec![]);
+        let s = session(&host);
+        assert!(unlock(&s, "org").is_ok());
+        s.lock();
+        let stored = host.store.borrow().clone();
+        for other in ["pbkdf2", "cose-v2"] {
+            let e = key_unlock(&s, "org", &user_key_b64(other)).err().unwrap_or_else(Error::locked);
+            assert_eq!((e.code(), e.message()), (WRONG_PASSWORD, "wrong master password"), "{other}");
+            assert_eq!(*host.store.borrow(), stored, "{other}");
+            assert_eq!(plan(&s, &[], &[]), Err(LOCKED.into()), "{other}");
+        }
+        host.http_seen.borrow_mut().clear();
+        for bad in ["not base64!", "AAAA", ""] {
+            assert_eq!(key_unlock(&s, "org", bad).map_err(code), Err(INVALID.into()), "{bad:?}");
+        }
+        assert!(host.http_seen.borrow().is_empty());
+        assert_eq!(*host.store.borrow(), stored);
+        // A key unlock locks first, as a password unlock does.
+        assert!(unlock(&s, "org").is_ok());
+        assert_eq!(key_unlock(&s, "org", "AAAA").map_err(code), Err(INVALID.into()));
+        assert_eq!(s.export_user_key().map_err(code), Err(LOCKED.into()));
+        // The profile's `apiOrigin` and the security state are checked as for a password.
+        let other = with(&profile("org"), "apiOrigin", json!("https://identity.bitwarden.com"));
+        let key = Zeroizing::new(user_key_b64("org"));
+        let e = block_on(s.unlock_with_key(&other, Zeroizing::new("vectors".into()), key)).map_err(code);
+        assert_eq!(e, Err("wrong-origin".into()));
+        assert!(block_on(s.accept_security_version(2)).is_ok());
+        let e = key_unlock(&s, "org", &user_key_b64("org")).map_err(code);
+        assert_eq!(e, Err("security-downgrade".into()));
+    }
+
+    #[test]
+    fn export_user_key_is_busy_while_a_call_has_the_keys() {
+        let host = host("pbkdf2", vec![]);
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.hold.set(1);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut syncing = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(syncing.as_mut().poll(&mut cx).is_pending());
+        assert_eq!(s.export_user_key().map_err(code), Err(BUSY.into()));
+        assert!(block_on(syncing).is_ok());
+        assert_eq!(s.export_user_key(), Ok(user_key_b64("pbkdf2")));
+    }
+
+    /// Every core variant the options name has a code the session takes back to it: a new variant fails to compile
+    /// in `next_*` until it is listed here, then fails the round trip until the session lists it.
+    #[test]
+    fn every_core_kind_question_and_answer_round_trips() {
+        use crate::session::{ANSWERS, KINDS, QUESTIONS, by_code};
+        use dybw_core::vault::write::HistoryAnswer;
+        fn next_kind(k: Option<ConflictKind>) -> Option<ConflictKind> {
+            use ConflictKind::*;
+            match k {
+                None => Some(BothChanged),
+                Some(BothChanged) => Some(LocalUnsynced),
+                Some(LocalUnsynced) => Some(DeletedRemotely),
+                Some(DeletedRemotely) => Some(OrganizationClaim),
+                Some(OrganizationClaim) => Some(OrganizationPush),
+                Some(OrganizationPush) => None,
+            }
+        }
+        fn next_question(q: Option<HistoryQuestion>) -> Option<HistoryQuestion> {
+            match q {
+                None => Some(HistoryQuestion::FirstWriteBack),
+                Some(HistoryQuestion::FirstWriteBack) => Some(HistoryQuestion::EvictsForeign),
+                Some(HistoryQuestion::EvictsForeign) => None,
+            }
+        }
+        fn next_answer(a: Option<HistoryAnswer>) -> Option<HistoryAnswer> {
+            match a {
+                None => Some(HistoryAnswer::WriteToLogin),
+                Some(HistoryAnswer::WriteToLogin) => Some(HistoryAnswer::KeepSeparate),
+                Some(HistoryAnswer::KeepSeparate) => None,
+            }
+        }
+        let kinds: Vec<_> = std::iter::successors(next_kind(None), |k| next_kind(Some(*k))).collect();
+        let questions: Vec<_> = std::iter::successors(next_question(None), |q| next_question(Some(*q))).collect();
+        let answers: Vec<_> = std::iter::successors(next_answer(None), |a| next_answer(Some(*a))).collect();
+        assert_eq!((kinds.len(), questions.len(), answers.len()), (KINDS.len(), QUESTIONS.len(), ANSWERS.len()));
+        let s = session(&host("pbkdf2", vec![]));
+        // Options are read before the keys: a code the session takes answers `locked`, any other `invalid`.
+        let option = |o: Value| block_on(s.plan_pass(&o.to_string(), vec![], vec![])).map_err(code);
+        for k in kinds {
+            assert_eq!(by_code(&KINDS, ConflictKind::code, k.code()), Ok(k));
+            let o = json!({ "overrides": { "a": { "policy": "ask", "kind": k.code() } } });
+            assert_eq!(option(o), Err(LOCKED.into()), "{k:?}");
+        }
+        for q in questions {
+            assert_eq!(by_code(&QUESTIONS, HistoryQuestion::code, q.code()), Ok(q));
+        }
+        for a in answers {
+            let (code, _) = ANSWERS.iter().copied().find(|(_, x)| *x == a).unwrap_or_else(|| panic!("{a:?}"));
+            assert_eq!(by_code(&ANSWERS, |(c, _)| c, code).map(|(_, x)| x), Ok(a));
+            for q in QUESTIONS {
+                let o = json!({ "answers": { "a": { "question": q.code(), "answer": code } } });
+                assert_eq!(option(o), Err(LOCKED.into()), "{q:?} {a:?}");
+            }
+        }
+        let unknown = json!({ "overrides": { "a": { "policy": "ask", "kind": "no-such-kind" } } });
+        assert_eq!(option(unknown), Err(INVALID.into()));
     }
 
     #[test]

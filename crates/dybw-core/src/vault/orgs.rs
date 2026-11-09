@@ -20,6 +20,11 @@ fn text<'v>(v: &'v Value, pointer: &str) -> Option<&'v str> {
     v.pointer(pointer).and_then(Value::as_str).filter(|s| !s.is_empty())
 }
 
+/// The sync profile's private key, wrapped under the user key: `privateKey`, else the V2 `accountKeys` one.
+pub fn wrapped_private_key(profile: &Value) -> Option<&str> {
+    text(profile, "/privateKey").or_else(|| text(profile, "/accountKeys/publicKeyEncryptionKeyPair/wrappedPrivateKey"))
+}
+
 /// Unwraps the keys of the enabled, confirmed organizations `allowed` names; the others are never unwrapped.
 /// Every failure is a problem of that organization, never an abort.
 pub async fn unlock_organizations(
@@ -42,9 +47,7 @@ pub async fn unlock_organizations(
     if orgs.is_empty() {
         return (keys, problems);
     }
-    let wrapped = text(profile, "/privateKey")
-        .or_else(|| text(profile, "/accountKeys/publicKeyEncryptionKeyPair/wrappedPrivateKey"));
-    let private = match wrapped {
+    let private = match wrapped_private_key(profile) {
         None => Err(NO_PRIVATE_KEY.to_owned()),
         Some(w) => user.decrypt_pkcs8(w).map_err(|e| format!("the account's private key: {e}")),
     };
