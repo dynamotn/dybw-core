@@ -3,6 +3,7 @@ name = "dybw-core-wasm"
 description = "dybw-core for wasm32-unknown-unknown: the core's ports over a JS host"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 version.workspace = true
 publish = false
 

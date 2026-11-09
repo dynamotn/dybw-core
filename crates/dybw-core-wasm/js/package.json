@@ -2,6 +2,7 @@
   "name": "dybw-core-wasm-harness",
   "description": "Runs the conformance vectors and crypto known answers in the WASM build under Node, Chromium and WebKit",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "vitest run"

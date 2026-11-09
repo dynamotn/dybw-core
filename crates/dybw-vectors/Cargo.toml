@@ -3,6 +3,7 @@ name = "dybw-vectors"
 description = "Conformance vector runner for dybw-core"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 version.workspace = true
 publish = false
 
