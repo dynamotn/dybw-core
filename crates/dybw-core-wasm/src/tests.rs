@@ -678,7 +678,18 @@ mod session {
             params: KdfParams::Pbkdf2 { iterations: 5_000 },
             kdf_source: KdfSource::Prelogin,
         };
-        assert!(warning(&below).contains("5000"));
+        assert_eq!(
+            warning(&below),
+            "The KDF parameters are below the recommended floor: PBKDF2 5000 iterations (from prelogin)."
+        );
+        let argon = UnlockWarning::KdfBelowFloor {
+            params: KdfParams::Argon2id { iterations: 2, memory_mib: 16, parallelism: 1 },
+            kdf_source: KdfSource::SyncUnlockData,
+        };
+        assert_eq!(
+            warning(&argon),
+            "The KDF parameters are below the recommended floor: Argon2id 2 iterations, 16 MiB, parallelism 1 (from sync unlock data)."
+        );
         let r = report_json(&report);
         let conflict = json!({ "id": "a", "kind": "local-unsynced", "label": "a", "organization": null, "organizationName": null });
         assert_eq!(r["conflicts"], json!([conflict]));

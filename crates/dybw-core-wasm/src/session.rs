@@ -9,7 +9,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{self, ApiKey, Client, DeviceInfo, Hub, HubOptions, hub_url, origin_of, resolve_server_urls};
 use dybw_core::crypto::{KdfParams, SymmetricKey};
 use dybw_core::ports::{Secrets, Storage};
-use dybw_core::profile::{self, CachedSync, UnlockWarning, Unlocked};
+use dybw_core::profile::{self, CachedSync, KdfSource, UnlockWarning, Unlocked};
 use dybw_core::sync::{
     self, Action, ConflictKind, ConflictOverride, DeviceState, LocalValues, SyncContext, SyncReport, item_scope,
     parse_plugin_state, scope_applies, to_plugin_json,
@@ -661,9 +661,20 @@ pub(crate) fn problem(p: &OrgProblem) -> Value {
     json!({ "organization": p.organization, "reason": p.reason })
 }
 
-/// The warning's numbers and source; never a key.
+/// The warning as a sentence for the notice: the KDF's numbers and source; never a key.
 pub(crate) fn warning(w: &UnlockWarning) -> String {
-    format!("{w:?}")
+    let UnlockWarning::KdfBelowFloor { params, kdf_source } = w;
+    let source = match kdf_source {
+        KdfSource::SyncUnlockData => "sync unlock data",
+        KdfSource::Prelogin => "prelogin",
+    };
+    let kdf = match *params {
+        KdfParams::Pbkdf2 { iterations } => format!("PBKDF2 {iterations} iterations"),
+        KdfParams::Argon2id { iterations, memory_mib, parallelism } => {
+            format!("Argon2id {iterations} iterations, {memory_mib} MiB, parallelism {parallelism}")
+        }
+    };
+    format!("The KDF parameters are below the recommended floor: {kdf} (from {source}).")
 }
 
 pub(crate) fn action(a: &Action) -> Value {
