@@ -124,6 +124,37 @@ runHub(onChange: () => void, stop: () => boolean): Promise<void>
 `options` and the answers are the JSON texts described below; every rejection
 is a structured error, described next.
 
+The profile JSON taken by `unlock`, `unlockWithKey` and `unlockCached`
+(unknown fields are refused with `invalid`):
+
+```text
+{ server: string,                  // required: the Bitwarden server URL
+  email: string,                   // required
+  deviceName: string,              // required
+  deviceType: number,              // required, 0-255
+  clientName: string,              // required
+  clientVersion: string,           // required
+  apiOrigin: string,               // default "": the identity origin the API key was entered for;
+                                   //   unlock and unlockWithKey need it, else wrong-origin
+  clientId: string,                // default "": the API key's client id (unlock, unlockWithKey)
+  organizations: "none" | "all" | { only: [orgId] },   // default "none"
+  cachedSync: object,              // default null: unlockCached only, an earlier /sync
+  preloginKdf: kdf }               // default none: unlockCached only, the KDF prelogin gave with it
+```
+
+The three unlocks answer one summary, JSON text:
+
+```text
+{ userKeyId: string,               // stable, non-secret id of the user key
+  securityVersion: number,
+  orgProblems: [{organization, reason}],
+  warnings: [string] }             // sentences for the notice, no secret
+```
+
+A KDF, as `acceptKdf` takes it and as `kdf-weakened` carries it (`pinned`,
+`offered`), is `{type: "pbkdf2", iterations}` or
+`{type: "argon2id", iterations, memory, parallelism}` (`memory` in MiB).
+
 Every `WasmSession` rejection is the JSON text of one object,
 `{"code", "message", …fields}`: JS branches on `code` and shows `message`, the
 core's own text. No field carries a value, a key or ciphertext. The codes and
@@ -175,7 +206,17 @@ device whose state has that id; a scope the plugin cannot parse applies
 nowhere. An unknown option is refused (`invalid`): a mass clear has no
 override, `resetState()` is the way out.
 
-`planPass` answers `{actions: [{kind, id, …}], massClear}`. `runSync` answers:
+The plugin must always pass `vaultName`: without it every `vault:<name>` item
+never applies.
+
+`planPass` answers `{actions: [{kind, id, …}], massClear}`. An action is one of
+`{kind: "pull", id}`, `{kind: "push", id, confirmed: bool}`,
+`{kind: "create", id}`, `{kind: "adopt", id}`, `{kind: "clear-local", id}`,
+`{kind: "forget", id}` and `{kind: "conflict", id, conflict}`, where `conflict`
+is a conflict kind below. `massClear` is `null`, or `[clears, base]` (counts) when the pass would clear
+half or more of what was synced (`runSync` then refuses with `mass-clear`).
+
+`runSync` answers:
 
 ```text
 { pulled, pushed, created, cleared: [id],

@@ -261,6 +261,8 @@ async fn save_acknowledged(storage: &impl Storage, origins: &BTreeSet<String>) -
     Ok(storage.save(ACKNOWLEDGED_ORIGINS, &raw).await?)
 }
 
+/// Like `acknowledged_for`'s pruning, this is an unlocked read-modify-write of the stored list: a race with another
+/// writer can lose an acknowledgement, which fails closed (the user is asked again).
 /// The user's acknowledgement, on this device, that `origin`'s server or a proxy in front of it could redirect the
 /// API key (ADR 0018). Stored as `scheme://host[:port]`; only https, or http to a loopback host, as a server URL.
 pub async fn acknowledge_origin(storage: &impl Storage, origin: &str) -> Result<(), ProfileError> {
@@ -280,7 +282,8 @@ pub async fn forget_origin(storage: &impl Storage, origin: &str) -> Result<(), P
 }
 
 /// The acknowledgements an unlock against identity `origin` uses: `origin`'s own, if any. An acknowledgement is bound to
-/// one server, so the others are dropped from storage: changing the server, then changing back, asks again.
+/// one server, so the others are dropped from storage: changing the server, then changing back, asks again. The pruning is an unlocked read-modify-write: a race
+/// loses an acknowledgement at worst, which fails closed.
 pub async fn acknowledged_for(storage: &impl Storage, origin: &str) -> Result<BTreeSet<String>, ProfileError> {
     let all = acknowledged_origins(storage).await?;
     let kept: BTreeSet<String> = all.iter().filter(|o| *o == origin).cloned().collect();
