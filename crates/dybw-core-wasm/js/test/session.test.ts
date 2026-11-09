@@ -127,6 +127,8 @@ test("a port that throws synchronously fails the call, leaves the session usable
   throwing = "storageSave";
   const sync = await settled(s.runSync("{}", [], [])).catch((e: unknown) => e);
   expect(noUrl(sync), `runSync rejected with ${String(sync)}`).toBe(true);
+  expect(thrown.storageSave ?? 0, "storageSave threw").toBeGreaterThanOrEqual(1);
+  expect(String(sync)).toMatch(/^host storageSave threw/);
   throwing = "";
   await expect(settled(s.planPass("{}", [], []))).resolves.toContain("actions");
 

@@ -36,9 +36,15 @@ export function serverPorts(a: Account) {
   const requests: string[] = [];
   const ports = {
     ...hostPorts(),
-    async http(method: string, url: string): Promise<[number, Uint8Array]> {
+    async http(method: string, url: string, headers: string): Promise<[number, Uint8Array]> {
       const route = `${method} ${new URL(url).pathname}`;
       requests.push(route);
+      // The rejection fails the session's call, so the test; it names the header, never its value.
+      const pairs: unknown = JSON.parse(headers);
+      const isPair = (h: unknown) => Array.isArray(h) && h.length === 2 && h.every((s) => typeof s === "string");
+      if (!Array.isArray(pairs) || !pairs.every(isPair)) throw `${route}: headers are not [[name, value], ...]`;
+      const named = (n: string) => (pairs as [string, string][]).some(([k]) => k.toLowerCase() === n);
+      if (route === "GET /api/sync" && !named("authorization")) throw `${route}: no Authorization header`;
       const body = routes[route] ?? { message: `not faked: ${route}` };
       return [route in routes ? 200 : 404, new TextEncoder().encode(JSON.stringify(body))];
     },
