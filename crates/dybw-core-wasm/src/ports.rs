@@ -15,9 +15,8 @@ const RANDOM_CHUNK: usize = 65_536;
 pub struct Ports<H: Host>(pub Rc<H>);
 
 impl<H: Host> Http for Ports<H> {
-    /// The plugin's `requestUrl` follows redirects (ADR 0018).
     fn refuses_redirects(&self) -> bool {
-        false
+        self.0.refuses_redirects()
     }
     async fn send(&self, req: HttpRequest) -> Result<HttpResponse, PortError> {
         let method = match req.method {

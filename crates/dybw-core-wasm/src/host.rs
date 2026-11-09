@@ -21,6 +21,9 @@ pub type RecvFuture = Pin<Box<dyn Future<Output = Option<Result<Frame, String>>>
 pub trait Host {
     fn now_ms(&self) -> i64;
     async fn sleep_ms(&self, ms: u64);
+    /// Whether `http` refuses redirects (`fetch` with `redirect: "error"`); the plugin's `requestUrl` cannot (ADR
+    /// 0018), and the core then refuses to send credentials.
+    fn refuses_redirects(&self) -> bool;
     /// `len` random bytes from one JS call (`len` ≤ 65 536, the `getRandomValues` limit).
     fn random(&self, len: usize) -> Result<Vec<u8>, String>;
     /// The whole response as `(status, body)`, without following redirects where the host can refuse them.

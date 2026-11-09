@@ -2,8 +2,11 @@
 //! the duck-typed JS `ports` object. Unstable: M6 may reshape it.
 #![forbid(unsafe_code)]
 
+#[cfg(target_arch = "wasm32")]
+mod bindings;
 pub mod host;
 pub mod ports;
+pub mod session;
 
 #[cfg(test)]
 mod tests;
