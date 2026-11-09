@@ -947,6 +947,17 @@ mod session {
         assert_eq!(block_on(s.forget_origin(ORIGIN)).map_err(code), Err("port".into()));
     }
 
+    /// A remembered key is no way around ADR 0018: the API key would leave the same way.
+    #[test]
+    fn a_key_unlock_needs_the_acknowledgement_too() {
+        let host = host("pbkdf2", vec![]);
+        host.refuses.set(false);
+        let e = key_unlock(&session(&host), "pbkdf2", &user_key_b64("pbkdf2")).err();
+        assert_eq!(e.as_ref().map(Error::code), Some("origin-not-acknowledged"));
+        assert_eq!(e.as_ref().and_then(|e| e.field("origin")), Some(&json!(ORIGIN)));
+        assert!(host.http_seen.borrow().is_empty(), "no request may leave, not even /connect/token");
+    }
+
     #[test]
     fn a_rejection_reaches_js_as_json() {
         let host = host("pbkdf2", vec![]);
