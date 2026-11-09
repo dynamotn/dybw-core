@@ -26,7 +26,8 @@ pub trait Host {
     fn refuses_redirects(&self) -> bool;
     /// `len` random bytes from one JS call (`len` ≤ 65 536, the `getRandomValues` limit).
     fn random(&self, len: usize) -> Result<Vec<u8>, String>;
-    /// The whole response as `(status, body)`, without following redirects where the host can refuse them.
+    /// The whole response as `(status, body)`, without following redirects where the host can refuse them. The host
+    /// must bound the request with a timeout: the keys a running call holds outlive a `lock` until it settles.
     async fn http(
         &self,
         method: &str,

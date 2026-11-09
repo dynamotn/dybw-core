@@ -714,6 +714,43 @@ mod session {
     }
 
     #[test]
+    fn a_failed_secret_save_keeps_the_pending_create() {
+        let host = host("pbkdf2", pull_new());
+        // A create queued earlier for `alpha`; the pull of the remote `alpha` drops it, unless its save fails.
+        let queued = json!({
+            "version": 1, "deviceId": "d", "base": {}, "pendingCreates": ["alpha"], "pendingScopes": { "alpha": "global" },
+        });
+        host.store.borrow_mut().insert(STATE.into(), queued.to_string().into_bytes());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.fail_secret_save.set(true);
+        assert_eq!(block_on(s.run_sync("{}", vec![], vec![])), Err("no secret storage".into()));
+        let saved = host.store.borrow().get(STATE).cloned().unwrap_or_default();
+        let saved: Value = serde_json::from_slice(&saved).unwrap_or_default();
+        assert_eq!(saved["pendingCreates"], json!(["alpha"]));
+        assert_eq!(saved["pendingScopes"], json!({ "alpha": "global" }));
+    }
+
+    #[test]
+    fn a_sync_stopped_by_lock_never_overwrites_a_newer_state() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut old = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(old.as_mut().poll(&mut cx).is_pending());
+        s.lock();
+        // A newer session pulls `alpha` and saves its state while the old sync still waits on the host.
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
+        let newer = host.store.borrow().get(STATE).cloned();
+        assert!(newer.as_deref().is_some_and(|b| String::from_utf8_lossy(b).contains("alpha")));
+        assert_eq!(block_on(old), Err("Bitwarden was locked during the sync".into()));
+        assert_eq!(host.store.borrow().get(STATE).cloned(), newer, "the stopped sync saved nothing");
+    }
+
+    #[test]
     fn lock_wins_over_a_running_hub() {
         let host = host("pbkdf2", vec![]);
         let s = session(&host);

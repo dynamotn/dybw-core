@@ -353,7 +353,8 @@ impl<H: Host> Session<H> {
     }
 
     /// One sync (`sync::run_sync`), stopped by `lock`. The values it wrote, then the state, are saved even when it
-    /// failed partway.
+    /// failed partway, unless `lock` ran meanwhile: a newer sync may have saved since, and these values without
+    /// their state would be pushed over the newer ones. What it pulled is pulled again; what it pushed is adopted.
     pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
         let values = wrap(values);
         let o: SyncOptions = parse(options)?;
@@ -365,7 +366,11 @@ impl<H: Host> Session<H> {
             let locked = || self.generation.get() != generation;
             sync::run_sync(&mut ctx, &mut open.state, &mut local, |_| {}, locked).await
         };
-        let saved = save(&self.ports, &mut open.state, &before, &local).await;
+        let saved = if self.generation.get() == generation {
+            save(&self.ports, &mut open.state, &before, &local).await
+        } else {
+            Ok(())
+        };
         self.put(open, generation);
         let report = report.map_err(text)?;
         saved?;
@@ -409,9 +414,9 @@ fn context<'a, H: Host>(
     }
 }
 
-/// Saves the values the sync wrote, then the state. A value that could not be saved keeps its base entry from
-/// before the sync, so the state never records a pull the host does not hold (the next sync would push the old
-/// value over the newer one). Answers the first failure.
+/// Saves the values the sync wrote, then the state. A value that could not be saved keeps its base entry and its
+/// queued create from before the sync, so the state never records a pull the host does not hold (the next sync
+/// would push the old value over the newer one). Answers the first failure.
 async fn save<H: Host>(
     ports: &Ports<H>,
     state: &mut DeviceState,
@@ -423,6 +428,9 @@ async fn save<H: Host>(
         if let Err(e) = Secrets::save(ports, id, value).await {
             state.base.remove(id);
             state.base.extend(before.base.get_key_value(id).map(|(k, v)| (k.clone(), v.clone())));
+            // Only a pull writes a value, and it dropped the id from the queue: put back what was queued.
+            state.pending_scopes.extend(before.pending_scopes.get_key_value(id).map(|(k, v)| (k.clone(), v.clone())));
+            state.pending_creates.extend(before.pending_creates.iter().filter(|p| *p == id).cloned());
             failed = failed.and(Err(text(e)));
         }
     }

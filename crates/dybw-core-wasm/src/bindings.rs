@@ -36,14 +36,14 @@ extern "C" {
     /// Resolves to `[status, Uint8Array]`; `headers` is JSON `[[name, value], …]`.
     #[wasm_bindgen(method, js_name = http)]
     fn js_http(this: &HostPorts, method: &str, url: &str, headers: &str, body: Option<&[u8]>) -> Promise;
-    /// Resolves to a `Uint8Array` or `null`.
+    /// Resolves to a `Uint8Array`, or `null` or `undefined` when missing.
     #[wasm_bindgen(method, js_name = storageLoad)]
     fn js_storage_load(this: &HostPorts, key: &str) -> Promise;
     #[wasm_bindgen(method, js_name = storageSave)]
     fn js_storage_save(this: &HostPorts, key: &str, value: &[u8]) -> Promise;
     #[wasm_bindgen(method, js_name = storageRemove)]
     fn js_storage_remove(this: &HostPorts, key: &str) -> Promise;
-    /// Resolves to a string or `null`.
+    /// Resolves to a string, or `null` or `undefined` when missing.
     #[wasm_bindgen(method, js_name = secretLoad)]
     fn js_secret_load(this: &HostPorts, key: &str) -> Promise;
     #[wasm_bindgen(method, js_name = secretSave)]
@@ -126,7 +126,7 @@ impl Host for HostPorts {
     }
     async fn storage_load(&self, key: &str) -> Result<Option<Vec<u8>>, String> {
         let v = wait(self.js_storage_load(key)).await?;
-        if v.is_null() { Ok(None) } else { bytes(v).map(|b| Some(b.to_vec())) }
+        if v.is_null_or_undefined() { Ok(None) } else { bytes(v).map(|b| Some(b.to_vec())) }
     }
     async fn storage_save(&self, key: &str, value: &[u8]) -> Result<(), String> {
         wait(self.js_storage_save(key, value)).await.map(drop)
@@ -136,7 +136,7 @@ impl Host for HostPorts {
     }
     async fn secret_load(&self, key: &str) -> Result<Option<Zeroizing<String>>, String> {
         let v = wait(self.js_secret_load(key)).await?;
-        if v.is_null() {
+        if v.is_null_or_undefined() {
             Ok(None)
         } else {
             v.as_string().map(|s| Some(Zeroizing::new(s))).ok_or("host answered no string".into())
@@ -256,7 +256,7 @@ impl WasmSession {
     pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, String> {
         self.0.run_sync(options, ids, values).await
     }
-    /// Runs until `stop()` answers true; stop it before `lock`.
+    /// Runs until `stop()` answers true or `lock` runs.
     #[wasm_bindgen(js_name = runHub)]
     pub async fn run_hub(&self, on_change: Function, stop: Function) -> Result<(), String> {
         let stopped = || stop.call0(&JsValue::NULL).is_ok_and(|v| v.is_truthy());
