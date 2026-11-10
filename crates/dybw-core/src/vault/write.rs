@@ -312,12 +312,17 @@ impl<'a, R: Random> Fields<'a, R> {
     }
 
     /// The end of every update body: the edited fields, a `passwordHistory` that is always an array (the server
-    /// replaces the history with it), and the revision the write is based on.
+    /// replaces the history with it), a secure note's part, and the revision the write is based on.
     fn finish(mut self, revision: &str) -> Map<String, Value> {
         let fields = self.take_fields();
         self.body.insert("fields".into(), fields);
         if !self.body.get("passwordHistory").is_some_and(Value::is_array) {
             self.body.insert("passwordHistory".into(), json!([]));
+        }
+        // A server refuses a secure note without its part (Vaultwarden: 400 "Data missing").
+        let note = self.body.get("type").and_then(Value::as_u64) == Some(TYPE_SECURE_NOTE);
+        if note && !self.body.get("secureNote").is_some_and(Value::is_object) {
+            self.body.insert("secureNote".into(), json!({ "type": 0 }));
         }
         self.body.insert("lastKnownRevisionDate".into(), json!(revision));
         self.body

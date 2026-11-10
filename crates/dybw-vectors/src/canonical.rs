@@ -183,6 +183,10 @@ pub fn canonicalize(sent: &Sent, user: &SymmetricKey, orgs: &BTreeMap<String, Sy
         "hasItemKey": body.get("key").is_some_and(|k| !k.is_null()),
         "extra": extra,
     });
+    // A field-level body's part as sent; compared only when the expected request lists it (README, canonical body).
+    if let (None, Some(part), Some(o)) = (&blob, body.get("secureNote"), request.as_object_mut()) {
+        o.insert("secureNote".into(), part.clone());
+    }
     if let (Some(content), Some(o)) = (&blob, request.as_object_mut()) {
         o.insert("blob".into(), json!(true));
         // The sealed content's unknown keys, listed only when there are any (README, canonical body).

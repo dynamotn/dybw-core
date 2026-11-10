@@ -1,0 +1,68 @@
+{
+  "id": "write/secure-note-part-missing",
+  "spec": "1.6",
+  "sections": [
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": null,
+      "organizationId": null,
+      "name": "2.K4nN6337Wt1nBLHtv2TZ4Q==|6qEjE0XNfigft4OtnC8rmQ==|xOn1Z2vArfhBEUMTX8ZiWbahC06uKiBL8lkAoprCKGM=",
+      "notes": "2.dEJ8u/bh0dbFdYvnIR1xZA==|/Xff3zD9pa266sDEFqWJ8A==|3m+G4SgrwOkpmOoqnqcTD/dd6pGzHyodGV5erOO8GtM=",
+      "login": null,
+      "secureNote": null,
+      "fields": [
+        {
+          "name": "2.P0y05RaSvgiK3SNyIa3R5Q==|yWieYXTac9MtC25VhTfLnA==|rWjXn9bV09DUp1n68HBsAd7Qj4xgD5AFYxRUjAFwCh0=",
+          "value": "2.rzDI5HWNoVvZkes4bMwxjQ==|RCBpgAZvPpmpSrfypcxaRw==|FTnaHf5LrQ0vu3/LnYH3ZkSQGDm/JmWVkzy6NGNevE0=",
+          "type": 0
+        }
+      ],
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new body"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": "new body",
+          "login": null,
+          "secureNote": {
+            "type": 0
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

@@ -46,6 +46,7 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | `name` | string | | |
 | `notes` | string or `null` | `null` | `null`, `""` and a text are three different states |
 | `login` | object or `null` | `null` | `{ username, password, uris: [string], totp, passwordHistory: [{ password, lastUsedDate }] }`; `username`, `password`, `totp` may be `null` |
+| `secureNote` | `null` | `{ type: 0 }` | 1.6, type 2 in format `fields` only: `null` is a server copy that lacks its secure note part |
 | `fields` | array or `null` | `null` | `[{ name, value, type: 0 \| 1 }]`, in order; `null` and `[]` differ |
 | `folderId` | string or `null` | `null` | |
 | `organizationId` | string or `null` | `null` | |
@@ -236,7 +237,8 @@ The source object with these differences:
     `autofillOnPageLoad`; a field's `type` is an integer, with `linkedId`;
   - the source's `login.passwordHistory` moves to the cipher's top-level
     `passwordHistory` (`PasswordHistory`); `login.uris[].match` is always
-    `null`; a type 2 cipher has `secureNote: { type: 0 }`;
+    `null`; a type 2 cipher has `secureNote: { type: 0 }`, or the source's
+    `secureNote: null`;
   - cipher ids are unique within `ciphers`;
   - keys are camelCase, or PascalCase (`Id`, `Name`, `Login`, `Uris`, ...)
     when the source set `pascalCase`; both spellings are accepted by the
@@ -277,6 +279,7 @@ shape, so both are covered.
 | `cipher` | cipher id, or `null` when creating |
 | `type`, `name`, `notes` | as in the cipher |
 | `login` | `{ username, password, uris, totp, passwordHistory: [password] }`, or `null` |
+| `secureNote` | object or `null`, optional (1.6): the secure note part as sent, compared only when the expected request lists it |
 | `fields` | `[{ name, value, type }]`, in order |
 | `organizationId`, `folderId` | string or `null` |
 | `lastKnownRevisionDate` | string or `null` |

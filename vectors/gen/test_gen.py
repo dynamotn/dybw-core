@@ -1185,3 +1185,14 @@ def test_unlock_kdf_covers_argon2id():
     assert parts["userDecryption"]["masterPasswordUnlock"]["kdf"] == {
         "kdfType": 1, "iterations": 3, "memory": 64, "parallelism": 4,
     }
+
+
+def test_secure_note_part_may_be_missing():
+    account = gen.load_account("pbkdf2")
+    note = {"id": "c1", "type": 2, "name": "Note"}
+    enc = lambda src: gen.encrypt_cipher(src, account, "write/x", "bwss")  # noqa: E731
+    assert enc(note)["secureNote"] == {"type": 0}
+    assert enc({**note, "secureNote": None})["secureNote"] is None
+    for bad in ({**note, "type": 1}, {**note, "format": "blob"}):
+        with pytest.raises(gen.GenError, match="secureNote needs a type 2 cipher in format fields"):
+            enc({**bad, "secureNote": None})

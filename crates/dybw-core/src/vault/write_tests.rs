@@ -311,6 +311,27 @@ fn write_back_to_field_and_notes_leaves_the_rest() {
 }
 
 #[test]
+fn a_secure_note_without_its_part_is_sent_an_empty_one() {
+    // Vaultwarden answers 400 "Data missing" to a secure note with `secureNote: null`.
+    let k = fx();
+    let fields = [("bwss:id", "x", false), ("bwss:password", "old", true)];
+    let mut gone = k.note(&fields, Some("body"));
+    gone.as_object_mut().unwrap().remove("secureNote");
+    let mut null = k.note(&fields, Some("body"));
+    null["secureNote"] = Value::Null;
+    let mut odd = k.note(&fields, Some("body"));
+    odd["secureNote"] = json!({ "type": 0, "xKeep": 1 });
+    for c in [&gone, &null] {
+        assert_eq!(k.apply(c, &k.set_secret(c, B, b"new"), B).unwrap()["secureNote"], json!({ "type": 0 }));
+        assert_eq!(strip(c, B, &k.keys, &k.rng).unwrap()["secureNote"], json!({ "type": 0 }));
+    }
+    // a part that is there passes through untouched, and a login is never given one
+    assert_eq!(k.apply(&odd, &k.set_secret(&odd, B, b"new"), B).unwrap()["secureNote"], odd["secureNote"]);
+    let login = k.login(&fields, Some("pw"), None);
+    assert!(!k.apply(&login, &k.set_secret(&login, B, b"new"), B).unwrap().contains_key("secureNote"));
+}
+
+#[test]
 fn patch_changes_the_first_duplicate_and_removes_every_copy() {
     let k = fx();
     let c = k.login(&[("bwss:id", "x", false), ("bwss:password", "1", true), ("bwss:password", "2", true)], None, None);

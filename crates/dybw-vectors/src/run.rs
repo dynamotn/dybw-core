@@ -439,7 +439,15 @@ pub async fn plan(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
     compare("plan", got, want)
 }
 
-fn compare_requests(ns: &str, sent: Vec<Value>, want: &[Value]) -> Result<(), String> {
+fn compare_requests(ns: &str, mut sent: Vec<Value>, want: &[Value]) -> Result<(), String> {
+    // `secureNote` is compared only where the expectation lists it (README, canonical body).
+    for (i, s) in sent.iter_mut().enumerate() {
+        if want.get(i).is_none_or(|w| w.get("secureNote").is_none())
+            && let Some(o) = s.as_object_mut()
+        {
+            o.remove("secureNote");
+        }
+    }
     let strip = |v: Value| drop_tool_defined(v, ns);
     compare(
         "requests",

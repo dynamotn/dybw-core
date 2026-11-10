@@ -365,6 +365,8 @@ def encrypt_cipher(
     src: dict, account: dict, sid: str, ns: str, fresh: bool = False, same_as: dict | None = None
 ) -> dict:
     """Server-shaped cipher from a plaintext one (``{ns}`` already expanded)."""
+    if "secureNote" in src and (src["type"] != 2 or src.get("format", "fields") == "blob"):
+        raise GenError(f"cipher {src['id']!r}: secureNote needs a type 2 cipher in format fields")
     if src.get("format", "fields") == "blob":
         return encrypt_blob_cipher(src, account, sid, ns, fresh, same_as)
     if "blobExtra" in src:
@@ -416,7 +418,7 @@ def encrypt_cipher(
                 for i, h in enumerate(lg["passwordHistory"])
             ]
     if src["type"] == 2:
-        out["secureNote"] = {"type": 0}
+        out["secureNote"] = src.get("secureNote", {"type": 0})
     if "fields" in src:
         fields = src["fields"]
         out["fields"] = (

@@ -200,6 +200,9 @@
             }
           ]
         },
+        "secureNote": {
+          "type": "null"
+        },
         "fields": {
           "oneOf": [
             {
@@ -478,6 +481,16 @@
                 }
               ]
             },
+            "secureNote": {
+              "oneOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "fields": {
               "type": "array",
               "items": {
@@ -605,6 +618,16 @@
                     "totp",
                     "passwordHistory"
                   ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "secureNote": {
+              "oneOf": [
+                {
+                  "type": "object"
                 },
                 {
                   "type": "null"

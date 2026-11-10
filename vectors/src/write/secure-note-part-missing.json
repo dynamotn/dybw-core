@@ -1,0 +1,70 @@
+{
+  "id": "write/secure-note-part-missing",
+  "spec": "1.6",
+  "sections": [
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note c1",
+      "notes": "old body",
+      "login": null,
+      "secureNote": null,
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "organizationId": null,
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "deletedDate": null,
+      "edit": true,
+      "viewPassword": true
+    }
+  ],
+  "operation": {
+    "kind": "set-value",
+    "id": "alpha",
+    "value": "new body"
+  },
+  "expect": {
+    "write": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note c1",
+          "notes": "new body",
+          "login": null,
+          "secureNote": {
+            "type": 0
+          },
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}
