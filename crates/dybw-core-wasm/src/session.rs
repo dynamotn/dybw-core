@@ -151,8 +151,12 @@ struct Answered {
 struct SyncOptions {
     #[serde(default)]
     policy: Policy,
+    /// Every rollback; `acceptRollbacks` names them one by one instead.
     #[serde(default)]
     accept_rollback: bool,
+    /// By cipher id: the rollbacks the user was shown and accepted; the others stay held.
+    #[serde(default)]
+    accept_rollbacks: BTreeSet<String>,
     /// By secret id.
     #[serde(default)]
     overrides: BTreeMap<String, Override>,
@@ -170,6 +174,7 @@ struct SyncOptions {
 struct Options {
     policy: sync::Policy,
     accept_rollback: bool,
+    accept_rollbacks: BTreeSet<String>,
     overrides: BTreeMap<String, ConflictOverride>,
     answers: BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     vault_name: String,
@@ -195,6 +200,7 @@ impl TryFrom<SyncOptions> for Options {
         Ok(Options {
             policy,
             accept_rollback,
+            accept_rollbacks: o.accept_rollbacks,
             overrides,
             answers,
             vault_name: o.vault_name,
@@ -654,6 +660,7 @@ fn context<'a, H: Host>(
         allowed: &open.allowed,
         policy: o.policy,
         accept_rollback: o.accept_rollback,
+        accepted_rollbacks: &o.accept_rollbacks,
         overrides: &o.overrides,
         answers: &o.answers,
         applies,

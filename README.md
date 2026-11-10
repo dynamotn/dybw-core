@@ -191,14 +191,18 @@ JSON object, every field optional:
 
 ```text
 { policy: "ask" | "prefer-remote" | "prefer-local",
-  acceptRollback: bool,
+  acceptRollback: bool,                           // every rollback (ADR 0019)
+  acceptRollbacks: [cipherId],                    // only these: the rollbacks shown and accepted
   overrides: { <id>: { policy, kind } },          // kind: a conflict kind below
   answers: { <id>: { question, answer } },        // question: "first-write-back" | "evicts-foreign-history"
                                                   // answer: "write-to-login" | "keep-separate"
   vaultName: string, uploadFolder: string }
 ```
 
-An override holds only while the conflict is still of its `kind`; an answer
+A rollback (`rollbacks` below) stays held until the user accepts it: pass the
+`cipherId`s shown in `acceptRollbacks`, so one that came back since is not
+taken unseen; `acceptRollback: true` accepts every one. An override holds only
+while the conflict is still of its `kind`; an answer
 covers only the question it was given for (ADR 0016). An item's
 `obsidian:scope` applies as the plugin's `scopeApplies`: `global` (or none)
 everywhere, `vault:<name>` where `vaultName` is `<name>`, `device:<id>` on the

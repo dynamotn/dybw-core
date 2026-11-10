@@ -13,7 +13,7 @@ use crate::vault::{Keys, Namespace, Organizations, UnmarkedCache};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use zeroize::Zeroizing;
 
@@ -201,6 +201,7 @@ struct Rig {
     state: DeviceState,
     policy: Policy,
     accept_rollback: bool,
+    accepted_rollbacks: BTreeSet<String>,
     overrides: BTreeMap<String, ConflictOverride>,
     answers: BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     allowed: Organizations,
@@ -262,6 +263,7 @@ impl Rig {
             state: DeviceState::new("d1".into()),
             policy: Policy::Ask,
             accept_rollback: false,
+            accepted_rollbacks: BTreeSet::new(),
             overrides: BTreeMap::new(),
             answers: BTreeMap::new(),
             allowed: Organizations::All,
@@ -389,6 +391,7 @@ impl Rig {
             allowed: &self.allowed,
             policy: self.policy,
             accept_rollback: self.accept_rollback,
+            accepted_rollbacks: &self.accepted_rollbacks,
             overrides: &self.overrides,
             answers: &self.answers,
             applies: &*self.applies,
@@ -419,6 +422,7 @@ impl Rig {
             allowed: &self.allowed,
             policy: self.policy,
             accept_rollback: self.accept_rollback,
+            accepted_rollbacks: &self.accepted_rollbacks,
             overrides: &self.overrides,
             answers: &self.answers,
             applies: &*self.applies,
@@ -440,6 +444,7 @@ impl Rig {
             allowed: &self.allowed,
             policy: self.policy,
             accept_rollback: self.accept_rollback,
+            accepted_rollbacks: &self.accepted_rollbacks,
             overrides: &self.overrides,
             answers: &self.answers,
             applies: &*self.applies,
@@ -1638,6 +1643,22 @@ fn a_rolled_back_item_is_held_and_reported() {
     assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c.clone())]);
     assert_eq!(r.store.value("k").as_deref(), Some("mine"));
     assert_eq!(r.state.base["k"].cipher_id, c);
+}
+
+#[test]
+fn only_the_rollbacks_named_by_cipher_are_accepted() {
+    let mut r = Rig::obsidian();
+    let (a, b) = (r.add("a", "v"), r.add("b", "v"));
+    r.ok();
+    for c in [&a, &b] {
+        r.edit_remote(c, "old");
+        roll_back(&r, c);
+    }
+    r.accepted_rollbacks = BTreeSet::from([a.clone()]);
+    let report = r.ok();
+    assert_eq!(report.pulled, ["a"]);
+    assert_eq!(report.skipped.rollbacks, [("b".to_owned(), b.clone())], "the one not named stays held");
+    assert_eq!((r.store.value("a").as_deref(), r.store.value("b").as_deref()), (Some("old"), Some("v")));
 }
 
 #[test]

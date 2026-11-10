@@ -41,6 +41,8 @@ pub struct SyncContext<'a, H: Http, C: Clock, R: Random> {
     pub policy: Policy,
     /// The user accepts the rollbacks of this sync (ADR 0019): an item below its base is planned as a remote change.
     pub accept_rollback: bool,
+    /// The rollbacks the user accepts one by one, by cipher id, when `accept_rollback` is false: the ones shown.
+    pub accepted_rollbacks: &'a BTreeSet<String>,
     pub overrides: &'a BTreeMap<String, ConflictOverride>,
     /// The user's answers to history questions by `{ns}:id`, each with the question it answers (ADR 0016); a push
     /// without one, or whose item now raises another question, asks instead.
@@ -210,7 +212,7 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
             report.held.push((id.clone(), entry.cipher_id.clone()));
             kept_out.insert(id.clone());
         } else if rollback {
-            if ctx.accept_rollback {
+            if ctx.accept_rollback || ctx.accepted_rollbacks.contains(cipher) {
                 // Planned as a remote change, never as a push over the server's version.
                 accepted.insert(id.clone());
                 base.insert(id.clone(), entry.clone());

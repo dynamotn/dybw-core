@@ -1325,6 +1325,28 @@ mod session {
     }
 
     #[test]
+    fn accept_rollbacks_takes_only_the_named_ciphers_and_accept_rollback_all() {
+        let grouped = scenario("rollback-grouped");
+        let host = host("pbkdf2", ciphers(&grouped));
+        seed_state(&host, &grouped);
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let (ids, values) = (vec!["alpha", "beta", "gamma"], vec!["o1", "o2", "o3"]);
+        let sync = |options: Value| {
+            let own = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect();
+            json_of(block_on(s.run_sync(&options.to_string(), own(&ids), own(&values)))).unwrap_or_default()
+        };
+        let report = sync(json!({ "acceptRollbacks": ["c1"] }));
+        assert_eq!(report["pulled"], json!(["alpha"]));
+        let held = json!([{ "id": "beta", "cipherId": "c2" }, { "id": "gamma", "cipherId": "c3" }]);
+        assert_eq!(report["rollbacks"], held, "the ones not named stay held");
+        let report = sync(json!({ "acceptRollback": true, "acceptRollbacks": [] }));
+        assert_eq!((&report["pulled"], &report["rollbacks"]), (&json!(["beta", "gamma"]), &json!([])));
+        let refused = block_on(s.run_sync(r#"{"acceptRollbacks":"c1"}"#, vec![], vec![]));
+        assert_eq!(refused.map_err(code), Err(INVALID.into()), "a list of ids, nothing else");
+    }
+
+    #[test]
     fn an_answer_covers_only_the_question_it_was_given_for() {
         let pushed = scenario("history-question-holds-push");
         let host = host("pbkdf2", ciphers(&pushed));
