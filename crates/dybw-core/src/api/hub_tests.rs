@@ -356,7 +356,29 @@ enum Step {
     Spin(Frame),
 }
 
+type Log = Rc<RefCell<Vec<&'static str>>>;
+
+/// Counts the `recv` futures alive (polled once and not yet dropped), and the most at once.
+struct Live(Rc<Cell<(u32, u32)>>);
+
+impl Live {
+    fn new(count: &Rc<Cell<(u32, u32)>>) -> Live {
+        let (now, most) = count.get();
+        count.set((now + 1, most.max(now + 1)));
+        Live(count.clone())
+    }
+}
+
+impl Drop for Live {
+    fn drop(&mut self) {
+        let (now, most) = self.0.get();
+        self.0.set((now - 1, most));
+    }
+}
+
 struct Sock {
+    log: Log,
+    live: Rc<Cell<(u32, u32)>>,
     steps: VecDeque<Step>,
     sent: Rc<RefCell<Vec<Frame>>>,
     closed: Rc<Cell<u32>>,
@@ -373,6 +395,8 @@ impl EventSocket for Sock {
         Ok(())
     }
     async fn recv(&mut self) -> Option<Result<Frame, PortError>> {
+        self.log.borrow_mut().push("recv");
+        let _live = Live::new(&self.live);
         match self.steps.pop_front() {
             Some(Step::Recv(f)) => Some(Ok(f)),
             Some(Step::Spin(f)) => {
@@ -396,6 +420,9 @@ impl EventSocket for Sock {
 #[derive(Default)]
 struct Fake {
     socks: RefCell<VecDeque<Option<Sock>>>,
+    /// Every `recv` and timer as it is first polled.
+    log: Log,
+    live: Rc<Cell<(u32, u32)>>,
     urls: RefCell<Vec<String>>,
     /// The `renew` of every `url` call.
     renews: RefCell<Vec<bool>>,
@@ -406,10 +433,12 @@ struct Fake {
 
 impl Fake {
     fn clock(&self) -> StepClock {
-        StepClock(self.time.clone())
+        StepClock(self.time.clone(), self.log.clone())
     }
     fn sock(&self, steps: Vec<Step>, fail_send: bool) -> Option<Sock> {
         Some(Sock {
+            log: self.log.clone(),
+            live: self.live.clone(),
             steps: steps.into(),
             sent: self.sent.clone(),
             closed: self.closed.clone(),
@@ -431,13 +460,14 @@ impl Events for Fake {
 }
 
 /// Sleeping moves time on, so a hub waiting for its next deadline gets there.
-struct StepClock(Rc<Cell<i64>>);
+struct StepClock(Rc<Cell<i64>>, Log);
 
 impl Clock for StepClock {
     fn now_ms(&self) -> i64 {
         self.0.get()
     }
     async fn sleep_ms(&self, ms: u64) {
+        self.1.borrow_mut().push("sleep");
         self.0.set(self.0.get() + i64::try_from(ms).unwrap());
     }
 }
@@ -570,4 +600,19 @@ fn run_hub_ticks_even_when_the_server_never_stops_sending() {
     let clock = fake.clock();
     run(&fake, &clock, &[Some("u")], &Cell::new(0), &|| clock.now_ms() > 20_000);
     assert!(fake.sent.borrow().iter().any(|f| *f == bin(&[0x02, 0x91, 0x06])), "a ping went out");
+}
+
+/// The socket contract (`host.rs`, `EventSocket::recv`): a frame leaves the host's queue only when a `recv` resolves.
+/// The hub polls `recv` before its timer, so a frame that is ready is never passed over for a deadline, and it never
+/// keeps two `recv`s alive: the one the timer beat is dropped before the next is made.
+#[test]
+fn run_hub_polls_recv_before_its_timer_and_keeps_one_recv_alive() {
+    let fake = Fake::default();
+    fake.push(fake.sock(vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e])), Step::Hang], false));
+    let clock = fake.clock();
+    run(&fake, &clock, &[Some("u")], &Cell::new(0), &|| clock.now_ms() > 20_000);
+    // The handshake was ready: the timer was never polled. Then a hanging recv, beaten by the ping and stable timers.
+    assert_eq!(*fake.log.borrow(), ["recv", "recv", "sleep", "recv", "sleep"]);
+    assert_eq!(fake.live.get(), (0, 1), "one recv at a time, each dropped when its timer won");
+    assert_eq!(clock.now_ms(), 30_000);
 }

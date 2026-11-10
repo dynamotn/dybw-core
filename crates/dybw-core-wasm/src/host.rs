@@ -56,8 +56,16 @@ pub trait Host {
     /// Opens a socket and answers its id.
     async fn socket_open(&self, url: &str) -> Result<u32, String>;
     async fn socket_send(&self, id: u32, frame: Frame) -> Result<(), String>;
-    /// The next frame, `None` once closed. Taking a frame off the host's queue happens only when this future
-    /// resolves, so a future that is kept and polled again never loses one.
+    /// The next frame, `None` once closed.
+    ///
+    /// The socket invariant, which keeps a frame from being lost when the hub's timer wins:
+    /// - A frame leaves the host's queue only when the promise of this call resolves with it, never when the call is
+    ///   made; so a future that is kept and polled again never loses one.
+    /// - The hub (`api::run_hub`) polls `recv` before its timer, so a frame that is ready is taken before a deadline
+    ///   is served, and it never keeps two `recv`s alive: `JsSocket` holds the one unresolved promise across the
+    ///   hub's turns and asks again only once it resolved. The host therefore serves one waiting `recv` per socket.
+    ///
+    /// `hub_tests::run_hub_polls_recv_before_its_timer_and_keeps_one_recv_alive` pins the hub's half.
     fn socket_recv(&self, id: u32) -> RecvFuture;
     fn socket_close(&self, id: u32);
     fn log(&self, message: &str);
