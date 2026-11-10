@@ -261,11 +261,12 @@ struct Open<H: Host> {
 
 /// What `run_hub` reads, kept beside the keys so the hub keeps running while a call has them out. Set by `open`,
 /// dropped by `lock`.
-struct HubKeys {
+struct HubKeys<H: Host> {
     device_id: String,
     notifications: String,
-    /// The access token as `take` found it, for the hub's attempts while a call has the keys out.
-    token: Option<Zeroizing<String>>,
+    /// The hub's own twin of the client (`Client::twin`), so it renews its token while a call has the keys out.
+    /// `None` while the hub has it out.
+    client: Option<Client<Ports<H>, Ports<H>>>,
 }
 
 /// Every method takes `&self` and no borrow outlives a synchronous step, so `lock` can run at any time, even from
@@ -275,7 +276,7 @@ pub struct Session<H: Host> {
     ports: Ports<H>,
     ns: &'static Namespace,
     open: Cell<Option<Open<H>>>,
-    hub: Cell<Option<HubKeys>>,
+    hub: Cell<Option<HubKeys<H>>>,
     generation: Cell<u64>,
     /// A call has the keys out.
     busy: Cell<bool>,
@@ -305,8 +306,6 @@ impl<H: Host> Session<H> {
     /// Takes the keys out for one call, with the generation to put them back under.
     fn take(&self) -> Result<(Open<H>, u64), Error> {
         let open = self.open.take().ok_or_else(|| self.absent())?;
-        let token = open.keys.client.access_token().map(|t| Zeroizing::new(t.to_owned()));
-        self.with_hub(|h| h.token = token);
         self.busy.set(true);
         Ok((open, self.generation.get()))
     }
@@ -314,14 +313,13 @@ impl<H: Host> Session<H> {
     /// Puts the keys back, unless `lock` ran since `take`: then they are dropped here.
     fn put(&self, open: Open<H>, generation: u64) {
         if self.generation.get() == generation {
-            self.with_hub(|h| h.token = None);
             self.busy.set(false);
             self.open.set(Some(open));
         }
     }
 
     /// `f` on the hub's keys, without keeping them.
-    fn with_hub<T>(&self, f: impl FnOnce(&mut HubKeys) -> T) -> Option<T> {
+    fn with_hub<T>(&self, f: impl FnOnce(&mut HubKeys<H>) -> T) -> Option<T> {
         let mut hub = self.hub.take();
         let out = hub.as_mut().map(f);
         self.hub.set(hub);
@@ -475,7 +473,8 @@ impl<H: Host> Session<H> {
             return Err(Error::locked());
         }
         let unmarked = UnmarkedCache::default();
-        self.hub.set(Some(HubKeys { device_id: state.device_id.clone(), notifications, token: None }));
+        let twin = Some(client.twin(self.port(), self.port()));
+        self.hub.set(Some(HubKeys { device_id: state.device_id.clone(), notifications, client: twin }));
         self.open.set(Some(Open { keys: Keys { client, unlocked, allowed, unmarked }, state }));
         Ok(summary.to_string())
     }
@@ -617,16 +616,22 @@ impl<H: Host> Session<H> {
     }
 
     /// Keeps the hub up (`api::run_hub`) until `stop` or `lock`, calling `on_change` when the vault changed
-    /// elsewhere. It holds no key: it reads the access token for each attempt, from the client, or while a call has
-    /// the keys out, as that call took them; so it keeps running during a sync.
+    /// elsewhere. It holds no vault key: its URLs come from its twin of the client, which renews an expired or refused
+    /// token through the same gated login (ADR 0018), so it keeps running during a sync. It takes the twin out only
+    /// for one attempt and puts it back only if `lock` did not run meanwhile.
     pub async fn run_hub(&self, on_change: impl FnMut(), stop: impl Fn() -> bool) -> Result<(), Error> {
         let device_id = self.with_hub(|h| h.device_id.clone()).ok_or_else(Error::locked)?;
         let generation = self.generation.get();
         let mut hub = Hub::new(HubOptions::default(), device_id);
-        // shortcut: an expired token is not renewed here, so the attempt fails until the next sync renews it.
-        let url = async || {
-            let live = self.peek(|o| o.keys.client.access_token().map(|t| Zeroizing::new(t.to_owned())));
-            self.with_hub(|h| live.unwrap_or_else(|| h.token.clone()).map(|t| hub_url(&h.notifications, &t))).flatten()
+        let url = async |renew| {
+            let (mut client, base) = self.with_hub(|h| Some((h.client.take()?, h.notifications.clone()))).flatten()?;
+            let url = client.hub_token(renew).await.ok().map(|t| hub_url(&base, t));
+            // After a `lock` the twin is dropped here, which wipes it, and nothing is opened.
+            let live = self.generation.get() == generation;
+            if live {
+                self.with_hub(|h| h.client = Some(client));
+            }
+            url.filter(|_| live)
         };
         let stopped = || self.generation.get() != generation || stop();
         api::run_hub(&self.ports, &self.ports, url, &mut hub, on_change, stopped).await;

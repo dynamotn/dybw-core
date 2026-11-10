@@ -397,6 +397,8 @@ impl EventSocket for Sock {
 struct Fake {
     socks: RefCell<VecDeque<Option<Sock>>>,
     urls: RefCell<Vec<String>>,
+    /// The `renew` of every `url` call.
+    renews: RefCell<Vec<bool>>,
     sent: Rc<RefCell<Vec<Frame>>>,
     closed: Rc<Cell<u32>>,
     time: Rc<Cell<i64>>,
@@ -444,7 +446,11 @@ impl Clock for StepClock {
 fn run(fake: &Fake, clock: &StepClock, urls: &[Option<&str>], changes: &Cell<u32>, stop: &dyn Fn() -> bool) {
     let queue: RefCell<VecDeque<Option<String>>> = RefCell::new(urls.iter().map(|u| u.map(String::from)).collect());
     let mut on_change = || changes.set(changes.get() + 1);
-    block_on(run_hub(fake, clock, async || queue.borrow_mut().pop_front().flatten(), &mut hub(), &mut on_change, stop));
+    let url = async |renew| {
+        fake.renews.borrow_mut().push(renew);
+        queue.borrow_mut().pop_front().flatten()
+    };
+    block_on(run_hub(fake, clock, url, &mut hub(), &mut on_change, stop));
 }
 
 #[test]
@@ -463,14 +469,44 @@ fn run_hub_reports_a_change() {
 }
 
 #[test]
-fn run_hub_backs_off_when_no_url_can_be_had_or_the_connect_fails() {
+fn run_hub_backs_off_when_no_url_can_be_had_and_renews_the_token_once_when_the_connect_fails() {
     let fake = Fake::default();
     fake.push(None);
     fake.push(fake.sock(vec![], false));
     let clock = fake.clock();
     run(&fake, &clock, &[None, Some("a"), Some("b")], &Cell::new(0), &|| fake.urls.borrow().len() >= 2);
     assert_eq!(*fake.urls.borrow(), ["a", "b"]);
-    assert_eq!(clock.now_ms(), 7_000, "2 s, then 5 s");
+    assert_eq!(*fake.renews.borrow(), [false, false, true], "no URL is no renewal; a refused connect is");
+    assert_eq!(clock.now_ms(), 2_000, "the renewed URL is tried at once");
+}
+
+#[test]
+fn run_hub_connects_with_a_renewed_token() {
+    let fake = Fake::default();
+    fake.push(None);
+    let steps = vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e])), Step::Recv(bin(&invocation(0, Some(OTHER)))), Step::Hang];
+    fake.push(fake.sock(steps, false));
+    let changes = Cell::new(0);
+    run(&fake, &fake.clock(), &[Some("expired"), Some("renewed")], &changes, &|| changes.get() > 0);
+    assert_eq!(*fake.urls.borrow(), ["expired", "renewed"]);
+    assert_eq!(*fake.renews.borrow(), [false, true]);
+    assert_eq!(changes.get(), 1, "the hub connected");
+}
+
+#[test]
+fn run_hub_backs_off_after_a_failed_renewal_and_renews_once_per_run_of_failures() {
+    let fake = Fake::default();
+    // a: refused, its renewal too (no URL). b: refused, no second renewal. c: connects, then ends.
+    // d: refused, renewed again after the connection, e: still refused.
+    for s in [None, None, fake.sock(vec![Step::Recv(bin(&[0x7b, 0x7d, 0x1e]))], false), None, None] {
+        fake.push(s);
+    }
+    let clock = fake.clock();
+    let urls = [Some("a"), None, Some("b"), Some("c"), Some("d"), Some("e")];
+    run(&fake, &clock, &urls, &Cell::new(0), &|| fake.urls.borrow().len() >= 5);
+    assert_eq!(*fake.urls.borrow(), ["a", "b", "c", "d", "e"]);
+    assert_eq!(*fake.renews.borrow(), [false, true, false, false, false, true]);
+    assert_eq!(clock.now_ms(), 22_000, "2 s, 5 s, then 15 s: every failure backs off as before");
 }
 
 #[test]

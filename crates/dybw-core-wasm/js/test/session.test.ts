@@ -108,6 +108,20 @@ test("the hub runs until lock, and its promise settles", async () => {
   await expect(settled(hub)).resolves.toBeUndefined();
 });
 
+test("a refused socket renews the hub's token once per run of refusals, then backs off", async () => {
+  const { ports: p, counts, requests } = ports();
+  const s = new WasmSession(p, "obsidian");
+  await s.unlock(profile(cose), "vectors", cose.password);
+  const logins = () => requests.filter((r) => r === "POST /identity/connect/token").length;
+  expect(logins()).toBe(1);
+  // The harness refuses every socket, as a server refuses an expired token.
+  const hub = s.runHub(() => {}, () => false);
+  await until(() => counts.socketOpen >= 4);
+  s.lock();
+  await expect(settled(hub)).resolves.toBeUndefined();
+  expect(logins(), "renewed at once after the first refusal, not after each").toBe(2);
+});
+
 test("a stop() that throws stops the hub", async () => {
   const { ports: p } = ports();
   const s = new WasmSession(p, "obsidian");

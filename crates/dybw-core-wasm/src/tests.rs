@@ -38,6 +38,9 @@ struct MockHost {
     waiting: RefCell<VecDeque<Rc<RefCell<Option<Recv>>>>>,
     queued: RefCell<VecDeque<Recv>>,
     recv_calls: Cell<usize>,
+    /// `socket_open` refuses this many times first, like a server refusing the token; `opens` counts the calls.
+    refused_opens: Cell<usize>,
+    opens: Cell<usize>,
     sent: RefCell<Vec<(u32, Frame)>>,
     closed: RefCell<Vec<u32>>,
     slept: RefCell<Vec<u64>>,
@@ -197,6 +200,11 @@ impl Host for MockHost {
     }
     async fn socket_open(&self, url: &str) -> Result<u32, String> {
         self.check()?;
+        self.opens.set(self.opens.get() + 1);
+        if self.refused_opens.get() > 0 {
+            self.refused_opens.set(self.refused_opens.get() - 1);
+            return Err("refused".into());
+        }
         Ok(u32::try_from(url.len()).unwrap_or_default())
     }
     async fn socket_send(&self, id: u32, frame: Frame) -> Result<(), String> {
@@ -1450,14 +1458,74 @@ mod session {
             polls.get() > 3
         };
         assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()), "not busy");
-        // It connected with the token the sync's client had when it took the keys.
+        // It connected with its twin's token.
         assert_eq!(host.closed.borrow().len(), 1);
         let report = json_of(block_on(sync)).unwrap_or_default();
         assert_eq!(report["pulled"], json!(["alpha"]));
-        // After the sync the hub reads the client's token again.
+        // And again after the sync.
         polls.set(0);
         assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()));
         assert_eq!(host.closed.borrow().len(), 2);
+    }
+
+    fn token_requests(host: &MockHost) -> usize {
+        host.http_seen.borrow().iter().filter(|c| c.1.ends_with("/connect/token")).count()
+    }
+
+    #[test]
+    fn the_hub_renews_a_refused_token_while_a_sync_has_the_keys() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let logins = token_requests(&host);
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut sync = pin!(s.run_sync("{}", vec![], vec![]));
+        assert!(sync.as_mut().poll(&mut cx).is_pending());
+        host.refused_opens.set(1);
+        let polls = Cell::new(0);
+        let stop = || {
+            polls.set(polls.get() + 1);
+            polls.get() > 3
+        };
+        assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()));
+        assert_eq!(token_requests(&host), logins + 1, "its twin logged in again, through the same gate");
+        assert_eq!((host.opens.get(), host.closed.borrow().len()), (2, 1), "then connected at once");
+        let report = json_of(block_on(sync)).unwrap_or_default();
+        assert_eq!(report["pulled"], json!(["alpha"]), "the sync was never busy");
+        // The twin was put back: the next hub needs no login.
+        polls.set(0);
+        assert_eq!(block_on(s.run_hub(|| {}, stop)), Ok(()));
+        assert_eq!((token_requests(&host), host.opens.get()), (logins + 1, 3));
+    }
+
+    #[test]
+    fn lock_during_the_hubs_renewal_drops_its_twin_and_opens_nothing() {
+        let host = host("pbkdf2", vec![]);
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.refused_opens.set(1);
+        host.hold.set(2);
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut hub = pin!(s.run_hub(|| {}, || false));
+        assert!(hub.as_mut().poll(&mut cx).is_pending(), "renewing");
+        s.lock();
+        assert_eq!(block_on(hub), Ok(()));
+        assert_eq!(host.opens.get(), 1, "only the refused open");
+        // A new unlock gets a twin of its own.
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        let polls = Cell::new(0);
+        assert_eq!(
+            block_on(s.run_hub(
+                || {},
+                || {
+                    polls.set(polls.get() + 1);
+                    polls.get() > 3
+                }
+            )),
+            Ok(())
+        );
+        assert_eq!((host.opens.get(), host.closed.borrow().len()), (2, 1));
     }
 
     #[test]

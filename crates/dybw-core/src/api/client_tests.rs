@@ -641,3 +641,55 @@ fn sync_up_to_256_mib_is_read() {
     assert!(block_on(rig.client.sync()).is_ok());
     assert_eq!(rig.sent.borrow().last().unwrap().max_body, MAX_BODY);
 }
+
+#[test]
+fn the_hub_token_is_renewed_when_expired_or_refused_and_only_through_the_gate() {
+    let mut rig = Rig::new();
+    for renew in [false, true] {
+        assert!(matches!(block_on(rig.client.hub_token(renew)), Err(ApiError::NotLoggedIn)));
+    }
+    rig.login();
+    assert_eq!(block_on(rig.client.hub_token(false)).unwrap(), "tok");
+    assert_eq!(rig.sent.borrow().len(), 1, "a valid token is not renewed");
+
+    rig.reply(200, r#"{"access_token":"refused-renewal","expires_in":3600}"#);
+    assert_eq!(block_on(rig.client.hub_token(true)).unwrap(), "refused-renewal", "the hub refused it");
+    rig.now.set(rig.now.get() + 3_540_000);
+    rig.reply(200, r#"{"access_token":"expired-renewal","expires_in":3600}"#);
+    assert_eq!(block_on(rig.client.hub_token(false)).unwrap(), "expired-renewal", "within a minute of expiry");
+    assert_eq!(rig.last().1, "https://bw.example.org/identity/connect/token");
+
+    rig.reply(400, "{}");
+    assert!(matches!(block_on(rig.client.hub_token(true)), Err(ApiError::Http { status: 400, .. })));
+    assert_eq!(rig.client.access_token(), None, "a token the hub refused is not handed out again");
+
+    // ADR 0018: through a client that follows redirects, to an origin not acknowledged, nothing is sent.
+    rig.refuses.set(false);
+    let before = rig.sent.borrow().len();
+    for renew in [false, true] {
+        let e = block_on(rig.client.hub_token(renew)).unwrap_err();
+        assert!(matches!(e, ApiError::OriginNotAcknowledged { .. }), "{e:?}");
+    }
+    assert_eq!(rig.sent.borrow().len(), before);
+}
+
+#[test]
+fn a_twin_starts_with_the_login_and_renews_on_its_own() {
+    let mut rig = Rig::new();
+    let fake = || Fake { sent: rig.sent.clone(), replies: rig.replies.clone(), refuses: rig.refuses.clone() };
+    let mut logged_out = rig.client.twin(fake(), TestClock(rig.now.clone()));
+    assert!(matches!(block_on(logged_out.hub_token(false)), Err(ApiError::NotLoggedIn)));
+
+    rig.synced();
+    let fake = Fake { sent: rig.sent.clone(), replies: rig.replies.clone(), refuses: rig.refuses.clone() };
+    let mut twin = rig.client.twin(fake, TestClock(rig.now.clone()));
+    assert_eq!(block_on(twin.hub_token(false)).unwrap(), "tok");
+    rig.reply(200, r#"{"access_token":"twin","expires_in":3600}"#);
+    assert_eq!(block_on(twin.hub_token(true)).unwrap(), "twin");
+    let body = String::from_utf8(rig.last().3.unwrap()).unwrap();
+    assert!(body.contains("client_secret=s3cret-value"), "the twin logs in with the same key");
+    assert_eq!(rig.client.access_token(), Some("tok"), "the first client keeps its own token");
+    rig.reply(200, "{}");
+    block_on(twin.create_cipher(Map::new())).unwrap();
+    assert_eq!(json_body(rig.last().3), json!({ "encryptedFor": "user-1" }), "and its sync's user");
+}

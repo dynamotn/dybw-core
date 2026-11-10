@@ -255,9 +255,13 @@ The state calls:
   `locked`.
 
 All three answer `busy` while another call has the keys out. `runHub` keeps the
-device id, the notifications URL and the access token beside the keys, so it
-keeps running during a sync; it answers `locked` (never `busy`) when there are
-no keys, and `lock` stops it at its next check.
+device id, the notifications URL and its own twin of the logged-in client
+beside the keys, so it keeps running during a sync; it answers `locked` (never
+`busy`) when there are no keys, and `lock` stops it at its next check. The twin
+renews a token that expired, and once per run of refused connections a token
+the server may have refused (the browser cannot tell a 401 from other
+failures), through the same login and ADR 0018 rule as the sync; a failed
+renewal backs off as any failed connection.
 
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit. The timings are a table for information, with the

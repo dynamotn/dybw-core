@@ -266,6 +266,8 @@ struct Pump {
     wake: Option<i64>,
     reconnect_at: i64,
     close: bool,
+    /// A handshake succeeded since the last look.
+    handshaken: bool,
 }
 
 impl Pump {
@@ -278,7 +280,7 @@ impl Pump {
                 HubOut::Send(f) => sends.push(f),
                 HubOut::Close => self.close = true,
                 HubOut::Changed => on_change(),
-                HubOut::Connected(_) => {}
+                HubOut::Connected(up) => self.handshaken |= up,
                 HubOut::Reconnect { at_ms } => self.reconnect_at = at_ms,
                 HubOut::WakeAt(t) => self.wake = Some(t),
             }
@@ -340,16 +342,20 @@ async fn session<S: EventSocket, C: Clock>(
 
 /// Keeps one connection to the hub up until `stop` says otherwise, calling `on_change` when the vault changed
 /// elsewhere. `url` is asked for a fresh URL (with a current access token) before every attempt; `None` counts as a
-/// failed attempt. `stop` is checked between steps; the host cancels a wait by dropping the future.
+/// failed attempt. A connect that fails may be the server refusing a token that looked valid (a browser cannot tell
+/// a 401 from any other failure): once per run of failures, `url(true)` is then asked to renew the token and the
+/// connect is tried again at once; `url(false)` renews only a token known to be expired. `stop` is checked between
+/// steps; the host cancels a wait by dropping the future.
 pub async fn run_hub<E: Events, C: Clock>(
     events: &E,
     clock: &C,
-    url: impl AsyncFn() -> Option<String>,
+    url: impl AsyncFn(bool) -> Option<String>,
     hub: &mut Hub,
     mut on_change: impl FnMut(),
     stop: impl Fn() -> bool,
 ) {
     let mut pump = Pump { reconnect_at: clock.now_ms(), ..Pump::default() };
+    let mut renewed = false;
     loop {
         // Until the next attempt, still serve the hub's own deadline: a change noted before the drop is reported
         // after its settle time, not after the (possibly 5 minute) backoff.
@@ -368,8 +374,20 @@ pub async fn run_hub<E: Events, C: Clock>(
                 pump.absorb(hub.on_tick(now), &mut on_change);
             }
         }
-        let socket = match url().await {
-            Some(u) => events.connect(&u).await.ok(),
+        renewed &= !std::mem::take(&mut pump.handshaken);
+        let socket = match url(false).await {
+            Some(u) => match events.connect(&u).await {
+                Ok(s) => Some(s),
+                Err(_) if !renewed => {
+                    renewed = true;
+                    match url(true).await {
+                        Some(u) => events.connect(&u).await.ok(),
+                        None => None,
+                    }
+                }
+                Err(_) => None,
+            },
+            // No URL: the token could not be had or renewed, which a second try now would not change.
             None => None,
         };
         let Some(mut socket) = socket else {

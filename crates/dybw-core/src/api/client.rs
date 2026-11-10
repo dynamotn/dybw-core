@@ -173,6 +173,17 @@ pub struct ApiKey {
     pub client_secret: Zeroizing<String>,
 }
 
+impl ApiKey {
+    /// A copy with its own buffer for the secret; never derived `Clone`, so each copy is deliberate.
+    fn copy(&self) -> ApiKey {
+        ApiKey {
+            origin: self.origin.clone(),
+            client_id: self.client_id.clone(),
+            client_secret: Zeroizing::new(self.client_secret.as_str().to_owned()),
+        }
+    }
+}
+
 impl std::fmt::Debug for ApiKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ApiKey")
@@ -271,17 +282,44 @@ impl<H: Http, C: Clock> Client<H, C> {
         Some(s.token.as_str())
     }
 
+    /// The bearer token for the hub URL, renewed with the stored API key when it is within a minute of expiry, or
+    /// at once when `renew` says the hub refused it; gated like every call (ADR 0018).
+    pub async fn hub_token(&mut self, renew: bool) -> Result<&str, ApiError> {
+        if let Some(s) = self.session.as_mut().filter(|_| renew) {
+            s.renew_at_ms = i64::MIN;
+        }
+        self.ensure_login().await?;
+        Ok(self.session.as_ref().map(|s| s.token.as_str()).unwrap_or_default())
+    }
+
+    /// A second client with this one's login (its token and a copy of its API key), its own from then on: the hub
+    /// renews its token there while this one is busy with a sync. `http` and `clock` are the same ports.
+    pub fn twin(&self, http: H, clock: C) -> Self {
+        let session = self.session.as_ref().map(|s| Session {
+            token: Zeroizing::new(s.token.as_str().to_owned()),
+            renew_at_ms: s.renew_at_ms,
+            key: s.key.copy(),
+        });
+        Client {
+            http,
+            clock,
+            urls: self.urls.clone(),
+            device: self.device.clone(),
+            session,
+            user_id: self.user_id.clone(),
+            body_limit: self.body_limit,
+            response_limit: self.response_limit,
+            acknowledged: self.acknowledged.clone(),
+        }
+    }
+
     /// Refuses to send the bearer token where ADR 0018 forbids it, then renews a token that is within a minute of
     /// expiry with the stored API key.
     async fn ensure_login(&mut self) -> Result<(), ApiError> {
         self.may_send_credentials()?;
         let s = self.session.as_ref().ok_or(ApiError::NotLoggedIn)?;
         if self.clock.now_ms() >= s.renew_at_ms {
-            let key = ApiKey {
-                origin: s.key.origin.clone(),
-                client_id: s.key.client_id.clone(),
-                client_secret: Zeroizing::new(s.key.client_secret.as_str().to_owned()),
-            };
+            let key = s.key.copy();
             self.login(&key).await?;
         }
         Ok(())
@@ -380,12 +418,7 @@ impl<H: Http, C: Clock> Client<H, C> {
         let ttl_s = expires_in.unwrap_or(3600).saturating_sub(60).max(60);
         let ttl_ms = i64::try_from(ttl_s).unwrap_or(i64::MAX).saturating_mul(1000);
         let renew_at_ms = self.clock.now_ms().saturating_add(ttl_ms);
-        let key = ApiKey {
-            origin: key.origin.clone(),
-            client_id: key.client_id.clone(),
-            client_secret: Zeroizing::new(key.client_secret.as_str().to_owned()),
-        };
-        self.session = Some(Session { token: Zeroizing::new(token), renew_at_ms, key });
+        self.session = Some(Session { token: Zeroizing::new(token), renew_at_ms, key: key.copy() });
         Ok(())
     }
 
