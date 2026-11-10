@@ -192,18 +192,20 @@ JSON object, every field optional:
 ```text
 { policy: "ask" | "prefer-remote" | "prefer-local",
   acceptRollback: bool,                           // every rollback (ADR 0019)
-  acceptRollbacks: [cipherId],                    // only these: the rollbacks shown and accepted
+  acceptRollbacks: { <cipherId>: revisionDate },  // only these, at the revision shown
   overrides: { <id>: { policy, kind } },          // kind: a conflict kind below
   answers: { <id>: { question, answer } },        // question: "first-write-back" | "evicts-foreign-history"
                                                   // answer: "write-to-login" | "keep-separate"
   vaultName: string, uploadFolder: string }
 ```
 
-A rollback (`rollbacks` below) stays held until the user accepts it: pass the
-`cipherId`s shown in `acceptRollbacks`, so one that came back since is not
-taken unseen; `acceptRollback: true` accepts every one. An override holds only
-while the conflict is still of its `kind`; an answer
-covers only the question it was given for (ADR 0016). An item's
+A rollback (`rollbacks` below) stays held until the user accepts it: pass each
+shown entry's `cipherId` with its `revisionDate` in `acceptRollbacks`. It is
+accepted only while the server still holds that revision, so a cipher that
+rolled back again since is held and reported again, never taken unseen; an
+entry for a cipher that is not rolled back is ignored. `acceptRollback: true`
+accepts every one. An override holds only while the conflict is still of its
+`kind`; an answer covers only the question it was given for (ADR 0016). An item's
 `obsidian:scope` applies as the plugin's `scopeApplies`: `global` (or none)
 everywhere, `vault:<name>` where `vaultName` is `<name>`, `device:<id>` on the
 device whose state has that id; a scope the plugin cannot parse applies
@@ -227,7 +229,8 @@ half or more of what was synced (`runSync` then refuses with `mass-clear`).
   errors: [{id, error}], passes: number, keptChanging: bool,
   conflicts: [{id, kind, label, organization, organizationName}],
   questions: [{id, label, question}],
-  rollbacks, held, readOnly: [{id, cipherId}],
+  rollbacks: [{id, cipherId, revisionDate}],      // revisionDate: the server's, as text
+  held, readOnly: [{id, cipherId}],
   unknownFeatures: [{cipherId, features: [name]}],
   unreadable: [cipherId],
   duplicates: [{id, kept, left: [cipherId], boundKept}],
@@ -265,7 +268,10 @@ beside the keys, so it keeps running during a sync; it answers `locked` (never
 renews a token that expired, and once per run of refused connections a token
 the server may have refused (the browser cannot tell a 401 from other
 failures), through the same login and ADR 0018 rule as the sync; a failed
-renewal backs off as any failed connection.
+renewal backs off as any failed connection. After a failed renewal the token
+stays marked expired, so each later attempt logs in once more before it
+connects: one login per backoff step (2 s, 5 s, 15 s, 60 s, then every 300 s),
+bounded and deliberate.
 
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit. The timings are a table for information, with the

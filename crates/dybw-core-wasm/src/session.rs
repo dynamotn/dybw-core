@@ -154,9 +154,10 @@ struct SyncOptions {
     /// Every rollback; `acceptRollbacks` names them one by one instead.
     #[serde(default)]
     accept_rollback: bool,
-    /// By cipher id: the rollbacks the user was shown and accepted; the others stay held.
+    /// Cipher id to the revision date the user was shown and accepted; the others, and a cipher at another
+    /// revision since, stay held.
     #[serde(default)]
-    accept_rollbacks: BTreeSet<String>,
+    accept_rollbacks: BTreeMap<String, String>,
     /// By secret id.
     #[serde(default)]
     overrides: BTreeMap<String, Override>,
@@ -174,7 +175,7 @@ struct SyncOptions {
 struct Options {
     policy: sync::Policy,
     accept_rollback: bool,
-    accept_rollbacks: BTreeSet<String>,
+    accept_rollbacks: BTreeMap<String, String>,
     overrides: BTreeMap<String, ConflictOverride>,
     answers: BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     vault_name: String,
@@ -725,11 +726,13 @@ pub(crate) fn report_json(r: &SyncReport) -> Value {
         .iter()
         .map(|d| json!({ "id": d.id, "kept": d.kept, "left": d.left, "boundKept": d.bound_kept }))
         .collect();
+    let rollbacks: Vec<Value> =
+        p.rollbacks.iter().map(|(id, c, at)| json!({ "id": id, "cipherId": c, "revisionDate": at })).collect();
     let skipped: Vec<Value> = p.skipped.iter().map(|(c, why)| json!({ "cipherId": c, "reason": why.code() })).collect();
     json!({
         "pulled": r.pulled, "pushed": r.pushed, "created": r.created, "cleared": r.cleared,
         "conflicts": conflicts, "errors": errors, "passes": r.passes, "keptChanging": r.kept_changing,
-        "questions": questions, "rollbacks": pairs(&p.rollbacks), "unknownFeatures": features, "held": pairs(&p.held),
+        "questions": questions, "rollbacks": rollbacks, "unknownFeatures": features, "held": pairs(&p.held),
         "readOnly": pairs(&p.read_only), "unreadable": p.unreadable, "duplicates": duplicates, "skipped": skipped,
         "warnings": warnings(r),
     })

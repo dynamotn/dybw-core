@@ -16,7 +16,7 @@ use dybw_core::vault::{
     Keys, Namespace, Organizations, SkipReason, UnmarkedCache, ValueSource, scan_vault, scan_vault_with,
 };
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use zeroize::Zeroizing;
 
 pub fn namespace(name: &str) -> Result<&'static Namespace, String> {
@@ -357,7 +357,7 @@ async fn sync_write(files: &Files, s: &Scenario, want: &WriteExpect, rsa: &impl 
             allowed: &allowed,
             policy: policy(s),
             accept_rollback: s.options.accept_rollback,
-            accepted_rollbacks: &BTreeSet::new(),
+            accepted_rollbacks: &BTreeMap::new(),
             overrides: &overrides,
             answers: &answers,
             applies: &|_| true,
@@ -424,7 +424,7 @@ pub async fn plan(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
             allowed: &allowed,
             policy: policy(s),
             accept_rollback: s.options.accept_rollback,
-            accepted_rollbacks: &BTreeSet::new(),
+            accepted_rollbacks: &BTreeMap::new(),
             overrides: &overrides,
             answers: &answers,
             applies: &|_| true,
@@ -435,7 +435,7 @@ pub async fn plan(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
     }
     .await?;
     let mut got: Vec<_> = planned.actions.iter().map(plan_entry).collect();
-    got.extend(planned.report.rollbacks.iter().map(|(id, _)| ("rollback", id.as_str(), None)));
+    got.extend(planned.report.rollbacks.iter().map(|(id, _, _)| ("rollback", id.as_str(), None)));
     got.sort_by(|a, b| a.1.cmp(b.1));
     let want: Vec<_> = want.iter().map(|p| (p.kind.as_str(), p.id.as_str(), p.conflict.as_deref())).collect();
     compare("plan", got, want)

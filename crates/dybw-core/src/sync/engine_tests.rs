@@ -13,7 +13,7 @@ use crate::vault::{Keys, Namespace, Organizations, UnmarkedCache};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use zeroize::Zeroizing;
 
@@ -201,7 +201,7 @@ struct Rig {
     state: DeviceState,
     policy: Policy,
     accept_rollback: bool,
-    accepted_rollbacks: BTreeSet<String>,
+    accepted_rollbacks: BTreeMap<String, String>,
     overrides: BTreeMap<String, ConflictOverride>,
     answers: BTreeMap<String, (HistoryQuestion, HistoryAnswer)>,
     allowed: Organizations,
@@ -263,7 +263,7 @@ impl Rig {
             state: DeviceState::new("d1".into()),
             policy: Policy::Ask,
             accept_rollback: false,
-            accepted_rollbacks: BTreeSet::new(),
+            accepted_rollbacks: BTreeMap::new(),
             overrides: BTreeMap::new(),
             answers: BTreeMap::new(),
             allowed: Organizations::All,
@@ -1640,25 +1640,33 @@ fn a_rolled_back_item_is_held_and_reported() {
     r.store.put("k", "mine");
     let report = r.ok();
     assert!(nothing_moved(&report) && report.errors.is_empty());
-    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c.clone())]);
+    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c.clone(), OLD.to_owned())]);
     assert_eq!(r.store.value("k").as_deref(), Some("mine"));
     assert_eq!(r.state.base["k"].cipher_id, c);
 }
 
+const OLDER: &str = "2026-03-01T00:00:00.000Z";
+
 #[test]
-fn only_the_rollbacks_named_by_cipher_are_accepted() {
+fn only_the_rollbacks_named_at_the_revision_shown_are_accepted() {
     let mut r = Rig::obsidian();
-    let (a, b) = (r.add("a", "v"), r.add("b", "v"));
+    let (a, b, c, d) = (r.add("a", "v"), r.add("b", "v"), r.add("c", "v"), r.add("d", "v"));
     r.ok();
-    for c in [&a, &b] {
-        r.edit_remote(c, "old");
-        roll_back(&r, c);
+    for x in [&a, &b, &d] {
+        r.edit_remote(x, "old");
+        roll_back(&r, x);
     }
-    r.accepted_rollbacks = BTreeSet::from([a.clone()]);
+    let shown = r.ok().skipped.rollbacks;
+    let entry = |id: &str, x: &String, at: &str| (id.to_owned(), x.clone(), at.to_owned());
+    assert_eq!(shown, [entry("a", &a, OLD), entry("b", &b, OLD), entry("d", &d, OLD)]);
+    // b rolled back further after it was shown; c never rolled back; d was not accepted.
+    r.world().cipher(&b)["revisionDate"] = json!(OLDER);
+    r.accepted_rollbacks = [&a, &b, &c].into_iter().map(|x| (x.clone(), OLD.to_owned())).collect();
     let report = r.ok();
     assert_eq!(report.pulled, ["a"]);
-    assert_eq!(report.skipped.rollbacks, [("b".to_owned(), b.clone())], "the one not named stays held");
-    assert_eq!((r.store.value("a").as_deref(), r.store.value("b").as_deref()), (Some("old"), Some("v")));
+    assert_eq!(report.skipped.rollbacks, [entry("b", &b, OLDER), entry("d", &d, OLD)], "not taken unseen");
+    let values: Vec<_> = ["a", "b", "c", "d"].iter().map(|k| r.store.value(k)).collect();
+    assert_eq!(values, [Some("old".into()), Some("v".into()), Some("v".into()), Some("v".into())]);
 }
 
 #[test]
@@ -1738,7 +1746,7 @@ fn a_rollback_to_before_the_marker_keeps_the_local_value() {
     roll_back_to_unmarked(&r, &c);
     let report = r.ok();
     assert!(nothing_moved(&report) && report.errors.is_empty());
-    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c)]);
+    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c, OLD.to_owned())]);
     assert_eq!((r.store.value("k").as_deref(), &r.state.base["k"]), (Some("v"), &before));
 }
 
@@ -1750,7 +1758,7 @@ fn a_rollback_re_marked_under_another_id_keeps_the_local_value() {
     let before = r.state.base["k"].clone();
     roll_back_to_id(&r, &c, "other");
     let report = r.ok();
-    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c)]);
+    assert_eq!(report.skipped.rollbacks, [("k".to_owned(), c, OLD.to_owned())]);
     assert!(report.skipped.held.is_empty() && report.cleared.is_empty() && report.pushed.is_empty());
     assert_eq!((r.store.value("k").as_deref(), &r.state.base["k"]), (Some("v"), &before));
 }
@@ -1816,7 +1824,8 @@ fn an_accepted_rollback_to_a_bad_date_does_not_report_again() {
         r.ok();
         r.edit_remote(&c, "old");
         r.world().cipher(&c)["revisionDate"] = bad.clone();
-        assert_eq!(r.ok().skipped.rollbacks, [("k".to_owned(), c.clone())]);
+        let shown = bad.as_str().unwrap_or_default().to_owned();
+        assert_eq!(r.ok().skipped.rollbacks, [("k".to_owned(), c.clone(), shown)]);
         r.accept_rollback = true;
         assert_eq!(r.ok().pulled, ["k"]);
         r.accept_rollback = false;

@@ -41,8 +41,9 @@ pub struct SyncContext<'a, H: Http, C: Clock, R: Random> {
     pub policy: Policy,
     /// The user accepts the rollbacks of this sync (ADR 0019): an item below its base is planned as a remote change.
     pub accept_rollback: bool,
-    /// The rollbacks the user accepts one by one, by cipher id, when `accept_rollback` is false: the ones shown.
-    pub accepted_rollbacks: &'a BTreeSet<String>,
+    /// The rollbacks the user accepts one by one, when `accept_rollback` is false: cipher id to the revision date
+    /// the user was shown. One that rolled back again since (another revision) stays held and is reported again.
+    pub accepted_rollbacks: &'a BTreeMap<String, String>,
     pub overrides: &'a BTreeMap<String, ConflictOverride>,
     /// The user's answers to history questions by `{ns}:id`, each with the question it answers (ADR 0016); a push
     /// without one, or whose item now raises another question, asks instead.
@@ -114,9 +115,10 @@ pub struct PassReport {
     pub unknown_features: Vec<(String, Vec<String>)>,
     /// `(id, cipher id)` of synced secrets whose item is still there but can no longer be used: kept as is.
     pub held: Vec<(String, String)>,
-    /// `(id, cipher id)` of synced secrets whose item came back with a revision date below the base's (ADR 0019):
-    /// kept out of the plan, so nothing is pulled, pushed or cleared for them, until the user accepts.
-    pub rollbacks: Vec<(String, String)>,
+    /// `(id, cipher id, revision date)` of synced secrets whose item came back with a revision date below the
+    /// base's (ADR 0019): kept out of the plan, so nothing is pulled, pushed or cleared for them, until the user
+    /// accepts. The revision date is the server's, as text: `accepted_rollbacks` names it back.
+    pub rollbacks: Vec<(String, String, String)>,
     /// `(id, cipher id)` changed here, in an item its organization does not let this account edit: not uploaded.
     pub read_only: Vec<(String, String)>,
     /// Cipher ids of marked items whose value could not be decrypted (the plugin's skipped "undecryptable" items).
@@ -206,19 +208,21 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
     let usable: BTreeSet<&str> = items.values().map(|i| i.cipher_id.as_str()).collect();
     for (id, entry) in &state.base {
         let cipher = entry.cipher_id.as_str();
-        let rollback = revisions.get(cipher).is_some_and(|r| is_rollback(&entry.revision_date, r));
+        let revision = revisions.get(cipher).copied();
+        let rollback = revision.is_some_and(|r| is_rollback(&entry.revision_date, r));
+        let revision = revision.unwrap_or_default();
         // A cipher restored under another id no longer holds this one; every other unusable cipher is held.
         if !items.contains_key(id) && present.contains(cipher) && !(rollback && usable.contains(cipher)) {
             report.held.push((id.clone(), entry.cipher_id.clone()));
             kept_out.insert(id.clone());
         } else if rollback {
-            if ctx.accept_rollback || ctx.accepted_rollbacks.contains(cipher) {
+            if ctx.accept_rollback || ctx.accepted_rollbacks.get(cipher).is_some_and(|shown| shown == revision) {
                 // Planned as a remote change, never as a push over the server's version.
                 accepted.insert(id.clone());
                 base.insert(id.clone(), entry.clone());
             } else {
                 // Out of the plan and the base alike, as held: it must not count toward the mass-clear guard.
-                report.rollbacks.push((id.clone(), entry.cipher_id.clone()));
+                report.rollbacks.push((id.clone(), entry.cipher_id.clone(), revision.to_owned()));
                 kept_out.insert(id.clone());
             }
         } else {

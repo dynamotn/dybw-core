@@ -1325,7 +1325,7 @@ mod session {
     }
 
     #[test]
-    fn accept_rollbacks_takes_only_the_named_ciphers_and_accept_rollback_all() {
+    fn accept_rollbacks_takes_only_the_revisions_shown_and_accept_rollback_all() {
         let grouped = scenario("rollback-grouped");
         let host = host("pbkdf2", ciphers(&grouped));
         seed_state(&host, &grouped);
@@ -1336,14 +1336,18 @@ mod session {
             let own = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect();
             json_of(block_on(s.run_sync(&options.to_string(), own(&ids), own(&values)))).unwrap_or_default()
         };
-        let report = sync(json!({ "acceptRollbacks": ["c1"] }));
+        const SHOWN: &str = "2026-01-01T00:00:00.000Z";
+        let held = |id: &str, c: &str| json!({ "id": id, "cipherId": c, "revisionDate": SHOWN });
+        let report = sync(json!({}));
+        assert_eq!(report["rollbacks"], json!([held("alpha", "c1"), held("beta", "c2"), held("gamma", "c3")]));
+        // c2 at a revision the user was not shown stays held.
+        let report = sync(json!({ "acceptRollbacks": { "c1": SHOWN, "c2": "2025-12-01T00:00:00.000Z" } }));
         assert_eq!(report["pulled"], json!(["alpha"]));
-        let held = json!([{ "id": "beta", "cipherId": "c2" }, { "id": "gamma", "cipherId": "c3" }]);
-        assert_eq!(report["rollbacks"], held, "the ones not named stay held");
-        let report = sync(json!({ "acceptRollback": true, "acceptRollbacks": [] }));
+        assert_eq!(report["rollbacks"], json!([held("beta", "c2"), held("gamma", "c3")]), "not taken unseen");
+        let report = sync(json!({ "acceptRollback": true, "acceptRollbacks": {} }));
         assert_eq!((&report["pulled"], &report["rollbacks"]), (&json!(["beta", "gamma"]), &json!([])));
-        let refused = block_on(s.run_sync(r#"{"acceptRollbacks":"c1"}"#, vec![], vec![]));
-        assert_eq!(refused.map_err(code), Err(INVALID.into()), "a list of ids, nothing else");
+        let refused = block_on(s.run_sync(r#"{"acceptRollbacks":["c1"]}"#, vec![], vec![]));
+        assert_eq!(refused.map_err(code), Err(INVALID.into()), "cipher ids to revision dates, nothing else");
     }
 
     #[test]
@@ -1414,7 +1418,7 @@ mod session {
                 duplicates: vec![duplicate],
                 unknown_features: vec![("c".into(), vec!["dybw:x".into()])],
                 held: pair(),
-                rollbacks: pair(),
+                rollbacks: vec![("a".into(), "c".into(), "2026-01-01".into())],
                 read_only: pair(),
                 unreadable: vec!["c".into()],
                 questions: vec![Question {
@@ -1437,7 +1441,7 @@ mod session {
                 "organizationName": "Org <b>",
             }],
             "questions": [{ "id": "a", "label": "GitHub", "question": "evicts-foreign-history" }],
-            "rollbacks": pair, "held": pair, "readOnly": pair,
+            "rollbacks": [{ "id": "a", "cipherId": "c", "revisionDate": "2026-01-01" }], "held": pair, "readOnly": pair,
             "unknownFeatures": [{ "cipherId": "c", "features": ["dybw:x"] }],
             "unreadable": ["c"],
             "duplicates": [{ "id": "a", "kept": "c", "left": ["d"], "boundKept": true }],
