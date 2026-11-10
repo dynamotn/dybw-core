@@ -206,3 +206,19 @@ fn debug_and_errors_are_redacted() {
         assert!(!t.contains(&key_b64) && !t.contains(&plain_b64) && !t.contains("secret-plaintext"), "{t}");
     }
 }
+
+#[test]
+fn two_encryptions_of_one_value_differ() {
+    // Each encryption draws a fresh IV (type 2) or nonce (type 7) from the port, so equal values never match.
+    let rng = SeededRandom::new(7);
+    let keys = [
+        SymmetricKey::generate(&rng).unwrap(),
+        SymmetricKey::generate_cose(CoseAlgorithm::XChaCha20Poly1305, &rng).unwrap(),
+    ];
+    for (key, prefix) in keys.iter().zip(["2.", "7."]) {
+        let (a, b) = (key.encrypt_str("same", &rng).unwrap(), key.encrypt_str("same", &rng).unwrap());
+        assert!(a.starts_with(prefix) && b.starts_with(prefix), "{prefix}");
+        assert_ne!(a, b, "{prefix}");
+        assert_eq!((key.decrypt_str(&a).unwrap().as_str(), key.decrypt_str(&b).unwrap().as_str()), ("same", "same"));
+    }
+}
