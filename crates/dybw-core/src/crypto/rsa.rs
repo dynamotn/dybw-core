@@ -21,7 +21,11 @@ pub async fn unwrap_org_key(
         _ => return Err(unknown_type(ty)),
     };
     let ct = B64.decode(body).map_err(|_| CryptoError::Malformed)?;
-    let key = rsa.decrypt(private_pkcs8, hash, &ct).await?;
+    org_key_from_plaintext(&rsa.decrypt(private_pkcs8, hash, &ct).await?)
+}
+
+/// The organization key from RSA-OAEP's plaintext. Not generic, so every port's path is counted in one function.
+fn org_key_from_plaintext(key: &[u8]) -> Result<SymmetricKey, CryptoError> {
     // WebKit's RSA-OAEP drops the plaintext's leading zero bytes, so a 64-byte key starting with 0x00 comes back
     // short. A padded COSE key is longer than 64 bytes and starts with its CBOR map, never with a zero.
     if (1..64).contains(&key.len()) {
@@ -29,7 +33,7 @@ pub async fn unwrap_org_key(
         full.iter_mut().rev().zip(key.iter().rev()).for_each(|(d, s)| *d = *s);
         return SymmetricKey::from_bytes(&*full);
     }
-    SymmetricKey::from_bytes(&key)
+    SymmetricKey::from_bytes(key)
 }
 
 #[cfg(feature = "native")]
