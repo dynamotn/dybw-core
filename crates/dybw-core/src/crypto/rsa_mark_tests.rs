@@ -137,6 +137,31 @@ fn org_key_type_3_is_oaep_sha256() {
     assert!(block_on(unwrap_org_key(&format!("4.{}", B64.encode(&ct)), &b64(&acc["privateKey"]), &AwsLcRsa)).is_err());
 }
 
+/// WebKit's RSA-OAEP: the right plaintext without its leading zero bytes.
+struct StripZerosRsa;
+
+impl RsaOaep for StripZerosRsa {
+    async fn decrypt(&self, pkcs8: &[u8], hash: OaepHash, ct: &[u8]) -> Result<Zeroizing<Vec<u8>>, PortError> {
+        let out = AwsLcRsa.decrypt(pkcs8, hash, ct).await?;
+        Ok(Zeroizing::new(out.iter().copied().skip_while(|&b| b == 0).collect()))
+    }
+}
+
+#[test]
+fn org_key_with_leading_zeros_survives_a_port_that_strips_them() {
+    use aws_lc_rs::rsa::{OAEP_SHA1_MGF1SHA1, OaepPublicEncryptingKey, PublicEncryptingKey};
+    let acc = read("accounts/org.json");
+    let public = OaepPublicEncryptingKey::new(PublicEncryptingKey::from_der(&b64(&acc["publicKey"])).unwrap()).unwrap();
+    for zeros in [1, 2] {
+        let mut key = b64(&acc["organizations"][0]["key"]);
+        key[..zeros].fill(0);
+        let mut ct = vec![0; public.ciphertext_size()];
+        let ct = public.encrypt(&OAEP_SHA1_MGF1SHA1, &key, &mut ct, None).unwrap();
+        let got = block_on(unwrap_org_key(&format!("4.{}", B64.encode(&ct)), &b64(&acc["privateKey"]), &StripZerosRsa));
+        assert_eq!(got.unwrap().to_bytes().to_vec(), key, "{zeros} leading zero(s)");
+    }
+}
+
 /// A port that records the hash it was asked for.
 struct Records(Cell<Option<OaepHash>>);
 impl RsaOaep for Records {

@@ -6,6 +6,7 @@ use super::enc_string::unknown_type;
 use super::key::SymmetricKey;
 use crate::ports::{OaepHash, RsaOaep};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
+use zeroize::Zeroizing;
 
 /// Unwraps an organization key with the account's private key (PKCS#8 DER, from `decrypt_pkcs8`).
 pub async fn unwrap_org_key(
@@ -20,7 +21,15 @@ pub async fn unwrap_org_key(
         _ => return Err(unknown_type(ty)),
     };
     let ct = B64.decode(body).map_err(|_| CryptoError::Malformed)?;
-    SymmetricKey::from_bytes(&rsa.decrypt(private_pkcs8, hash, &ct).await?)
+    let key = rsa.decrypt(private_pkcs8, hash, &ct).await?;
+    // WebKit's RSA-OAEP drops the plaintext's leading zero bytes, so a 64-byte key starting with 0x00 comes back
+    // short. A padded COSE key is longer than 64 bytes and starts with its CBOR map, never with a zero.
+    if (1..64).contains(&key.len()) {
+        let mut full = Zeroizing::new([0u8; 64]);
+        full.iter_mut().rev().zip(key.iter().rev()).for_each(|(d, s)| *d = *s);
+        return SymmetricKey::from_bytes(&*full);
+    }
+    SymmetricKey::from_bytes(&key)
 }
 
 #[cfg(feature = "native")]
