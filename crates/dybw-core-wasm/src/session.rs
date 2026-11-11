@@ -3,7 +3,7 @@
 //! as the plugin's JSON (spec §7). Unstable: M6 may reshape it.
 
 use crate::error::Error;
-use crate::host::Host;
+use crate::host::{Host, LOCAL_CHANGED};
 use crate::ports::Ports;
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use dybw_core::api::{self, ApiKey, Client, DeviceInfo, Hub, HubOptions, hub_url, origin_of, resolve_server_urls};
@@ -225,7 +225,11 @@ fn upload_scope(scope: &str, device_id: &str) -> Result<String, Error> {
 /// The tool's local values for one sync, given by JS; the ones a sync wrote go back through `Secrets`.
 struct Local {
     values: BTreeMap<String, Zeroizing<String>>,
+    /// Written since the last save.
     written: BTreeSet<String>,
+    /// For each id written, what the host holds as far as the session knows (`None`: no value), put back in
+    /// `values` when a save fails, so a later pass of the sync plans from what the host holds.
+    held: BTreeMap<String, Option<Zeroizing<String>>>,
 }
 
 impl Local {
@@ -234,7 +238,7 @@ impl Local {
         if ids.len() != values.len() {
             return Err(Error::invalid("ids and values differ in length"));
         }
-        Ok(Local { values: ids.into_iter().zip(values).collect(), written: BTreeSet::new() })
+        Ok(Local { values: ids.into_iter().zip(values).collect(), written: BTreeSet::new(), held: BTreeMap::new() })
     }
 }
 
@@ -243,7 +247,8 @@ impl LocalValues for Local {
         self.values.get(id).cloned()
     }
     fn set(&mut self, id: &str, value: &str) {
-        self.values.insert(id.to_owned(), Zeroizing::new(value.to_owned()));
+        let old = self.values.insert(id.to_owned(), Zeroizing::new(value.to_owned()));
+        self.held.entry(id.to_owned()).or_insert(old);
         self.written.insert(id.to_owned());
     }
 }
@@ -515,63 +520,102 @@ impl<H: Host> Session<H> {
         Ok(json!({ "actions": actions, "massClear": plan.mass_clear }).to_string())
     }
 
-    /// One sync (`sync::run_sync`), stopped by `lock`. The values it wrote, then the state, are saved even when it
-    /// failed partway, until `lock` runs: a newer sync may have saved since, and these values without
-    /// their state would be pushed over the newer ones. What it pulled is pulled again; what it pushed is adopted.
+    /// One sync (`sync::run_sync`), stopped by `lock`. After each action the values it wrote, then the state, are
+    /// saved (`save_action`), so an app closed mid-sync keeps every action that finished; nothing is written once
+    /// `lock` runs: a newer sync may have saved since. A value the host refused because the user changed it during
+    /// the sync (`LOCAL_CHANGED`) is reported in `kept`, not as an error.
     pub async fn run_sync(&self, options: &str, ids: Vec<String>, values: Vec<String>) -> Result<String, Error> {
         let values = wrap(values);
         let o = Options::try_from(parse::<SyncOptions>(options)?)?;
         let mut local = Local::new(ids, values)?;
         let (mut open, generation) = self.take()?;
-        let before = open.state.clone();
+        let mut saved = open.state.clone();
+        let (mut kept, mut failed) = (BTreeSet::new(), None);
         let device_id = open.state.device_id.clone();
         let applies = |m: &_| scope_applies(item_scope(self.ns, m), &o.vault_name, &device_id);
         let report = {
             let mut ctx = context(&mut open.keys, self.ns, &self.ports, &o, &applies);
             let locked = || self.generation.get() != generation;
-            sync::run_sync(&mut ctx, &mut open.state, &mut local, |_| {}, locked).await
+            let save = async |state: &mut DeviceState, local: &mut Local| {
+                let done = self.save_action(generation, state, &mut saved, local, &mut kept).await;
+                failed = failed.take().or(done.err());
+            };
+            sync::run_sync(&mut ctx, &mut open.state, &mut local, save, locked).await
         };
-        let saved = self.save(generation, &mut open.state, &before, &local).await;
+        // Once more, even when the sync failed before any action: the state as loaded (a migrated one) is kept.
+        let end = self.save_state(generation, &open.state).await;
         self.put(open, generation);
-        let report = report?;
-        saved?;
-        Ok(report_json(&report).to_string())
+        let mut report = report?;
+        failed.or(end.err()).map_or(Ok(()), Err)?;
+        // The host kept its own value: nothing was pulled or cleared for these.
+        report.pulled.retain(|id| !kept.contains(id));
+        report.cleared.retain(|id| !kept.contains(id));
+        Ok(report_json(&report, &kept).to_string())
     }
 
-    /// Saves the values the sync wrote, then the state. A value that could not be saved keeps its base entry and
-    /// its queued create from before the sync, so the state never records a pull the host does not hold (the next
-    /// sync would push the old value over the newer one). Answers the first failure. Each save first checks that
-    /// `lock` has not run since `generation` and stops at the first that finds it has: a newer sync may have saved.
-    async fn save(
+    /// Saves the values one action wrote, then the state. A value that could not be saved keeps the base entry and
+    /// the queued create of the state last saved (`saved`), so the state never records a pull the host does not
+    /// hold (the next sync would push the old value over the newer one), and its local value goes back to what the
+    /// host holds. A refusal for `LOCAL_CHANGED` adds the id to `kept`; any other failure is answered, the first
+    /// one. Each write first checks that `lock` has not run since `generation` and stops at the first that finds it
+    /// has.
+    async fn save_action(
         &self,
         generation: u64,
         state: &mut DeviceState,
-        before: &DeviceState,
-        local: &Local,
+        saved: &mut DeviceState,
+        local: &mut Local,
+        kept: &mut BTreeSet<String>,
     ) -> Result<(), Error> {
-        let live = || if self.generation.get() == generation { Ok(()) } else { Err(Error::locked()) };
+        let written: Vec<(String, Zeroizing<String>)> = local
+            .values
+            .iter()
+            .filter(|(id, _)| local.written.contains(*id))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        local.written.clear();
         let mut failed = Ok(());
-        for (id, value) in local.values.iter().filter(|(id, _)| local.written.contains(*id)) {
-            live()?;
-            if let Err(e) = Secrets::save(&self.ports, id, value).await {
-                state.base.remove(id);
-                state.base.extend(before.base.get_key_value(id).map(|(k, v)| (k.clone(), v.clone())));
-                // Only a pull writes a value, and it dropped the id from the queue: put back what was queued.
-                let scope = before.pending_scopes.get_key_value(id).map(|(k, v)| (k.clone(), v.clone()));
-                state.pending_scopes.extend(scope);
-                state.pending_creates.extend(before.pending_creates.iter().filter(|p| *p == id).cloned());
-                failed = failed.and(Err(e.into()));
+        for (id, value) in written {
+            self.live(generation)?;
+            match Secrets::save(&self.ports, &id, &value).await {
+                Ok(()) => {
+                    kept.remove(&id);
+                    local.held.insert(id, Some(value));
+                }
+                Err(e) => {
+                    state.base.remove(&id);
+                    state.base.extend(saved.base.get_key_value(&id).map(|(k, v)| (k.clone(), v.clone())));
+                    // Only a pull writes a value, and it dropped the id from the queue: put back what was queued.
+                    let scope = saved.pending_scopes.get_key_value(&id).map(|(k, v)| (k.clone(), v.clone()));
+                    state.pending_scopes.extend(scope);
+                    state.pending_creates.extend(saved.pending_creates.iter().filter(|p| **p == id).cloned());
+                    let held = local.held.get(&id).cloned().flatten();
+                    local.values.remove(&id);
+                    local.values.extend(held.map(|v| (id.clone(), v)));
+                    if e.0 == LOCAL_CHANGED {
+                        kept.insert(id);
+                    } else {
+                        failed = failed.and(Err(e.into()));
+                    }
+                }
             }
         }
         self.save_state(generation, state).await?;
+        state.clone_into(saved);
         failed
+    }
+
+    /// `locked` once `lock` ran since `generation`: checked before every write, as a newer sync may have saved.
+    fn live(&self, generation: u64) -> Result<(), Error> {
+        if self.generation.get() != generation {
+            return Err(Error::locked());
+        }
+        Ok(())
     }
 
     /// Saves the state, unless `lock` ran since `generation`.
     async fn save_state(&self, generation: u64, state: &DeviceState) -> Result<(), Error> {
-        if self.generation.get() != generation {
-            return Err(Error::locked());
-        }
+        self.live(generation)?;
         Ok(Storage::save(&self.ports, STATE, to_plugin_json(state).to_string().as_bytes()).await?)
     }
 
@@ -703,7 +747,8 @@ pub(crate) fn action(a: &Action) -> Value {
 }
 
 /// The sync's report. Organization names are raw, as their owners set them: JS sanitizes them before showing them.
-pub(crate) fn report_json(r: &SyncReport) -> Value {
+/// `kept`: the ids the host refused to write because the user changed them during the sync (`LOCAL_CHANGED`).
+pub(crate) fn report_json(r: &SyncReport, kept: &BTreeSet<String>) -> Value {
     let p = &r.skipped;
     let pairs = |v: &[(String, String)]| v.iter().map(|(id, c)| json!({ "id": id, "cipherId": c })).collect::<Vec<_>>();
     let conflicts: Vec<Value> = r
@@ -734,15 +779,17 @@ pub(crate) fn report_json(r: &SyncReport) -> Value {
         "conflicts": conflicts, "errors": errors, "passes": r.passes, "keptChanging": r.kept_changing,
         "questions": questions, "rollbacks": rollbacks, "unknownFeatures": features, "held": pairs(&p.held),
         "readOnly": pairs(&p.read_only), "unreadable": p.unreadable, "duplicates": duplicates, "skipped": skipped,
-        "warnings": warnings(r),
+        "kept": kept.iter().map(|id| json!({ "id": id, "reason": LOCAL_CHANGED })).collect::<Vec<_>>(),
+        "warnings": warnings(r, kept),
     })
 }
 
 /// One line of the core's text per kind of thing the user should know about, with counts only.
-fn warnings(r: &SyncReport) -> Vec<String> {
+fn warnings(r: &SyncReport, kept: &BTreeSet<String>) -> Vec<String> {
     let p = &r.skipped;
     let lines = [
         (usize::from(r.kept_changing), "secrets kept changing during the sync: sync again later"),
+        (kept.len(), "secrets changed here during the sync: kept, the next sync compares them"),
         (
             p.rollbacks.len(),
             "synced secrets came back older from Bitwarden: kept until you accept the server's versions",

@@ -364,7 +364,9 @@ async fn sync_write(files: &Files, s: &Scenario, want: &WriteExpect, rsa: &impl 
             upload_folder: None,
             unmarked: &mut unmarked,
         };
-        sync::run_sync(&mut ctx, &mut state, &mut local, |_| {}, || false).await.map_err(|e| e.to_string())
+        sync::run_sync(&mut ctx, &mut state, &mut local, async |_: &mut _, _: &mut _| {}, || false)
+            .await
+            .map_err(|e| e.to_string())
     }
     .await?;
     let sent =

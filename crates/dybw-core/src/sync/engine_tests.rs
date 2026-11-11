@@ -398,7 +398,7 @@ impl Rig {
             upload_folder: self.folder.clone(),
             unmarked: &mut self.unmarked,
         };
-        let save = move |_: &DeviceState| saves.set(saves.get() + 1);
+        let save = async move |_: &mut DeviceState, _: &mut Store| saves.set(saves.get() + 1);
         block_on(run_sync(&mut ctx, &mut self.state, &mut self.store.clone(), save, move || cancelled.get()))
     }
 
@@ -453,7 +453,16 @@ impl Rig {
         };
         let mut report = SyncReport::default();
         let mut store = self.store.clone();
-        block_on(apply_pass(&mut ctx, &mut self.state, &mut store, plan, &mut report, &mut |_| {}, &|| false)).unwrap();
+        block_on(apply_pass(
+            &mut ctx,
+            &mut self.state,
+            &mut store,
+            plan,
+            &mut report,
+            &mut async |_: &mut DeviceState, _: &mut Store| {},
+            &|| false,
+        ))
+        .unwrap();
         report
     }
 }

@@ -271,12 +271,13 @@ pub async fn plan_pass<H: Http, C: Clock, R: Random>(
 }
 
 /// One sync (`runSync`): up to `MAX_PASSES` passes, each planned afresh. Refuses a mass clear before applying
-/// anything; `save` runs after every action, `cancelled` before each.
-pub async fn run_sync<H: Http, C: Clock, R: Random>(
+/// anything; `save` is awaited after every action, with the local values so the tool can keep what the action wrote
+/// before the next one starts (and put back an entry whose value it could not keep), and `cancelled` runs before each.
+pub async fn run_sync<H: Http, C: Clock, R: Random, L: LocalValues>(
     ctx: &mut SyncContext<'_, H, C, R>,
     state: &mut DeviceState,
-    local: &mut impl LocalValues,
-    mut save: impl FnMut(&DeviceState),
+    local: &mut L,
+    mut save: impl AsyncFnMut(&mut DeviceState, &mut L),
     cancelled: impl Fn() -> bool,
 ) -> Result<SyncReport, SyncError> {
     let mut report = SyncReport::default();
@@ -299,13 +300,13 @@ pub async fn run_sync<H: Http, C: Clock, R: Random>(
 }
 
 /// Applies a pass's actions; true when another pass is needed (an edit raced with this one).
-pub(super) async fn apply_pass<H: Http, C: Clock, R: Random>(
+pub(super) async fn apply_pass<H: Http, C: Clock, R: Random, L: LocalValues>(
     ctx: &mut SyncContext<'_, H, C, R>,
     state: &mut DeviceState,
-    local: &mut impl LocalValues,
+    local: &mut L,
     plan: PassPlan,
     report: &mut SyncReport,
-    save: &mut impl FnMut(&DeviceState),
+    save: &mut impl AsyncFnMut(&mut DeviceState, &mut L),
     cancelled: &impl Fn() -> bool,
 ) -> Result<bool, SyncError> {
     let PassPlan { actions, report: skipped, sync, items, base, local: values, .. } = plan;
@@ -320,7 +321,7 @@ pub(super) async fn apply_pass<H: Http, C: Clock, R: Random>(
             Ok(a) => again |= a,
             Err(error) => report.errors.push(ActionError { id: id_of(action).to_owned(), error }),
         }
-        save(state);
+        save(state, local).await;
     }
     Ok(again)
 }

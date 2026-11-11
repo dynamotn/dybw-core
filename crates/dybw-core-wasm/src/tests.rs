@@ -48,8 +48,8 @@ struct MockHost {
     refuses: Cell<bool>,
     /// `http` answers `Pending` this many times first, like a request still in flight.
     hold: Cell<usize>,
-    /// Only `secret_save` fails.
-    fail_secret_save: Cell<bool>,
+    /// Only `secret_save` fails, with this text.
+    fail_secret_save: Cell<Option<&'static str>>,
     /// The `secret_save` call with this number (from 1) answers `Pending` once; `secret_saves` counts the calls.
     hold_secret_save: Cell<usize>,
     secret_saves: Cell<usize>,
@@ -150,8 +150,8 @@ impl Host for MockHost {
             Poll::Pending
         })
         .await;
-        if self.fail_secret_save.get() {
-            return Err("port".into());
+        if let Some(text) = self.fail_secret_save.get() {
+            return Err(text.into());
         }
         self.secrets.borrow_mut().insert(key.into(), value.into());
         Ok(())
@@ -417,6 +417,7 @@ fn a_dropped_socket_is_closed() {
 mod session {
     use super::MockHost;
     use crate::error::{BUSY, Error, INVALID, LOCKED, WRONG_PASSWORD};
+    use crate::host::LOCAL_CHANGED;
     use crate::session::{STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
     use dybw_core::crypto::{AwsLcRsa, ContentFormat, KdfParams};
     use dybw_core::profile::{KdfSource, UnlockWarning};
@@ -429,6 +430,7 @@ mod session {
     use dybw_vectors::{Files, vectors_dir};
     use serde_json::{Value, json};
     use std::cell::Cell;
+    use std::collections::BTreeSet;
     use std::future::Future;
     use std::pin::pin;
     use std::rc::Rc;
@@ -698,7 +700,7 @@ mod session {
             warning(&argon),
             "The KDF parameters are below the recommended floor: Argon2id 2 iterations, 16 MiB, parallelism 1 (from sync unlock data)."
         );
-        let r = report_json(&report);
+        let r = report_json(&report, &BTreeSet::new());
         let conflict = json!({ "id": "a", "kind": "local-unsynced", "label": "a", "organization": null, "organizationName": null });
         assert_eq!(r["conflicts"], json!([conflict]));
         assert_eq!(r["errors"], json!([{ "id": "a", "error": "the value is not text" }]));
@@ -743,7 +745,7 @@ mod session {
         let host = host("pbkdf2", pull_new());
         let s = session(&host);
         assert!(unlock(&s, "pbkdf2").is_ok());
-        host.fail_secret_save.set(true);
+        host.fail_secret_save.set(Some("port"));
         assert_eq!(block_on(s.run_sync("{}", vec![], vec![])).map_err(code), Err("port".into()));
         let saved = host.store.borrow().get(STATE).cloned().unwrap_or_default();
         let saved: Value = serde_json::from_slice(&saved).unwrap_or_default();
@@ -769,7 +771,7 @@ mod session {
         let keys = block_on(dybw_vectors::keys::account_keys(&files(), "pbkdf2", false, &AwsLcRsa));
         let ciphers = changed["ciphers"].as_array().cloned().unwrap_or_default();
         *host.server.borrow_mut() = Some(VectorServer::new(keys.profile, ciphers, keys.prelogin));
-        host.fail_secret_save.set(true);
+        host.fail_secret_save.set(Some("port"));
         let local = || (vec![String::from("alpha")], vec![old.clone()]);
         let (ids, values) = local();
         assert!(block_on(s.run_sync("{}", ids, values)).is_err());
@@ -791,7 +793,7 @@ mod session {
         host.store.borrow_mut().insert(STATE.into(), queued.to_string().into_bytes());
         let s = session(&host);
         assert!(unlock(&s, "pbkdf2").is_ok());
-        host.fail_secret_save.set(true);
+        host.fail_secret_save.set(Some("port"));
         assert_eq!(block_on(s.run_sync("{}", vec![], vec![])).map_err(code), Err("port".into()));
         let saved = host.store.borrow().get(STATE).cloned().unwrap_or_default();
         let saved: Value = serde_json::from_slice(&saved).unwrap_or_default();
@@ -818,12 +820,27 @@ mod session {
         assert_eq!(host.store.borrow().get(STATE).cloned(), newer, "the stopped sync saved nothing");
     }
 
-    /// Locks while the `at`-th of the three pulled values is being saved; answers the saved secrets' ids and
-    /// whether the state was saved.
-    fn lock_during_save(at: usize) -> (Vec<String>, bool) {
+    fn multi_id() -> Rc<MockHost> {
         let raw = files().get("generated/obsidian/sync/multi-id-sorted.json").unwrap_or_default().to_owned();
         let scenario: Value = serde_json::from_str(&raw).unwrap_or_default();
-        let host = host("pbkdf2", scenario["ciphers"].as_array().cloned().unwrap_or_default());
+        host("pbkdf2", scenario["ciphers"].as_array().cloned().unwrap_or_default())
+    }
+
+    /// The ids of the saved secrets, and of the saved state's base (`None` without a saved state).
+    fn on_storage(host: &MockHost) -> (Vec<String>, Option<Vec<String>>) {
+        let mut secrets: Vec<String> = host.secrets.borrow().keys().cloned().collect();
+        secrets.sort();
+        let state = host.store.borrow().get(STATE).cloned();
+        let base = state.map(|b| {
+            let v: Value = serde_json::from_slice(&b).unwrap_or_default();
+            v["base"].as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default()
+        });
+        (secrets, base)
+    }
+
+    /// Locks while the `at`-th of the three pulled values is being saved; answers what is on storage.
+    fn lock_during_save(at: usize) -> (Vec<String>, Option<Vec<String>>) {
+        let host = multi_id();
         let s = session(&host);
         assert!(unlock(&s, "pbkdf2").is_ok());
         host.hold_secret_save.set(at);
@@ -832,16 +849,91 @@ mod session {
         assert!(sync.as_mut().poll(&mut cx).is_pending());
         s.lock();
         assert_eq!(block_on(sync).map_err(code), Err(LOCKED.into()));
-        let mut saved: Vec<String> = host.secrets.borrow().keys().cloned().collect();
-        saved.sort();
-        (saved, host.store.borrow().contains_key(STATE))
+        on_storage(&host)
     }
 
     #[test]
     fn a_lock_during_the_saves_stops_them() {
-        // The save in flight completes; nothing after it starts.
-        assert_eq!(lock_during_save(1), (vec!["alpha".into()], false));
-        assert_eq!(lock_during_save(3), (vec!["alpha".into(), "beta".into(), "gamma".into()], false));
+        // The save in flight completes; nothing after it is written, not even its state.
+        let ids = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert_eq!(lock_during_save(1), (ids(&["alpha"]), None));
+        assert_eq!(lock_during_save(2), (ids(&["alpha", "beta"]), Some(ids(&["alpha"]))));
+        assert_eq!(lock_during_save(3), (ids(&["alpha", "beta", "gamma"]), Some(ids(&["alpha", "beta"]))));
+    }
+
+    #[test]
+    fn an_interrupted_sync_keeps_every_action_it_finished() {
+        let ids = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        let all = ["alpha", "beta", "gamma"];
+        for at in 1..=3 {
+            let host = multi_id();
+            let s = session(&host);
+            assert!(unlock(&s, "pbkdf2").is_ok());
+            host.hold_secret_save.set(at);
+            let mut cx = Context::from_waker(Waker::noop());
+            let mut sync = Box::pin(s.run_sync("{}", vec![], vec![]));
+            assert!(sync.as_mut().poll(&mut cx).is_pending());
+            // The app closes while the `at`-th value is being written: that write never lands.
+            drop(sync);
+            let done = ids(&all[..at - 1]);
+            let state = (at > 1).then(|| done.clone());
+            assert_eq!(on_storage(&host), (done, state), "interrupted at {at}");
+        }
+        let host = multi_id();
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
+        assert_eq!(on_storage(&host), (ids(&all), Some(ids(&all))));
+    }
+
+    #[test]
+    fn a_value_changed_here_during_the_sync_is_kept() {
+        let host = host("pbkdf2", pull_new());
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        assert!(block_on(s.run_sync("{}", vec![], vec![])).is_ok());
+        let old = host.secrets.borrow().get("alpha").cloned().unwrap_or_default();
+        let raw = files().get("generated/obsidian/sync/pull-remote-change.json").unwrap_or_default().to_owned();
+        let changed: Value = serde_json::from_str(&raw).unwrap_or_default();
+        let keys = block_on(dybw_vectors::keys::account_keys(&files(), "pbkdf2", false, &AwsLcRsa));
+        let ciphers = changed["ciphers"].as_array().cloned().unwrap_or_default();
+        *host.server.borrow_mut() = Some(VectorServer::new(keys.profile, ciphers, keys.prelogin));
+        // The user typed a new value after the sync began; the host refuses to write over it.
+        host.secrets.borrow_mut().insert("alpha".into(), "typed".into());
+        host.fail_secret_save.set(Some(LOCAL_CHANGED));
+        let report = json_of(block_on(s.run_sync("{}", vec!["alpha".into()], vec![old.clone()])));
+        let report = report.unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(report["kept"], json!([{ "id": "alpha", "reason": "local-changed" }]));
+        assert_eq!((&report["pulled"], &report["errors"]), (&json!([]), &json!([])));
+        assert_eq!(report["warnings"].as_array().map(Vec::len), Some(1), "{}", report["warnings"]);
+        assert_eq!(host.secrets.borrow().get("alpha").map(String::as_str), Some("typed"));
+        let saved = saved_state(&host);
+        assert_eq!(saved["base"]["alpha"]["revisionDate"], "2026-01-01T00:00:00.000Z", "the base from before");
+        // The next sync sees both sides changed: asked by default, resolved by the policy when given.
+        host.fail_secret_save.set(None);
+        let conflict = json!({ "kind": "conflict", "id": "alpha", "conflict": "both-changed" });
+        assert_eq!(plan(&s, &["alpha"], &["typed"]), Ok(json!({ "actions": [conflict], "massClear": null })));
+        let options = r#"{"policy":"prefer-local"}"#;
+        let pushed = json_of(block_on(s.run_sync(options, vec!["alpha".into()], vec!["typed".into()])));
+        assert_eq!(pushed.map(|r| r["pushed"].clone()), Ok(json!(["alpha"])));
+    }
+
+    #[test]
+    fn a_clear_refused_for_a_value_changed_here_keeps_it() {
+        let deleted = scenario("deleted-remotely-clears");
+        let host = host("pbkdf2", ciphers(&deleted));
+        seed_state(&host, &deleted);
+        let s = session(&host);
+        assert!(unlock(&s, "pbkdf2").is_ok());
+        host.secrets.borrow_mut().insert("alpha".into(), "typed".into());
+        host.fail_secret_save.set(Some(LOCAL_CHANGED));
+        let report = json_of(block_on(s.run_sync("{}", vec!["alpha".into()], vec!["old-secret".into()])));
+        let report = report.unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!((&report["cleared"], &report["kept"][0]["id"]), (&json!([]), &json!("alpha")));
+        assert_eq!(host.secrets.borrow().get("alpha").map(String::as_str), Some("typed"));
+        assert_eq!(saved_state(&host)["base"]["alpha"]["cipherId"], "c1", "the base is kept");
+        let conflict = json!({ "kind": "conflict", "id": "alpha", "conflict": "deleted-remotely" });
+        assert_eq!(plan(&s, &["alpha"], &["typed"]), Ok(json!({ "actions": [conflict], "massClear": null })));
     }
 
     #[test]
@@ -1432,7 +1524,7 @@ mod session {
             kept_changing: true,
         };
         let pair = json!([{ "id": "a", "cipherId": "c" }]);
-        let r = report_json(&report);
+        let r = report_json(&report, &BTreeSet::from(["k".to_owned()]));
         let want = json!({
             "pulled": ["p"], "pushed": ["u"], "created": ["n"], "cleared": ["x"],
             "errors": [{ "id": "a", "error": "the value is not text" }], "passes": 3, "keptChanging": true,
@@ -1446,13 +1538,17 @@ mod session {
             "unreadable": ["c"],
             "duplicates": [{ "id": "a", "kept": "c", "left": ["d"], "boundKept": true }],
             "skipped": [{ "cipherId": "c", "reason": "newer-format" }],
+            "kept": [{ "id": "k", "reason": "local-changed" }],
             "warnings": r["warnings"],
         });
         assert_eq!(r, want);
-        assert_eq!(r["warnings"].as_array().map(Vec::len), Some(7), "{}", r["warnings"]);
-        assert_eq!(report_json(&SyncReport::default())["warnings"], json!([]));
+        assert_eq!(r["warnings"].as_array().map(Vec::len), Some(8), "{}", r["warnings"]);
+        assert_eq!(report_json(&SyncReport::default(), &BTreeSet::new())["warnings"], json!([]));
         // A conflict without an organization names none.
-        let r = report_json(&SyncReport { conflicts: vec![conflict_without_org()], ..SyncReport::default() });
+        let r = report_json(
+            &SyncReport { conflicts: vec![conflict_without_org()], ..SyncReport::default() },
+            &BTreeSet::new(),
+        );
         assert_eq!(
             (&r["conflicts"][0]["organization"], &r["conflicts"][0]["organizationName"]),
             (&Value::Null, &Value::Null)

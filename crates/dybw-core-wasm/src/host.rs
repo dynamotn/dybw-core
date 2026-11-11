@@ -9,6 +9,11 @@ use zeroize::Zeroizing;
 /// The text `rsa_oaep_decrypt` fails with when the PKCS#8 key cannot be imported.
 pub const RSA_KEY_ERROR: &str = "key";
 
+/// The exact text `secret_save` fails with when it refuses to write because the user changed the local value since
+/// the sync began: the sync keeps the user's value and its base and reports it in `kept`, so the next sync sees both
+/// sides changed. Any other text is a failed save.
+pub const LOCAL_CHANGED: &str = "local-changed";
+
 /// The host's answer to `socket_recv`.
 pub type RecvFuture = Pin<Box<dyn Future<Output = Option<Result<Frame, String>>>>>;
 
@@ -39,6 +44,7 @@ pub trait Host {
     async fn storage_save(&self, key: &str, value: &[u8]) -> Result<(), String>;
     async fn storage_remove(&self, key: &str) -> Result<(), String>;
     async fn secret_load(&self, key: &str) -> Result<Option<Zeroizing<String>>, String>;
+    /// Fails with exactly [`LOCAL_CHANGED`] to refuse a write over a value the user changed since the sync began.
     async fn secret_save(&self, key: &str, value: &str) -> Result<(), String>;
     async fn secret_remove(&self, key: &str) -> Result<(), String>;
     async fn argon2id(

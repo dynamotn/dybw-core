@@ -235,8 +235,21 @@ half or more of what was synced (`runSync` then refuses with `mass-clear`).
   unreadable: [cipherId],
   duplicates: [{id, kept, left: [cipherId], boundKept}],
   skipped: [{cipherId, reason}],
+  kept: [{id, reason: "local-changed"}],          // the host refused to write over the user's edit
   warnings: [string] }
 ```
+
+`runSync` saves as it goes: after each action, every value it wrote
+(`secretSave`), then the state (`storageSave`), so an app closed mid-sync
+keeps every action that finished. Nothing is written once `lock` runs.
+
+The host may refuse a value write because the user changed that value since
+the sync began: `secretSave` then rejects with an `Error` whose message is
+exactly `local-changed` (`host::LOCAL_CHANGED`). The sync keeps the user's value
+and the base it had, lists the id in `kept` (not in `pulled`, `cleared` or
+`errors`) and carries on; the next sync sees both sides changed and resolves
+it as a conflict, by the policy. Any other `secretSave` rejection keeps the
+base the same way and fails the call with `port` once the sync ends.
 
 Conflict kinds: `both-changed`, `local-unsynced`, `deleted-remotely`,
 `organization-claim`, `organization-push`. `label` is the item's name, or the
