@@ -223,7 +223,7 @@ fn upload_scope(scope: &str, device_id: &str) -> Result<String, Error> {
 }
 
 /// The tool's local values for one sync, given by JS; the ones a sync wrote go back through `Secrets`.
-struct Local {
+pub(crate) struct Local {
     values: BTreeMap<String, Zeroizing<String>>,
     /// Written since the last save.
     written: BTreeSet<String>,
@@ -234,7 +234,7 @@ struct Local {
 
 impl Local {
     /// `values` is already wrapped: the caller does it before any check that could drop them.
-    fn new(ids: Vec<String>, values: Vec<Zeroizing<String>>) -> Result<Local, Error> {
+    pub(crate) fn new(ids: Vec<String>, values: Vec<Zeroizing<String>>) -> Result<Local, Error> {
         if ids.len() != values.len() {
             return Err(Error::invalid("ids and values differ in length"));
         }
@@ -546,7 +546,9 @@ impl<H: Host> Session<H> {
         let end = self.save_state(generation, &open.state).await;
         self.put(open, generation);
         let mut report = report?;
-        failed.or(end.err()).map_or(Ok(()), Err)?;
+        if let Some(e) = failed.or(end.err()) {
+            return Err(e);
+        }
         // The host kept its own value: nothing was pulled or cleared for these.
         report.pulled.retain(|id| !kept.contains(id));
         report.cleared.retain(|id| !kept.contains(id));
@@ -559,7 +561,7 @@ impl<H: Host> Session<H> {
     /// host holds. A refusal for `LOCAL_CHANGED` adds the id to `kept`; any other failure is answered, the first
     /// one. Each write first checks that `lock` has not run since `generation` and stops at the first that finds it
     /// has.
-    async fn save_action(
+    pub(crate) async fn save_action(
         &self,
         generation: u64,
         state: &mut DeviceState,
@@ -567,28 +569,22 @@ impl<H: Host> Session<H> {
         local: &mut Local,
         kept: &mut BTreeSet<String>,
     ) -> Result<(), Error> {
-        let written: Vec<(String, Zeroizing<String>)> = local
-            .values
-            .iter()
-            .filter(|(id, _)| local.written.contains(*id))
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-        local.written.clear();
         let mut failed = Ok(());
-        for (id, value) in written {
+        for id in std::mem::take(&mut local.written) {
             self.live(generation)?;
+            // Every written id has a value: `set` put it there.
+            let value = local.values.get(&id).cloned().unwrap_or_default();
             match Secrets::save(&self.ports, &id, &value).await {
                 Ok(()) => {
+                    // `saved` follows what the host holds even if the state save below fails, so a later failed save
+                    // of this id goes back to this entry, not an older one.
+                    copy_entries(state, saved, &id);
                     kept.remove(&id);
                     local.held.insert(id, Some(value));
                 }
                 Err(e) => {
-                    state.base.remove(&id);
-                    state.base.extend(saved.base.get_key_value(&id).map(|(k, v)| (k.clone(), v.clone())));
                     // Only a pull writes a value, and it dropped the id from the queue: put back what was queued.
-                    let scope = saved.pending_scopes.get_key_value(&id).map(|(k, v)| (k.clone(), v.clone()));
-                    state.pending_scopes.extend(scope);
-                    state.pending_creates.extend(saved.pending_creates.iter().filter(|p| **p == id).cloned());
+                    copy_entries(saved, state, &id);
                     let held = local.held.get(&id).cloned().flatten();
                     local.values.remove(&id);
                     local.values.extend(held.map(|v| (id.clone(), v)));
@@ -688,6 +684,16 @@ impl<H: Host> Session<H> {
         api::run_hub(&self.ports, &self.ports, url, &mut hub, on_change, stopped).await;
         Ok(())
     }
+}
+
+/// Sets `id`'s base entry, queued scope and queued create in `to` to those in `from`.
+fn copy_entries(from: &DeviceState, to: &mut DeviceState, id: &str) {
+    to.base.remove(id);
+    to.base.extend(from.base.get_key_value(id).map(|(k, v)| (k.clone(), v.clone())));
+    to.pending_scopes.remove(id);
+    to.pending_scopes.extend(from.pending_scopes.get_key_value(id).map(|(k, v)| (k.clone(), v.clone())));
+    to.pending_creates.retain(|p| p != id);
+    to.pending_creates.extend(from.pending_creates.iter().filter(|p| *p == id).cloned());
 }
 
 fn context<'a, H: Host>(

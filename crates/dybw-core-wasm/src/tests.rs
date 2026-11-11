@@ -48,6 +48,8 @@ struct MockHost {
     refuses: Cell<bool>,
     /// `http` answers `Pending` this many times first, like a request still in flight.
     hold: Cell<usize>,
+    /// Only `storage_save` fails.
+    fail_storage_save: Cell<bool>,
     /// Only `secret_save` fails, with this text.
     fail_secret_save: Cell<Option<&'static str>>,
     /// The `secret_save` call with this number (from 1) answers `Pending` once; `secret_saves` counts the calls.
@@ -126,6 +128,9 @@ impl Host for MockHost {
     }
     async fn storage_save(&self, key: &str, value: &[u8]) -> Result<(), String> {
         self.check()?;
+        if self.fail_storage_save.get() {
+            return Err("port".into());
+        }
         self.store.borrow_mut().insert(key.into(), value.into());
         Ok(())
     }
@@ -418,7 +423,7 @@ mod session {
     use super::MockHost;
     use crate::error::{BUSY, Error, INVALID, LOCKED, WRONG_PASSWORD};
     use crate::host::LOCAL_CHANGED;
-    use crate::session::{STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
+    use crate::session::{Local, STATE, STATE_UNREADABLE, Session, action, problem, report_json, warning};
     use dybw_core::crypto::{AwsLcRsa, ContentFormat, KdfParams};
     use dybw_core::profile::{KdfSource, UnlockWarning};
     use dybw_core::sync::{Action, ActionError, ApplyError, Conflict, ConflictKind, PassReport, Question, SyncReport};
@@ -934,6 +939,40 @@ mod session {
         assert_eq!(saved_state(&host)["base"]["alpha"]["cipherId"], "c1", "the base is kept");
         let conflict = json!({ "kind": "conflict", "id": "alpha", "conflict": "deleted-remotely" });
         assert_eq!(plan(&s, &["alpha"], &["typed"]), Ok(json!({ "actions": [conflict], "massClear": null })));
+    }
+
+    #[test]
+    fn a_failed_save_reverts_to_the_base_of_the_value_the_host_holds() {
+        use dybw_core::sync::{BaseEntry, DeviceState, LocalValues};
+        let host = Rc::new(MockHost::default());
+        let s = session(&host);
+        let entry = |rev: &str| BaseEntry {
+            cipher_id: "c".into(),
+            revision_date: rev.into(),
+            fingerprint: rev.into(),
+            scope: Some("global".into()),
+            push_confirmed: false,
+            record: Default::default(),
+        };
+        let (mut state, mut kept) = (DeviceState::new("d".into()), BTreeSet::new());
+        let mut saved = state.clone();
+        let mut local = Local::new(vec![], vec![]).unwrap_or_else(|e| panic!("{e:?}"));
+        // A pull of v1: the value is saved, the state is not.
+        local.set("x", "v1");
+        state.base.insert("x".into(), entry("b1"));
+        host.fail_storage_save.set(true);
+        let first = block_on(s.save_action(0, &mut state, &mut saved, &mut local, &mut kept));
+        assert_eq!(first.map_err(code), Err("port".into()));
+        // A later pull of v2 whose value cannot be saved: the host still holds v1, so its base is b1.
+        host.fail_storage_save.set(false);
+        host.fail_secret_save.set(Some("port"));
+        local.set("x", "v2");
+        state.base.insert("x".into(), entry("b2"));
+        let second = block_on(s.save_action(0, &mut state, &mut saved, &mut local, &mut kept));
+        assert_eq!(second.map_err(code), Err("port".into()));
+        assert_eq!(state.base.get("x"), Some(&entry("b1")));
+        assert_eq!(local.get("x").as_deref().map(String::as_str), Some("v1"));
+        assert_eq!(saved_state(&host)["base"]["x"]["revisionDate"], "b1");
     }
 
     #[test]
