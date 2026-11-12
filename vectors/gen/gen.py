@@ -278,6 +278,15 @@ class _Encryptor:
         return self.finish(bwcrypto.enc_string(plain.encode("utf-8"), self.key, iv), path)
 
 
+def uri_parts(uri) -> tuple[str, int | None]:
+    """A source URI: a string (no match type), or ``{uri, match}``."""
+    return (uri, None) if isinstance(uri, str) else (uri["uri"], uri["match"])
+
+
+# Each typed part: the server's cipher key, which is also the blob's ``typeData.type``.
+PARTS = {3: "card", 4: "identity", 5: "sshKey"}
+
+
 def blob_content(src: dict) -> dict:
     """``CipherBlobV1`` as the SDK serializes it: camelCase, None as null, empty lists left out."""
     if src["type"] == 1:
@@ -285,17 +294,23 @@ def blob_content(src: dict) -> dict:
         type_data = {"type": "login", "username": lg.get("username"), "password": lg.get("password")}
         type_data["passwordRevisionDate"] = None
         if lg.get("uris"):
-            type_data["uris"] = [{"uri": u, "match": None} for u in lg["uris"]]
+            type_data["uris"] = [dict(zip(("uri", "match"), uri_parts(u))) for u in lg["uris"]]
         type_data["totp"] = lg.get("totp")
         type_data["autofillOnPageLoad"] = None
     elif src["type"] == 2:
         type_data = {"type": "secureNote", "secureNoteType": 0}
+    elif src["type"] in PARTS:
+        part = PARTS[src["type"]]
+        # the SDK's blob names the SSH fingerprint `fingerprint`, the server `keyFingerprint`
+        values = {("fingerprint" if k == "keyFingerprint" else k): v for k, v in (src.get(part) or {}).items()}
+        type_data = {"type": part, **values}
     else:
-        raise GenError(f"cipher {src['id']!r}: a blob cipher is a login or a secure note")
+        raise GenError(f"cipher {src['id']!r}: a blob cipher is of a known type (1 to 5)")
     content = {"name": src["name"], "notes": src.get("notes"), "typeData": type_data}
     if src.get("fields"):
         content["fields"] = [
-            {"name": f["name"], "value": f["value"], "type": f["type"], "linkedId": None} for f in src["fields"]
+            {"name": f["name"], "value": f["value"], "type": f["type"], "linkedId": f.get("linkedId")}
+            for f in src["fields"]
         ]
     history = (src.get("login") or {}).get("passwordHistory")
     if history:
@@ -355,7 +370,7 @@ def encrypt_blob_cipher(
             out[k] = src[k]
     out.update(name=None, notes=None, login=None, fields=None, passwordHistory=None, key=wrapped_key)
     out["data"] = json.dumps(data, separators=(",", ":"))
-    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword"):
+    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword", "reprompt"):
         if k in src:
             out[k] = src[k]
     return _apply_case(out, src.get("pascalCase", False), src.get("extra", {}))
@@ -405,7 +420,7 @@ def encrypt_cipher(
                 "username": e.enc(lg["username"], "login.username"),
                 "password": e.enc(lg["password"], "login.password"),
                 "uris": [
-                    {"uri": e.enc(u, f"login.uris[{i}].uri"), "match": None}
+                    {"uri": e.enc(uri_parts(u)[0], f"login.uris[{i}].uri"), "match": uri_parts(u)[1]}
                     for i, u in enumerate(lg["uris"])
                 ],
                 "totp": e.enc(lg["totp"], "login.totp"),
@@ -419,6 +434,10 @@ def encrypt_cipher(
             ]
     if src["type"] == 2:
         out["secureNote"] = src.get("secureNote", {"type": 0})
+    for part in PARTS.values():
+        if part in src:
+            values = src[part]
+            out[part] = None if values is None else {k: e.enc(v, f"{part}.{k}") for k, v in values.items()}
     if "fields" in src:
         fields = src["fields"]
         out["fields"] = (
@@ -429,13 +448,14 @@ def encrypt_cipher(
                     "name": e.enc(f["name"], f"fields[{i}].name"),
                     "value": e.enc(f["value"], f"fields[{i}].value"),
                     "type": f["type"],
+                    **({"linkedId": f["linkedId"]} if "linkedId" in f else {}),
                 }
                 for i, f in enumerate(fields)
             ]
         )
     if history is not None:
         out["passwordHistory"] = history
-    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword"):
+    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword", "reprompt"):
         if k in src:
             out[k] = src[k]
     missing = sorted(e.tamper - e.tampered)
@@ -666,19 +686,26 @@ def decrypt(cipher: dict, account: dict) -> dict:
         out["login"] = None if lg is None else {
             "username": dec(lg.get("username")),
             "password": dec(lg.get("password")),
-            "uris": [dec(u.get("uri")) for u in lg.get("uris") or []],
+            "uris": [
+                dec(u.get("uri")) if u.get("match") is None else {"uri": dec(u.get("uri")), "match": u["match"]}
+                for u in lg.get("uris") or []
+            ],
             "totp": dec(lg.get("totp")),
             "passwordHistory": [
                 {"password": dec(h["password"]), "lastUsedDate": h.get("lastUsedDate")}
                 for h in c.get("passwordHistory") or []
             ],
         }
+    for part in PARTS.values():
+        if part in c:
+            out[part] = None if c[part] is None else {k: dec(v) for k, v in c[part].items()}
     if "fields" in c:
         out["fields"] = None if c["fields"] is None else [
             {"name": dec(f.get("name")), "value": dec(f.get("value")), "type": f["type"]}
+            | ({"linkedId": f["linkedId"]} if "linkedId" in f else {})
             for f in c["fields"]
         ]
-    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword"):
+    for k in ("creationDate", "revisionDate", "deletedDate", "edit", "viewPassword", "reprompt"):
         if k in c:
             out[k] = c[k]
     return out

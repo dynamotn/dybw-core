@@ -11,11 +11,12 @@ use dybw_core::ports::RsaOaep;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom};
 use dybw_core::vault::fields::{field_names, field_value, first_index, item_key};
+use dybw_core::vault::item::{self, Data, Item, Text};
 use dybw_core::vault::write::{HistoryAnswer, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use dybw_core::vault::{
-    Keys, Namespace, Organizations, SkipReason, UnmarkedCache, ValueSource, scan_vault, scan_vault_with,
+    Keys, Namespace, Organizations, SkipReason, Uninspectable, UnmarkedCache, ValueSource, scan_vault, scan_vault_with,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use zeroize::Zeroizing;
 
@@ -464,4 +465,137 @@ fn compare_requests(ns: &str, mut sent: Vec<Value>, want: &[Value]) -> Result<()
 /// (README "Requests after a refetch", data model §6.5); without one, the same errors are real failures.
 pub fn gave_up(refetched: bool, e: &WriteError) -> bool {
     refetched && matches!(e, WriteError::Unmarked | WriteError::Gone)
+}
+
+/// The code of a reason a cipher does not open, as `expect.open[].error` names it.
+fn uninspectable_code(u: Uninspectable) -> &'static str {
+    match u {
+        Uninspectable::TooLarge => "too-large",
+        Uninspectable::OrganizationKeyMissing => "organization-key-missing",
+        Uninspectable::ItemKey => "item-key",
+        Uninspectable::Value => "value",
+        Uninspectable::NewerFormat => "newer-format",
+        Uninspectable::Blob => "blob",
+        other => panic!("vault::item gave {other:?}, which no vector names"),
+    }
+}
+
+fn shown_text(t: &Text) -> Value {
+    t.as_deref().map_or(Value::Null, |s| Value::String(s.as_str().to_owned()))
+}
+
+fn texts(pairs: &[(&str, &Text)]) -> Value {
+    Value::Object(pairs.iter().map(|(k, v)| ((*k).to_owned(), shown_text(v))).collect())
+}
+
+/// An opened item as the plaintext JSON of `vectors/README.md` (`expect.open`).
+pub fn item_json(item: &Item) -> Value {
+    let mut out = json!({
+        "type": item.kind,
+        "name": item.name.as_str(),
+        "notes": shown_text(&item.notes),
+        "folderId": item.folder_id,
+        "organizationId": item.organization_id,
+        "reprompt": item.reprompt,
+        "fields": item.fields.iter().map(|f| json!({
+            "name": shown_text(&f.name), "value": shown_text(&f.value), "type": f.kind, "linkedId": f.linked_id,
+        })).collect::<Vec<_>>(),
+        "passwordHistory": item.history.iter().map(|h| json!({
+            "password": shown_text(&h.password), "lastUsedDate": h.last_used,
+        })).collect::<Vec<_>>(),
+    });
+    let (key, part) = match &item.data {
+        Data::Login(l) => {
+            let uris: Vec<Value> =
+                l.uris.iter().map(|u| json!({ "uri": shown_text(&u.uri), "match": u.match_type })).collect();
+            let login = json!({
+                "username": shown_text(&l.username), "password": shown_text(&l.password),
+                "totp": shown_text(&l.totp), "uris": uris,
+            });
+            ("login", login)
+        }
+        Data::Card(c) => (
+            "card",
+            texts(&[
+                ("cardholderName", &c.cardholder_name),
+                ("brand", &c.brand),
+                ("number", &c.number),
+                ("expMonth", &c.exp_month),
+                ("expYear", &c.exp_year),
+                ("code", &c.code),
+            ]),
+        ),
+        Data::Identity(i) => (
+            "identity",
+            texts(&[
+                ("title", &i.title),
+                ("firstName", &i.first_name),
+                ("middleName", &i.middle_name),
+                ("lastName", &i.last_name),
+                ("address1", &i.address1),
+                ("address2", &i.address2),
+                ("address3", &i.address3),
+                ("city", &i.city),
+                ("state", &i.state),
+                ("postalCode", &i.postal_code),
+                ("country", &i.country),
+                ("company", &i.company),
+                ("email", &i.email),
+                ("phone", &i.phone),
+                ("ssn", &i.ssn),
+                ("username", &i.username),
+                ("passportNumber", &i.passport_number),
+                ("licenseNumber", &i.license_number),
+            ]),
+        ),
+        Data::SshKey(k) => (
+            "sshKey",
+            texts(&[("privateKey", &k.private_key), ("publicKey", &k.public_key), ("fingerprint", &k.fingerprint)]),
+        ),
+        Data::SecureNote | Data::Unknown => return out,
+    };
+    if let Some(o) = out.as_object_mut() {
+        o.insert(key.to_owned(), part);
+    }
+    out
+}
+
+/// Checks `expect.open`: each listed cipher opened by `vault::item::open` and summarized by `vault::item::summary`
+/// with the account's user key and, under `options.organizations`, its organization keys.
+pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
+    let want = s.expect.open.as_ref().ok_or("no expect.open")?;
+    let keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
+    for w in want {
+        let cipher = s
+            .ciphers
+            .iter()
+            .find(|c| c.get("id").and_then(Value::as_str) == Some(w.cipher.as_str()))
+            .ok_or_else(|| format!("open: no cipher {}", w.cipher))?;
+        let got = item::open(cipher, &keys.user, &keys.orgs)
+            .map(|i| json!({ "id": i.id, "item": item_json(&i) }))
+            .map_err(uninspectable_code);
+        let expected = match (&w.item, &w.error) {
+            (Some(item), None) => Ok(json!({ "id": w.cipher, "item": item })),
+            (None, Some(error)) => Err(error.as_str()),
+            _ => return Err(format!("open {}: give an item or an error", w.cipher)),
+        };
+        compare(&format!("open {}", w.cipher), got, expected.clone())?;
+        let summary = item::summary(cipher, &keys.user, &keys.orgs)
+            .map(|m| {
+                json!({ "type": m.kind, "name": m.name.as_str(), "user": shown_text(&m.user), "folderId": m.folder_id })
+            })
+            .map_err(uninspectable_code);
+        let expected = match (&w.summary, expected) {
+            (Some(summary), _) => Ok(summary.clone()),
+            (None, Ok(opened)) => {
+                let at = |p: &str| opened.pointer(&format!("/item/{p}")).cloned().unwrap_or(Value::Null);
+                Ok(
+                    json!({ "type": at("type"), "name": at("name"), "folderId": at("folderId"), "user": at("login/username") }),
+                )
+            }
+            (None, Err(e)) => Err(e),
+        };
+        compare(&format!("summary {}", w.cipher), summary, expected)?;
+    }
+    Ok(())
 }

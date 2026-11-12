@@ -1,0 +1,124 @@
+{
+  "id": "open/card",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "k1",
+      "type": 3,
+      "key": "2.rATWb8t2ICZzt/dxij80+Q==|Z7ZnLc94s/vFjwlUraSkyq9j1XIOIDRbtTSYGwSFYQkVGk9mlDIVd86klVpoNsOGXrgepCqXB2a1HMxpU8STG17c6VmX0JwUllvNWHlf4o4=|7Lf3NozruiwZzZDCVUIozVO+V/svevVbrUZQ6qPCS9c=",
+      "name": "2.p72LJDyzgA7BO1ubif+kBw==|Z3DEOKp6dquMaBGTuRhYFA==|6RKH2NTymzgsM3ouN8clJ93T9QZYzVPnRLSGVhxM/EQ=",
+      "notes": "2.evRCsQORHiISURdSfzEWsA==|GH7nLDhwlsb0lCiZJCAsHQ==|5kR30NQfkNhVQTgoO/lpqeHIm+Ba0AX4GgI56g8tTPM=",
+      "card": {
+        "cardholderName": "2.n/r6trGC60HcRnCwFenjxA==|II1sW/+dR3zNILBKqO3y4w==|EFcRBjWvJipp3F3/6LtZizEBokR28lNDEyuTK4qSRpc=",
+        "brand": "2.fM4+FoyQgBPenE+eOLs62w==|nVnmxLhi/XZQNQws8IYTCQ==|D91nDwcW11FQ6fNz3JwElC8ycvB4tQjiTY11oM7Zd0s=",
+        "number": "2.VD4MfIyaVQrwA31KSx2ghw==|OvnalpKbH5md8LOltwOvxGfL30nSTCgPlv4n0lCD2ss=|pEZpCIZzLNVh/SpFeCduOeM7+zRnCdFc+Lc6jTXNIeU=",
+        "expMonth": "2.7e6XJe/27vl/b3Mnl9kV0w==|SJaN3yVV/qe6Jy9yVQYxvg==|ZaDcgwU5HZDvj4fiUPstcS1Iwk78Y2vy+PX25X65PfI=",
+        "expYear": "2.6NsjgkzKMPwa9JQysqRlRg==|UaP3IPcs8Uc/2ollg3d76Q==|o8C8Srx9S5fWxg/H8kpM+iDSsfvZk2RAk4WF8Cjxsfc=",
+        "code": "2.CbtqwVymV6uIoaOOFJDNZA==|o0Et9B1VmksuJ9QVKL5o9A==|S396JowxdHWKBIz4i+j3t00SYUonWQCM3OBaYFTqvMw="
+      },
+      "fields": [
+        {
+          "name": "2.AHSkIodeeGKMRX89Ld7ZTQ==|2Jo7zKDAakUodYdAP6LYVQ==|BKC57maIi5hpfFdn6xP/SyO+JWsHDpkQn1B1++cr/s4=",
+          "value": "2.BU3WGLqp0HATckq0gQ6Fbg==|esP4tqQzWJsCA7vHJCbcXg==|mD8b8V/5HHDP/FeUBi7et7rHzDWwBa5gIphEGASSqTE=",
+          "type": 1
+        }
+      ],
+      "reprompt": 1
+    },
+    {
+      "id": "k2",
+      "type": 3,
+      "name": "2.y2ptKPelyyZLO2Dvh++B+Q==|IrLQq2XTiFvF9RMPNg4eKA==|e+H6zHd3+sQkQGUFOYBQGATnSPTUaPzBeyxUUmlL1Ow=",
+      "card": {
+        "number": "2.8vjeVmeHSN0QejYcjwgVEg==|V1rWpH0PHYWJ86z6fMfGi5KZgm1xPryemtJ3jwl+sAQ=|cxiwkxB7BVQU4bikEMKhYguLaxWafRGYLZ7Zh/W8Rj4=",
+        "code": null
+      }
+    },
+    {
+      "id": "k3",
+      "type": 3,
+      "name": "2.QlHrMTBHKQUzB4cTDrVn0w==|dULGn+OwHRtnSPtRShCEhA==|0PTG2a+OFJns7jnFn2ghl6eM65C8RYt01C4sJhJlqwY=",
+      "card": null
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "k1",
+        "item": {
+          "type": 3,
+          "name": "Visa",
+          "notes": "card notes",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "pin",
+              "value": "0000",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": "Ann Example",
+            "brand": "Visa",
+            "number": "4111111111111111",
+            "expMonth": "12",
+            "expYear": "2030",
+            "code": "123"
+          }
+        }
+      },
+      {
+        "cipher": "k2",
+        "item": {
+          "type": 3,
+          "name": "Partial",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": null,
+            "brand": null,
+            "number": "5500000000000004",
+            "expMonth": null,
+            "expYear": null,
+            "code": null
+          }
+        }
+      },
+      {
+        "cipher": "k3",
+        "item": {
+          "type": 3,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": null,
+            "brand": null,
+            "number": null,
+            "expMonth": null,
+            "expYear": null,
+            "code": null
+          }
+        }
+      }
+    ]
+  }
+}

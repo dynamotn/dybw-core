@@ -1,0 +1,308 @@
+{
+  "id": "open/blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "cose-v2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": "folder-1",
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgY8sNEM7qfKPnYJ2czgFRZW5erwqO7ndSmWFD0T5TcMOO0PtMcIL1gfcojsLtZZMLJDfxJlu1bykV4sIJ6/rNTh/fBVPOf5fS9G2DFFe+KAXOEbDcLPqLgzkHwuUpOWOu/NaMQW30gD6nO3g==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.v4LCYewrEjQT2Zm5qimsLQ==|czGrHVoT4PlFSodQXnciJYx7jhchrQOMsx1qSu1agTrv9KqQYkUpc9LeL9uz1c4HAcWlrZJwJKvd5iJHgwhJh1Q8CLHBJ4dh3LfDep9+g3M=|X7UnWzrbSJjo+Sdn6mMN78qiqoRM5cbDV0uFB1ZKdp0=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUMqv9dyugnnAu5e3qWJeUjA6AAE4gQI6AAE4gAGhBUxnws7QhL3rbqOEdcVZApahXiymzguMR8cDZHkbFBGiP6PsYNJt8GAPaveN58HT6EbWTfWGirMa5CxvjACIsd8ksp6l6mgn/Pjq2mDeSqZiuVByJr1vtKTnVe5FpnAXSCoq6naB2dr0rE0Hyp0KhJN59+n6mKjFW1gSDOSKwpmdF1cEmpe4pm3594ZHqKaZpTlbKKa11P1UR0LjaWLDy4wXsSWzA32XQHQ8UXFMJcwtjoPRBAJ8O6UxawohFJeW+6eGCaAkg3kAoBEd0g/SMizUghjNSv6smIGPD7XvSj6qO7SkgGPzxx1cG3/y5P9fHPgWwLd7l8Fdsf62hrcX6CrK6GB5aMDjakxxgcqD4nScAcDxh1VX7WjqcjObGTkddMhU9DRnN+Mmhf0K+7EVL3Hv93tVr/HfkOs8y8UicM6+juDAohZXWcbFi5fu0dC06777l05jyBicHg3MbJLOA6gnqKvRqL/wBCilEwluC7MVlyzeUP6eukDIC4eej8xzKRoAhRklf8RuLTcYrp7fWTNoyl4qigbdQa1iCcFd9oAQus/XHyQbev30mVeEcnlSj79pvuUEIGX2YQrQd5EPdz/b86FkwUfAhtgJSnxpvivdYBINtLf5oXj2b01rb+f5s+HxtQVLr9Wb1/SNlpsoQheHS7bPPM2BCOccDKR9JaFQ80hgACgY1rNikdxS6jolHKf9M/S3A9diSkW8fcaSAeNqYrHUzKqGX8e4E8voEyLGCB8+/hzlyLIAyyleCWSO0nAGXnrPGx5nUxb1u0aRVvXGRlG9UXvbu1BDz8WiNZGZVvyrvd3a0zSwyBAH1gQXG7Z3+9N1G4e8sVQf6AaxUZ/9Jyrmp/V50kBrAKgOkVbeDhNk6NoBZoRaYhaUhHndF07j2p/PDw==\"}",
+      "reprompt": 1
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYtME5Akt9Axtwabv2kT2LlH2tYVobjJb4WFDKoo9pnIneZpEgBJO1jD6MQF3rUT5QHLtVphahrGl18Dqlc4dUZ/eOgzo7MBfZIPD4ke+QMf+D68CB0/+JC3iTcgAGOwV/aofetUrUXQIFEw==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.iOeOyhecrsjlXlTxS2pRDg==|J4a7AvMPEL4RtPNeSDUegcOaYvf7gHwPgPEUg+50Yc66qMQ0m6VHPBkl6cRafYdtYMG38osWIjzEbisBnDkWTDpSwRlC2UZ9gl1o5e6xAfc=|qMzpVWY1evy44vmh1YnLiWatW5q8OFjVQaybfj4VS78=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEULs+rwsaoNUTCX7LuGfHzsY6AAE4gQI6AAE4gAGhBUzDNE8qG/XnwZ4IHZJYkFLEUTwiMVy9myd+sxv2FqZCI+7JsSNmRV2TVuYdD8qip3/XoFtEEbixW8h6TLsUBhc4B63V5ZwjbTuN8U49aQn9Ieo6WVlsfL+reNZsv8USmaWB+/I96Mx6uL+HTr4VF4iebJ0y48+hD/AqyzC4k96Yr4+fc4Tu5BNn2x3onhjawnMJDk7Rqf2iE3iYatMxXw==\"}"
+    },
+    {
+      "id": "n1",
+      "type": 2,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYKE5axcz+J7JjUcXv01qPsXISSlAkFz1lWFC0IOLmqN3uemt4RLTLjVoJ7lvIGh+RDe2MmXIi43thz0koulNxNVRWrxKxmNGBShyulP5OGERZynp1gXXw/ZiWRvcInHZS+tzLUFSbzq+rfg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.jd+WMv51QGQCrZrAfeMrmQ==|Jj+1+DRpOObgrcZpwS9E/NZsXnn+K8CT9Rs7n2SWNzA0RKhw/YT/jwkjVuYCKAWq1bJwrMVMheMwghAhCtxhYc8XjmxAbvRxj0eW3laaPGM=|cmkdeB5/WP66dK8r31no7p8IqXoiAvR4V4iP0PLKglU=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUBfPEEuRECXhYV/tSxWz5Xw6AAE4gQI6AAE4gAGhBUxdeMLZuS22WIre41dYl95ZZXF1Phy666g1rL4a0Pz737KDalSMJXqXmMb+CZl+SGrMhEHcCbDaQh6sMMpQj6FzF6nU26/RTrIvy8w357k1fmUPI0CCgKX10hYzb+3M0ZUBMxpeXYlJujiuljrq2/MZlRjRQlRxviBbx50aqJ0nT3KQersjjJMuYAY6Le9wJTEhoCKCi2H4LwYqCVsAqniOhnqorzo=\"}"
+    },
+    {
+      "id": "k1",
+      "type": 3,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYwI/jKiTQY+7oaYH9xjr2eEtg/eKIMn0qWFDLvzcUZr6KxS4PD9mLCRpB/jp+6vABfeFc3dwJhtEk/tbbYH2s4ack9vvoOnVsu6cbtJL5QwPw7IvZAELzOrMNyQqgXHcsCU4bYBudVxrXPg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.ox9tu2dRDu3YiwFZLDg2YQ==|Hv9ozFFjceeVNndOxlDeX+rTnDmBPy4ovj8se1MazOEqCxt8airY95hsWVL+GbKMdzxjREZAPuaqh2How+VHsxY+DT/NA5ML0VomNYw70jM=|uZaDA3mzdb5NHUQQlyAMWY+zSgK9e/kJhIbv7zi3zR0=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUDLD6k+okAyuZgtu2G1QBeE6AAE4gQI6AAE4gAGhBUzccG1iG9ZCE8TUEHxY4dpBIALkzpaHnLd16YW3xeuT3Ao/m8v+ih492fN6lbdjqxqN/vFBRwqM9YIslLx6KoGdlegDtC5QyUnU0HhnCIM0O8x8emppP74tLQKpJk7WVN9EaBB3p/bnOFardqkz7I9BL/F3yCMM7zOLNF2SjPvJhwrtYZNBnZm4LSymdTw9glXALY2KX9gfWKdfxX+0HMmv7PSMvNJozw78SkU5WIkbpLYRujPrQU/YZ7SmdvKs5Sgcc4e+pgOUDkb136mw3rccpPSmCNwZSeirBgN/3rx8GzDScSFVtLHDbIsxRr+aEQ==\"}",
+      "reprompt": 1
+    },
+    {
+      "id": "k3",
+      "type": 3,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYPS0Vq24r244woKfTBgsskEsbEy3b7wESWFDN4rcKxS62E5iFzOcciShQ9EiDTK3c2GMGvNCq5UtvwMhCBO+y4ENdNGLTjW7G++YtBqL9r6W5EiE4MGyf/NP/39/pbO+0akv1AsqkDMzMGA==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.f5R+JqUCl/vXdTtZBebdXg==|Dc3Ap7vaBrKPvKD0U0fGAB+1IHRjHTrkzN12/uVmWkgKA252Rs+qtUXoAF1dtdpx2yEtqB6/xQ/jnnppVpdSpQ7ChCgz5UGFZFFAZZqMgXE=|k1jaMmw6Wc1NqrUpE+8E9f4NcC9goAjuR2T9qaSu4og=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUNetmWttFIL/z6Istx1NehE6AAE4gQI6AAE4gAGhBUz7dJFYugVsrzUtAr9YUBzb6v4GrnhXSRTPHIAKkztnat0CR/XPckOFb+cgTgjP3HIhEJ4YKrXDYtfu1gZ3i/3L91ESEEmX3cQri+/MhAtKv9jE4RdCzaioumRwdv7I\"}"
+    },
+    {
+      "id": "i1",
+      "type": 4,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYtKUKvRjTys81QZq7WwklIPkb3ddHYsJNWFCqFN1eg6x71cK4DdQbfS3Mbh7iwTKXwxtA/ZFain2ZjjU+9zWuzHeAuv5S9RcjTzbPKZEUdRD1tOI80kY0hYGMqA2nHc2XSB78wlLZKt5rkg==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.4FJzJ6yZ/K9+5GinlCppYg==|crvuOVSZgjWdHszTNOJDE3eHFg9pvj0RsjIqn8NVPJ5FFRl6O1jlk88xWcS+8Xf6uOHl2TnXU3Qgp5iXY16AlFmcAI/lw7Nce66EpCmK1H4=|I94uHX4qYpjU7l3a+ePvTJfMG9PH3CYyL7X9m461+vw=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUE8y6gmLAkQ5kDeFRCMVuZo6AAE4gQI6AAE4gAGhBUzK6TCcu35neLXaJmNZAe6K1+9YntBa8ng9Mi6Ixr8liLqZ46aRYIzU41gM1SHVaYHtRCmBIWIKv6WBbgSxxc55ayR+QXgh0l9z8IpZrLGI+kyH9CaAFLa0HgDsflYFe6rakJKiSkkjXbI8czXbMiWj62G4QTFTCRJTCBNuCkjUCiQx2Z96b0ugzJotUkMLTXj1SvxsFmX3JJZSgr7gbDwZNuII78M5hR0+QOor67B6wPII219YQxVRvkCNoz/HXj2/gM4O/a4woo+sLZnzTY+biRdZHjzDB3ciydX6BItY5BQNQAsn46iJitguV/x/t3mC0QHr+h/g5tMTf46/sR42kkh3qIBDHDsa66GDwLSt1fBrojrTnmNutTJUxCtwgBG2Ib+9/pioq/BhcSxpaC71TgwFLXfHaMy8O9S2lu+pdpjGCBPiTS9scVNxfLzSi7K+ByNV2VQLBg5b+wKgz9yLlao17dLLrIAdhX7bGLMAaTLfN5WTw6n9nqNSbj013p5Uwhf0o+h9R7km+qq4kR17pYU7HK+HdapSE3ZCaJ2DE2oW8iw5XxWe0LUnrdlOvGeDbMhQb7QvOc86QXXxb35JAdK0hlcABjlJiDnxOVwrrUsSj1v5uv8EGYqDKGftywVIoJtrBcDNqosN2JCYWwimmMYIGO1/yb8qSJ8FMw==\"}"
+    },
+    {
+      "id": "s1",
+      "type": 5,
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYdWL/EEWDWnJqMg4ttnus2Ah9YkbYvAZ0WFBUNDCuAvy2/ipV/x/y6f6/Und45JPnp1bya7aMcVSI+SZHNWzZF8ucZBCGLJHPRvMU6X/8tRoMWtPBl7nCqxGUmaCLbfovhnrwSLPQ2ik0Yw==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.uXuUOI7g0b3jMjWdjYKE4A==|Mxxoo/dByahjthxC0qg/2Vc+NiUfpOlxoDnSoa92PqPZvb2flJ5AA4zf28zS3zclBp86talutYnyOHOR+Dnso7sX2uoVqEilqLZT1t/bBaY=|K0d9VndY15JTbLME54vNyBdl+O+rxuWNTbWPP9auP3E=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUJDbMJJHJzz4D1bqEw7oIIQ6AAE4gQI6AAE4gAGhBUyJiNhGdYfT4hNJP81ZAUHbiyzMKlHBJo3Nkzs8nDnT0x5eHTdYuZx88hD5qB7yk0rULOHxXa3rz9Ph6f2+ePtVqumbHCh/vLaS4BP4atbDfTjg+0CtTOe0M6YZTVQyqSf+5XiyG+kYjBQAfQM55z3lbXn5qi3ut2vqd+ahf27MmuKroKq1iuOVbBiv9+kaQGvG4PQWLtQnXFeswJh5s7ZZ6zp5jzQdoTErMq0Z9ZRzTkyoMccyLCh5H5GDJsCR2todOkRYGBi372U2s3bTmv4URFNZ2EbWr2XqYMWDa8QEC+tCXmnyaUo0u5YOFcOtbPwqZhGdBAweHi/pFxmuuPcsW3Gv9Chcv6l9U+IHJn5/OPkLVJeyfeOvgLter3UnQkabFERUThdg0wrWM5WXwp0SUGeDXU/o0OQFF3SVqhWnpYnVhWb1UW+9by4izezXh7U=\"}",
+      "reprompt": 1
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "c1",
+        "item": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "notes": "line 1\nline 2",
+          "folderId": "folder-1",
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "text",
+              "value": "shown",
+              "type": 0,
+              "linkedId": null
+            },
+            {
+              "name": "hidden",
+              "value": "kept-secret",
+              "type": 1,
+              "linkedId": null
+            },
+            {
+              "name": "flag",
+              "value": "true",
+              "type": 2,
+              "linkedId": null
+            },
+            {
+              "name": "linked",
+              "value": null,
+              "type": 3,
+              "linkedId": 100
+            },
+            {
+              "name": "",
+              "value": "",
+              "type": 0,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [
+            {
+              "password": "old-2",
+              "lastUsedDate": "2025-02-01T00:00:00Z"
+            },
+            {
+              "password": "old-1",
+              "lastUsedDate": null
+            }
+          ],
+          "login": {
+            "username": "me@example.invalid",
+            "password": "pw-ünï-😀",
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "uris": [
+              {
+                "uri": "https://a.example.invalid",
+                "match": null
+              },
+              {
+                "uri": "https://b.example.invalid",
+                "match": 0
+              },
+              {
+                "uri": "^https://c\\.example\\.invalid/",
+                "match": 4
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cipher": "c2",
+        "item": {
+          "type": 1,
+          "name": "Empty",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "login": {
+            "username": null,
+            "password": null,
+            "totp": null,
+            "uris": []
+          }
+        }
+      },
+      {
+        "cipher": "n1",
+        "item": {
+          "type": 2,
+          "name": "Note",
+          "notes": "the note's text",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [
+            {
+              "name": "f",
+              "value": "v",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": []
+        }
+      },
+      {
+        "cipher": "k1",
+        "item": {
+          "type": 3,
+          "name": "Visa",
+          "notes": "card notes",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "pin",
+              "value": "0000",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": "Ann Example",
+            "brand": "Visa",
+            "number": "4111111111111111",
+            "expMonth": "12",
+            "expYear": "2030",
+            "code": "123"
+          }
+        }
+      },
+      {
+        "cipher": "k3",
+        "item": {
+          "type": 3,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": null,
+            "brand": null,
+            "number": null,
+            "expMonth": null,
+            "expYear": null,
+            "code": null
+          }
+        }
+      },
+      {
+        "cipher": "i1",
+        "item": {
+          "type": 4,
+          "name": "Me",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "identity": {
+            "title": "title-value",
+            "firstName": "firstName-value",
+            "middleName": "middleName-value",
+            "lastName": "lastName-value",
+            "address1": "address1-value",
+            "address2": "address2-value",
+            "address3": "address3-value",
+            "city": "city-value",
+            "state": "state-value",
+            "postalCode": "postalCode-value",
+            "country": "country-value",
+            "company": "company-value",
+            "email": "email-value",
+            "phone": "phone-value",
+            "ssn": "ssn-value",
+            "username": "username-value",
+            "passportNumber": "passportNumber-value",
+            "licenseNumber": "licenseNumber-value"
+          }
+        }
+      },
+      {
+        "cipher": "s1",
+        "item": {
+          "type": 5,
+          "name": "Deploy key",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [],
+          "passwordHistory": [],
+          "sshKey": {
+            "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n-----END OPENSSH PRIVATE KEY-----",
+            "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI deploy@example.invalid",
+            "fingerprint": "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+          }
+        }
+      }
+    ]
+  }
+}

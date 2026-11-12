@@ -1,0 +1,126 @@
+{
+  "id": "open/card",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "k1",
+      "type": 3,
+      "name": "Visa",
+      "notes": "card notes",
+      "reprompt": 1,
+      "itemKey": true,
+      "card": {
+        "cardholderName": "Ann Example",
+        "brand": "Visa",
+        "number": "4111111111111111",
+        "expMonth": "12",
+        "expYear": "2030",
+        "code": "123"
+      },
+      "fields": [
+        {
+          "name": "pin",
+          "value": "0000",
+          "type": 1
+        }
+      ]
+    },
+    {
+      "id": "k2",
+      "type": 3,
+      "name": "Partial",
+      "card": {
+        "number": "5500000000000004",
+        "code": null
+      }
+    },
+    {
+      "id": "k3",
+      "type": 3,
+      "name": "No part",
+      "card": null
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "k1",
+        "item": {
+          "type": 3,
+          "name": "Visa",
+          "notes": "card notes",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "pin",
+              "value": "0000",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": "Ann Example",
+            "brand": "Visa",
+            "number": "4111111111111111",
+            "expMonth": "12",
+            "expYear": "2030",
+            "code": "123"
+          }
+        }
+      },
+      {
+        "cipher": "k2",
+        "item": {
+          "type": 3,
+          "name": "Partial",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": null,
+            "brand": null,
+            "number": "5500000000000004",
+            "expMonth": null,
+            "expYear": null,
+            "code": null
+          }
+        }
+      },
+      {
+        "cipher": "k3",
+        "item": {
+          "type": 3,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": null,
+            "brand": null,
+            "number": null,
+            "expMonth": null,
+            "expYear": null,
+            "code": null
+          }
+        }
+      }
+    ]
+  }
+}

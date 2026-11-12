@@ -1,0 +1,624 @@
+{
+  "id": "open/errors",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "org",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "e1",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "tamper": [
+        "key"
+      ]
+    },
+    {
+      "id": "e2",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "tamper": [
+        "notes"
+      ]
+    },
+    {
+      "id": "e3",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "tamper": [
+        "login.username"
+      ]
+    },
+    {
+      "id": "e4",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "tamper": [
+        "name"
+      ]
+    },
+    {
+      "id": "e5",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "tamper": [
+        "fields[1].value"
+      ]
+    },
+    {
+      "id": "e6",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "tamper": [
+        "login.passwordHistory[0].password"
+      ]
+    },
+    {
+      "id": "e7",
+      "type": 3,
+      "name": "Visa",
+      "notes": "card notes",
+      "reprompt": 1,
+      "itemKey": true,
+      "card": {
+        "cardholderName": "Ann Example",
+        "brand": "Visa",
+        "number": "4111111111111111",
+        "expMonth": "12",
+        "expYear": "2030",
+        "code": "123"
+      },
+      "fields": [
+        {
+          "name": "pin",
+          "value": "0000",
+          "type": 1
+        }
+      ],
+      "tamper": [
+        "card.number"
+      ]
+    },
+    {
+      "id": "e8",
+      "type": 5,
+      "name": "Deploy key",
+      "reprompt": 1,
+      "itemKey": true,
+      "sshKey": {
+        "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n-----END OPENSSH PRIVATE KEY-----",
+        "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI deploy@example.invalid",
+        "keyFingerprint": "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+      },
+      "tamper": [
+        "sshKey.privateKey"
+      ]
+    },
+    {
+      "id": "e9",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ],
+      "format": "blob",
+      "organizationId": "org-a"
+    },
+    {
+      "id": "e10",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ],
+      "format": "blob",
+      "tamper": [
+        "envelope"
+      ]
+    },
+    {
+      "id": "e11",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ],
+      "format": "blob",
+      "tamper": [
+        "wrapped_cek"
+      ]
+    },
+    {
+      "id": "e12",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ],
+      "format": "blob",
+      "formatVersion": 2
+    },
+    {
+      "id": "e13",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ],
+      "format": "blob",
+      "contentVersion": "2"
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "e1",
+        "error": "item-key"
+      },
+      {
+        "cipher": "e2",
+        "error": "value",
+        "summary": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "user": "me@example.invalid",
+          "folderId": "folder-1"
+        }
+      },
+      {
+        "cipher": "e3",
+        "error": "value"
+      },
+      {
+        "cipher": "e4",
+        "error": "value"
+      },
+      {
+        "cipher": "e5",
+        "error": "value",
+        "summary": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "user": "me@example.invalid",
+          "folderId": "folder-1"
+        }
+      },
+      {
+        "cipher": "e6",
+        "error": "value",
+        "summary": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "user": "me@example.invalid",
+          "folderId": "folder-1"
+        }
+      },
+      {
+        "cipher": "e7",
+        "error": "value",
+        "summary": {
+          "type": 3,
+          "name": "Visa",
+          "user": null,
+          "folderId": null
+        }
+      },
+      {
+        "cipher": "e8",
+        "error": "value",
+        "summary": {
+          "type": 5,
+          "name": "Deploy key",
+          "user": null,
+          "folderId": null
+        }
+      },
+      {
+        "cipher": "e9",
+        "error": "newer-format"
+      },
+      {
+        "cipher": "e10",
+        "error": "blob"
+      },
+      {
+        "cipher": "e11",
+        "error": "blob"
+      },
+      {
+        "cipher": "e12",
+        "error": "newer-format"
+      },
+      {
+        "cipher": "e13",
+        "error": "newer-format"
+      }
+    ]
+  }
+}

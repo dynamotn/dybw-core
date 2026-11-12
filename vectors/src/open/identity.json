@@ -1,0 +1,120 @@
+{
+  "id": "open/identity",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "i1",
+      "type": 4,
+      "name": "Me",
+      "itemKey": true,
+      "identity": {
+        "title": "title-value",
+        "firstName": "firstName-value",
+        "middleName": "middleName-value",
+        "lastName": "lastName-value",
+        "address1": "address1-value",
+        "address2": "address2-value",
+        "address3": "address3-value",
+        "city": "city-value",
+        "state": "state-value",
+        "postalCode": "postalCode-value",
+        "country": "country-value",
+        "company": "company-value",
+        "email": "email-value",
+        "phone": "phone-value",
+        "ssn": "ssn-value",
+        "username": "username-value",
+        "passportNumber": "passportNumber-value",
+        "licenseNumber": "licenseNumber-value"
+      }
+    },
+    {
+      "id": "i2",
+      "type": 4,
+      "name": "Partial",
+      "notes": "n",
+      "identity": {
+        "firstName": "Ann",
+        "ssn": null
+      }
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "i1",
+        "item": {
+          "type": 4,
+          "name": "Me",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "identity": {
+            "title": "title-value",
+            "firstName": "firstName-value",
+            "middleName": "middleName-value",
+            "lastName": "lastName-value",
+            "address1": "address1-value",
+            "address2": "address2-value",
+            "address3": "address3-value",
+            "city": "city-value",
+            "state": "state-value",
+            "postalCode": "postalCode-value",
+            "country": "country-value",
+            "company": "company-value",
+            "email": "email-value",
+            "phone": "phone-value",
+            "ssn": "ssn-value",
+            "username": "username-value",
+            "passportNumber": "passportNumber-value",
+            "licenseNumber": "licenseNumber-value"
+          }
+        }
+      },
+      {
+        "cipher": "i2",
+        "item": {
+          "type": 4,
+          "name": "Partial",
+          "notes": "n",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "identity": {
+            "title": null,
+            "firstName": "Ann",
+            "middleName": null,
+            "lastName": null,
+            "address1": null,
+            "address2": null,
+            "address3": null,
+            "city": null,
+            "state": null,
+            "postalCode": null,
+            "country": null,
+            "company": null,
+            "email": null,
+            "phone": null,
+            "ssn": null,
+            "username": null,
+            "passportNumber": null,
+            "licenseNumber": null
+          }
+        }
+      }
+    ]
+  }
+}

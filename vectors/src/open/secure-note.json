@@ -1,0 +1,71 @@
+{
+  "id": "open/secure-note",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "n1",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ]
+    },
+    {
+      "id": "n2",
+      "type": 2,
+      "name": "No part",
+      "secureNote": null
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "n1",
+        "item": {
+          "type": 2,
+          "name": "Note",
+          "notes": "the note's text",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [
+            {
+              "name": "f",
+              "value": "v",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": []
+        }
+      },
+      {
+        "cipher": "n2",
+        "item": {
+          "type": 2,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": []
+        }
+      }
+    ]
+  }
+}

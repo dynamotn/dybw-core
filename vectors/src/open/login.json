@@ -1,0 +1,214 @@
+{
+  "id": "open/login",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "name": "Empty",
+      "notes": null,
+      "login": null,
+      "fields": null
+    },
+    {
+      "id": "c3",
+      "type": 1,
+      "name": "",
+      "notes": "",
+      "login": {
+        "username": "",
+        "password": "",
+        "uris": [],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [],
+      "reprompt": 0
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "c1",
+        "item": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "notes": "line 1\nline 2",
+          "folderId": "folder-1",
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "text",
+              "value": "shown",
+              "type": 0,
+              "linkedId": null
+            },
+            {
+              "name": "hidden",
+              "value": "kept-secret",
+              "type": 1,
+              "linkedId": null
+            },
+            {
+              "name": "flag",
+              "value": "true",
+              "type": 2,
+              "linkedId": null
+            },
+            {
+              "name": "linked",
+              "value": null,
+              "type": 3,
+              "linkedId": 100
+            },
+            {
+              "name": "",
+              "value": "",
+              "type": 0,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [
+            {
+              "password": "old-2",
+              "lastUsedDate": "2025-02-01T00:00:00Z"
+            },
+            {
+              "password": "old-1",
+              "lastUsedDate": null
+            }
+          ],
+          "login": {
+            "username": "me@example.invalid",
+            "password": "pw-ünï-😀",
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "uris": [
+              {
+                "uri": "https://a.example.invalid",
+                "match": null
+              },
+              {
+                "uri": "https://b.example.invalid",
+                "match": 0
+              },
+              {
+                "uri": "^https://c\\.example\\.invalid/",
+                "match": 4
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cipher": "c2",
+        "item": {
+          "type": 1,
+          "name": "Empty",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "login": {
+            "username": null,
+            "password": null,
+            "totp": null,
+            "uris": []
+          }
+        }
+      },
+      {
+        "cipher": "c3",
+        "item": {
+          "type": 1,
+          "name": "",
+          "notes": "",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "login": {
+            "username": "",
+            "password": "",
+            "totp": null,
+            "uris": []
+          }
+        }
+      }
+    ]
+  }
+}

@@ -333,11 +333,8 @@
           "minLength": 1
         },
         "type": {
-          "enum": [
-            1,
-            2,
-            3
-          ]
+          "type": "integer",
+          "minimum": 1
         },
         "folderId": {
           "type": [
@@ -464,6 +461,342 @@
         },
         "viewPassword": {
           "type": "boolean"
+        },
+        "card": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "cardholderName": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "brand": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "number": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expMonth": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expYear": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "code": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "firstName": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "middleName": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lastName": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "address1": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "address2": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "address3": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "city": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "state": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "postalCode": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "country": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "company": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "email": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phone": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ssn": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "username": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "passportNumber": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "licenseNumber": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sshKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "privateKey": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "publicKey": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "keyFingerprint": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(2\\.[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+\\|[A-Za-z0-9+/=]+|7\\.[A-Za-z0-9+/=]+)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,

@@ -1,0 +1,123 @@
+{
+  "id": "open/organization-off",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "org",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "options": {
+    "organizations": false
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "organizationId": "org-a"
+    },
+    {
+      "id": "p1",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "o1",
+        "error": "organization-key-missing"
+      },
+      {
+        "cipher": "p1",
+        "item": {
+          "type": 2,
+          "name": "Note",
+          "notes": "the note's text",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [
+            {
+              "name": "f",
+              "value": "v",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": []
+        }
+      }
+    ]
+  }
+}

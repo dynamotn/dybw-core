@@ -126,9 +126,19 @@ fn sync_vectors() {
 }
 
 #[test]
+fn open_vectors() {
+    let counts = run_kind(Kind::Open);
+    assert!(counts.values().all(|&n| n >= 8), "too few open vectors: {counts:?}");
+}
+
+#[test]
 fn every_vector_runs() {
     let files = files();
-    assert_eq!(Kind::ALL, [Kind::Read, Kind::Write, Kind::Plan], "a kind of expectation without a vector test");
+    assert_eq!(
+        Kind::ALL,
+        [Kind::Read, Kind::Write, Kind::Plan, Kind::Open],
+        "a kind of expectation without a vector test"
+    );
     for ns in ["bwss", "obsidian"] {
         for s in files.scenarios(ns).unwrap() {
             assert!(Kind::ALL.iter().any(|k| k.has(&s.expect)), "{} is run by no vector test", s.id);

@@ -81,16 +81,18 @@ pub enum Kind {
     Read,
     Write,
     Plan,
+    Open,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 3] = [Kind::Read, Kind::Write, Kind::Plan];
+    pub const ALL: [Kind; 4] = [Kind::Read, Kind::Write, Kind::Plan, Kind::Open];
 
     pub fn has(self, e: &Expect) -> bool {
         match self {
             Kind::Read => e.read.is_some(),
             Kind::Write => e.write.is_some(),
             Kind::Plan => e.plan.is_some(),
+            Kind::Open => e.open.is_some(),
         }
     }
 }
@@ -108,6 +110,7 @@ pub async fn run_all(files: &Files, ns: &str, kind: Kind, rsa: &impl RsaOaep) ->
             Kind::Read => run::read(files, &s, rsa).await,
             Kind::Write => run::write(files, &s, rsa).await,
             Kind::Plan => run::plan(files, &s, rsa).await,
+            Kind::Open => run::open(files, &s, rsa).await,
         };
         out.push((s.id, outcome.map_err(|e| format!("[{ns}] {e}"))));
     }

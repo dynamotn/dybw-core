@@ -1,0 +1,72 @@
+{
+  "id": "open/secure-note",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "n1",
+      "type": 2,
+      "key": "2.Mewqko2k0k/6Jo8FOWmS6g==|oLPLhzciblYm85UgWzeBdZrNBbbv9B92OztW3oCGrVR7Q8vpqsXlafMgaa80mCgKVWwWYbkQgFdDswvz+0xfkP5r6jxXUQhIfbGzPbr10bc=|a93+Cgp9VCbZZa2MK1Wa2rkvPGWcJBhupd+W6e/mrcA=",
+      "name": "2.4V8CkvlKkhkQ+4Y3wdIVqg==|yMfx5FclzMiioAPxo8mPhg==|WXiVi+nmRQbXpecEz+ffW/BiMgMeaASihdpOFMgWyAg=",
+      "notes": "2.UOdytQHxPBXFxdiK+aW2ow==|EQ/452G4uqEG/X9dvpCKag==|GXVC3pQnDAeGxlhfHMGJ+lmkEdf/zS/+Yy3GcUkr8bk=",
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.85ORzuVRq+FCjVlzsOtvKQ==|9/riwIHnakpAdSB/QyuRTw==|178yhCgAXiy17o6jXnGOc6F5z5icUssrZzsWciua8B4=",
+          "value": "2.Em0kNQDkLHTaVjn1fMh5uA==|ayDGKMxv/ZE1fTKu69RvnQ==|71w3dpi3RQseTTK5RSEWo6o8XtZ/pRToXjpbneCN8vc=",
+          "type": 1
+        }
+      ]
+    },
+    {
+      "id": "n2",
+      "type": 2,
+      "name": "2.HFU3NckzAd9tnTCKRvg+EA==|3XCiKp3+fG9/VjnGfXBOvg==|VKmWH7FAGLHYVOh0PUEiFqqXKKPS6v2PNBG/yK81llA=",
+      "secureNote": null
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "n1",
+        "item": {
+          "type": 2,
+          "name": "Note",
+          "notes": "the note's text",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [
+            {
+              "name": "f",
+              "value": "v",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": []
+        }
+      },
+      {
+        "cipher": "n2",
+        "item": {
+          "type": 2,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": []
+        }
+      }
+    ]
+  }
+}

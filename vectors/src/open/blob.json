@@ -1,0 +1,388 @@
+{
+  "id": "open/blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Mail ünï 😀",
+      "notes": "line 1\nline 2",
+      "folderId": "folder-1",
+      "reprompt": 1,
+      "itemKey": true,
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-ünï-😀",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "passwordHistory": [
+          {
+            "password": "old-2",
+            "lastUsedDate": "2025-02-01T00:00:00Z"
+          },
+          {
+            "password": "old-1",
+            "lastUsedDate": null
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "text",
+          "value": "shown",
+          "type": 0
+        },
+        {
+          "name": "hidden",
+          "value": "kept-secret",
+          "type": 1
+        },
+        {
+          "name": "flag",
+          "value": "true",
+          "type": 2
+        },
+        {
+          "name": "linked",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "",
+          "value": "",
+          "type": 0
+        }
+      ],
+      "format": "blob"
+    },
+    {
+      "id": "c2",
+      "type": 1,
+      "name": "Empty",
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "format": "blob"
+    },
+    {
+      "id": "n1",
+      "type": 2,
+      "name": "Note",
+      "notes": "the note's text",
+      "itemKey": true,
+      "fields": [
+        {
+          "name": "f",
+          "value": "v",
+          "type": 1
+        }
+      ],
+      "format": "blob"
+    },
+    {
+      "id": "k1",
+      "type": 3,
+      "name": "Visa",
+      "notes": "card notes",
+      "reprompt": 1,
+      "itemKey": true,
+      "card": {
+        "cardholderName": "Ann Example",
+        "brand": "Visa",
+        "number": "4111111111111111",
+        "expMonth": "12",
+        "expYear": "2030",
+        "code": "123"
+      },
+      "fields": [
+        {
+          "name": "pin",
+          "value": "0000",
+          "type": 1
+        }
+      ],
+      "format": "blob"
+    },
+    {
+      "id": "k3",
+      "type": 3,
+      "name": "No part",
+      "card": null,
+      "format": "blob"
+    },
+    {
+      "id": "i1",
+      "type": 4,
+      "name": "Me",
+      "itemKey": true,
+      "identity": {
+        "title": "title-value",
+        "firstName": "firstName-value",
+        "middleName": "middleName-value",
+        "lastName": "lastName-value",
+        "address1": "address1-value",
+        "address2": "address2-value",
+        "address3": "address3-value",
+        "city": "city-value",
+        "state": "state-value",
+        "postalCode": "postalCode-value",
+        "country": "country-value",
+        "company": "company-value",
+        "email": "email-value",
+        "phone": "phone-value",
+        "ssn": "ssn-value",
+        "username": "username-value",
+        "passportNumber": "passportNumber-value",
+        "licenseNumber": "licenseNumber-value"
+      },
+      "format": "blob"
+    },
+    {
+      "id": "s1",
+      "type": 5,
+      "name": "Deploy key",
+      "reprompt": 1,
+      "itemKey": true,
+      "sshKey": {
+        "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n-----END OPENSSH PRIVATE KEY-----",
+        "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI deploy@example.invalid",
+        "keyFingerprint": "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+      },
+      "format": "blob"
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "c1",
+        "item": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "notes": "line 1\nline 2",
+          "folderId": "folder-1",
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "text",
+              "value": "shown",
+              "type": 0,
+              "linkedId": null
+            },
+            {
+              "name": "hidden",
+              "value": "kept-secret",
+              "type": 1,
+              "linkedId": null
+            },
+            {
+              "name": "flag",
+              "value": "true",
+              "type": 2,
+              "linkedId": null
+            },
+            {
+              "name": "linked",
+              "value": null,
+              "type": 3,
+              "linkedId": 100
+            },
+            {
+              "name": "",
+              "value": "",
+              "type": 0,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [
+            {
+              "password": "old-2",
+              "lastUsedDate": "2025-02-01T00:00:00Z"
+            },
+            {
+              "password": "old-1",
+              "lastUsedDate": null
+            }
+          ],
+          "login": {
+            "username": "me@example.invalid",
+            "password": "pw-ünï-😀",
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "uris": [
+              {
+                "uri": "https://a.example.invalid",
+                "match": null
+              },
+              {
+                "uri": "https://b.example.invalid",
+                "match": 0
+              },
+              {
+                "uri": "^https://c\\.example\\.invalid/",
+                "match": 4
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cipher": "c2",
+        "item": {
+          "type": 1,
+          "name": "Empty",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "login": {
+            "username": null,
+            "password": null,
+            "totp": null,
+            "uris": []
+          }
+        }
+      },
+      {
+        "cipher": "n1",
+        "item": {
+          "type": 2,
+          "name": "Note",
+          "notes": "the note's text",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [
+            {
+              "name": "f",
+              "value": "v",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": []
+        }
+      },
+      {
+        "cipher": "k1",
+        "item": {
+          "type": 3,
+          "name": "Visa",
+          "notes": "card notes",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "pin",
+              "value": "0000",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": "Ann Example",
+            "brand": "Visa",
+            "number": "4111111111111111",
+            "expMonth": "12",
+            "expYear": "2030",
+            "code": "123"
+          }
+        }
+      },
+      {
+        "cipher": "k3",
+        "item": {
+          "type": 3,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": null,
+            "brand": null,
+            "number": null,
+            "expMonth": null,
+            "expYear": null,
+            "code": null
+          }
+        }
+      },
+      {
+        "cipher": "i1",
+        "item": {
+          "type": 4,
+          "name": "Me",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "identity": {
+            "title": "title-value",
+            "firstName": "firstName-value",
+            "middleName": "middleName-value",
+            "lastName": "lastName-value",
+            "address1": "address1-value",
+            "address2": "address2-value",
+            "address3": "address3-value",
+            "city": "city-value",
+            "state": "state-value",
+            "postalCode": "postalCode-value",
+            "country": "country-value",
+            "company": "company-value",
+            "email": "email-value",
+            "phone": "phone-value",
+            "ssn": "ssn-value",
+            "username": "username-value",
+            "passportNumber": "passportNumber-value",
+            "licenseNumber": "licenseNumber-value"
+          }
+        }
+      },
+      {
+        "cipher": "s1",
+        "item": {
+          "type": 5,
+          "name": "Deploy key",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [],
+          "passwordHistory": [],
+          "sshKey": {
+            "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n-----END OPENSSH PRIVATE KEY-----",
+            "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI deploy@example.invalid",
+            "fingerprint": "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+          }
+        }
+      }
+    ]
+  }
+}

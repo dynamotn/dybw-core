@@ -17,7 +17,7 @@ pub const BLOB_SECURITY_VERSION: u64 = 2;
 
 /// The decoded `CipherBlobV1` of a blob cipher, as its map entries in order. Every text in it is wiped on drop; no
 /// `Clone`.
-pub(crate) struct OpenBlob(Vec<(Cbor, Cbor)>);
+pub(crate) struct OpenBlob(pub(super) Vec<(Cbor, Cbor)>);
 
 impl fmt::Debug for OpenBlob {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -39,7 +39,7 @@ fn note_read(what: String) {
     VALUES_READ.with_borrow_mut(|v| v.push(what));
 }
 
-fn find<'a>(entries: &'a [(Cbor, Cbor)], key: &str) -> Option<&'a Cbor> {
+pub(super) fn find<'a>(entries: &'a [(Cbor, Cbor)], key: &str) -> Option<&'a Cbor> {
     entries.iter().find(|(k, _)| text(Some(k)) == Some(key)).map(|(_, v)| v)
 }
 
@@ -48,7 +48,7 @@ pub(super) fn get<'a>(map: &'a Cbor, key: &str) -> Option<&'a Cbor> {
     find(entries, key)
 }
 
-fn text(v: Option<&Cbor>) -> Option<&str> {
+pub(super) fn text(v: Option<&Cbor>) -> Option<&str> {
     match v {
         Some(Cbor::Text(t)) => Some(t.as_str()),
         _ => None,

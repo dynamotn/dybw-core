@@ -1942,9 +1942,9 @@ mod vectors {
     fn a_vector_that_fails_is_reported() {
         let files = Files::from_map(BTreeMap::from([("generated/bwss/a.json".to_owned(), "{".to_owned())]));
         let out = parse(&block_on(run_vectors_json(&files, &real())));
-        assert_eq!(out["results"].as_array().map(Vec::len), Some(3), "one entry per kind");
+        assert_eq!(out["results"].as_array().map(Vec::len), Some(Kind::ALL.len()), "one entry per kind");
         assert!(out["results"][0][1].as_str().is_some_and(|e| e.starts_with("generated/bwss/a.json: ")));
-        assert_eq!(out["failures"].as_array().map(Vec::len), Some(3));
+        assert_eq!(out["failures"].as_array().map(Vec::len), Some(Kind::ALL.len()));
     }
 
     #[test]

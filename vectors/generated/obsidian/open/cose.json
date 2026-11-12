@@ -1,0 +1,203 @@
+{
+  "id": "open/cose",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "cose",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": "folder-1",
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGNa0hoeMEhPeQ81qsK7OSVqGxUxm4NXxMlgwcpBOrFHquCjP3bYCWrDCxJ0ctbS1SFiZpCjabbYWiueSNgz+GgTDvBLFH2uO3U69",
+      "notes": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGPLrbSzw11PJZEXuDzaifVye7wDzG2TRh1gwlVYI5B3snq18P3ywukG14e5pMgT6BaE9AJ0r4NwQ3QbIzkM4JUp07NNO/6a/bIlu",
+      "login": {
+        "username": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGD6uA+sJ26KW3Xbyu9bChIgw5AbhOeKXvFgwHbsDf0kmUGb+hp8Gmi9gG1kPeDTtDlz2L/cyjVQypHPSIRDUyTOwxeRoobvf9gej",
+        "password": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGCVLgxpFosUomz5rS6qYzt01OHOFBRdykFgwaW84cY6vcGPOjrMw3EwC14AvDeXRQ6YrrztODZC5zm/5Sb7Xmp0mQm2rPx4yF0BH",
+        "uris": [
+          {
+            "uri": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGF5UAKzzoC8VfLGmi7Kaha5dc5cXtbPDHFgwN7MFDY2xJuN5WSY65WMq8eQkohTNl0ZogIibJPEnglKdrCPBOU6FPHZl6ooq3Iaa",
+            "match": null
+          },
+          {
+            "uri": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGEiYLTR6sL0yF82wT0crZzXglH2VoFUM2Vgw48/zJvsh6ZFfFYD9K4C9T+iCYXrhzZ8wk2PIFI2ERm6GDqa0eyWnJdXkzFod2UE6",
+            "match": 0
+          },
+          {
+            "uri": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGEH28G65oLiFehp/phLIHFYCSjcwyVP05FgwXPkwmMsA/bexOBsvrBkRHhrZbsHX7DQLinH8N/NPBOdnMun29/X0Mn8+ZQIfAiiR",
+            "match": 4
+          }
+        ],
+        "totp": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGOw0BbeX8vTnw0m+bxHWHP6Smo4Nif3hhVhQX3R5E6N56Ga8NPvb0MXdCZCE/jDuuoYg/1pcL3b45rrmf+S4E+KffiB6/TYQ3ONmKtwPLfBE+0A0x4cds0Cf/50CzggDGL2imoWLzMkAwUM="
+      },
+      "fields": [
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGMCaJPTFLWPXbsUMUDvRO4o1JUWFTJLG8VgwV5wiN8++1QfVdrTPZ46GiVop9HNNQ14EyLgTgH2ZGR59opz0fVkNrVCNtFKm9tJa",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGCN51Y6YUwnsM7nilELIVQWOkFiLeLDQXFgwgaU+uTyAH/dYuQHRbRw3MCxsMFQdm1gJ0HclGRY8ZKkEpuE+wHUseDkUG5Hdsot+",
+          "type": 0
+        },
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGJVALdrs1OhVye4CTmobVoa88N4IDt7+lVgwuRuZ46AfKganXEOW9e78qUiK5JMY6ivqhGlDe4OU3UhMNSD/4mbFZ6AswXw61Oob",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGCa93EofOWvMsPHAntRaHwGh6nTP3INr+Fgw8fV9uk3TaCO5Pvk1et1hExT/IMLao2j/nk+UEwvvWNUSJKWKsiRiyhiv/WQ93K5x",
+          "type": 1
+        },
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGELUlxOAJth5NK3gJacM1wx9aL4UYe8kLFgwszbJxneA5jQtpFKb0ya4YpEoxtxid7oEIFqC42vghL0oM+5dJwgc7txK4bDfGlkv",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGHTFkLvN3dezi9RGSN95EOWDfZaHKAmielgwFnGxqw5uia+lDAhid/4TQOl5KmiryPj6yqhDx7u2RmcrGDkArG7v9Rr4LZpG/uW3",
+          "type": 2
+        },
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGGxc379DEu5GV4A+gsdirYES7Y3pbFr4iVgwJKxqD1cMGkSAE+Gf4SB4tSCtKSoTDtaDRfp46vxHNoJUHcgJ76XEvbMhXk0NchX2",
+          "value": null,
+          "type": 3,
+          "linkedId": 100
+        },
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGM3x+SVfSRgAQe+QotbwMNGi8booZyUXh1gw0XwRAJzLphGplGwvRbic+OjMAEi61X/L2Bx4/6Bbh1oQIYL03+gS75W0SuDKf7v8",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGO4qdpsHHUuCnEhieQy9w/cmlNC62n7ABFgwvGB5HCUTREtFvQUq14bJ9bO8XQGn/WCVMvuI3PV8GGHs4Z+IR1o6GOA4z36ViI3w",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [
+        {
+          "password": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGCImU/cagrH2snocZD9tHS5+NBnSzqFsEFgwSV0Paaxnd7AVn+wJa+H93dfaH7mUeD4y99DSNqpAKRhm4pNJ8xwjYrHb3vPl8xLO",
+          "lastUsedDate": "2025-02-01T00:00:00Z"
+        },
+        {
+          "password": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGBiL4WEx5N/NizscLYOy77hVXjHxZ2zQ6lgw9VJp5l58beteZa8VfYYLO8ptiFSm/uWeBY1pFA+4QaeCwCgObYR1pBLw0dYEJKcx",
+          "lastUsedDate": null
+        }
+      ],
+      "reprompt": 1
+    },
+    {
+      "id": "k1",
+      "type": 3,
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGInlsvNuN9niaTMZ/tU82xVyf30x8dIF81gwviuVsZHNy08l25Xgn5ySyndVfBSPzosUz3AkzH6YaMcgtI9YGFG0veHglIkn8QcD",
+      "notes": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGKsCSo5fd36vn95OwWCTHxH/3+uidU/UwFgweNN1qC4rceb5WuFqhaHbJzyQvzC0iEHZA0960u/gVD7knrHbJ3DHuxDrConX/p+a",
+      "card": {
+        "cardholderName": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGJA2LAtZDqb74zE6b6MMpnQKFw81EVcZYVgwSVhGbnDM6DttFbO+X4O2z7AQ8bvwWzSL3uWOAQ8HgeuDJXAuQDw1RyAFEfDEynbE",
+        "brand": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGN1UqY97nHGbaYlAHgrxzkvo+vcI8PYazlgwE5I/jrB8uxkvBptGBoVbCoxSohRiZsPqKC1WirtTrLACq1EcomgQDhCs8tmwf+hL",
+        "number": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGKa0pABP7ia9Z/nejC2WD2heynGEO3anAVgwREzLIMYR/sdadKpaJIUb4VjovBUfuoHpdxEA9IoX8qxXw+QO/j0qwZxAlj9Up37k",
+        "expMonth": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGHBBJzFU8EbXTbGXoM4qCVTCcG29S1QNSFgwIdgAjl6MuAAQacSpFWksdJT8bzXWNPM4VD6M5h/VUsCsnj+tsxEbitKJPzjGkjfZ",
+        "expYear": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGKhD4UyIGR/Dz7AuUxa6k+FD+jPSwtW++1gwwabMTs+Q9YCVLxi0GPPNoh9mjkK31Nn+6upt9bJ5FahUPtJ/XalIlCKp/gUoYQOx",
+        "code": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGHi09lnrIhglATfEP0YYyVLKMTehhezqoVgwwYlPOPOsaKRmgy7nslzDEI6pJt1yEYal96vI6tGID6Ihj550CtPdG8WvnYICdY/1"
+      },
+      "fields": [
+        {
+          "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGJpZwvT/bIj49sK+hr2swrABY+kJVombI1gwR6AcK4fq2hwgPLNrqQXDDeLA93RET2AOWubGsVyo7ob+VUhNMMKLTMrLsrrxuku6",
+          "value": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGOiQ9U1F77Pdy/Zaj1rTUjnza4wz3+9i4lgwF2xqzcLd8BnqH16w3sdwOglgLk7v3wDMhy34tl1yEjhpiM7dOtl8xCRLTs2oe4Hc",
+          "type": 1
+        }
+      ],
+      "reprompt": 1
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "c1",
+        "item": {
+          "type": 1,
+          "name": "Mail ünï 😀",
+          "notes": "line 1\nline 2",
+          "folderId": "folder-1",
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "text",
+              "value": "shown",
+              "type": 0,
+              "linkedId": null
+            },
+            {
+              "name": "hidden",
+              "value": "kept-secret",
+              "type": 1,
+              "linkedId": null
+            },
+            {
+              "name": "flag",
+              "value": "true",
+              "type": 2,
+              "linkedId": null
+            },
+            {
+              "name": "linked",
+              "value": null,
+              "type": 3,
+              "linkedId": 100
+            },
+            {
+              "name": "",
+              "value": "",
+              "type": 0,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [
+            {
+              "password": "old-2",
+              "lastUsedDate": "2025-02-01T00:00:00Z"
+            },
+            {
+              "password": "old-1",
+              "lastUsedDate": null
+            }
+          ],
+          "login": {
+            "username": "me@example.invalid",
+            "password": "pw-ünï-😀",
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "uris": [
+              {
+                "uri": "https://a.example.invalid",
+                "match": null
+              },
+              {
+                "uri": "https://b.example.invalid",
+                "match": 0
+              },
+              {
+                "uri": "^https://c\\.example\\.invalid/",
+                "match": 4
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cipher": "k1",
+        "item": {
+          "type": 3,
+          "name": "Visa",
+          "notes": "card notes",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [
+            {
+              "name": "pin",
+              "value": "0000",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": [],
+          "card": {
+            "cardholderName": "Ann Example",
+            "brand": "Visa",
+            "number": "4111111111111111",
+            "expMonth": "12",
+            "expYear": "2030",
+            "code": "123"
+          }
+        }
+      }
+    ]
+  }
+}

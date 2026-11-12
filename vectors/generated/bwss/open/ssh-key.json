@@ -1,0 +1,70 @@
+{
+  "id": "open/ssh-key",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "s1",
+      "type": 5,
+      "key": "2.dqO2PMwOMaJ+QamGoP5Tqw==|1M8gqC7haK+hxDOmfKUSHS7k623i/MJxdBSjwVwlCnKQZyA6egY6Aj8Ma410I/sho0lOqkjB93F2L7oxCI3mCpGrRrw2TDzPqaz4WFyvjR8=|nzArdKgpHtSfzwhJTh9LGSpYhQGGbsW8DcClXlJQzoA=",
+      "name": "2.gax20bg3MqwVZpwUkwziMg==|ch0jHT/T21It1DHOJTfzUQ==|sWah1wI9I9CuW3B0q+XZV/II38n7hiyIUoiGF8iEAt4=",
+      "sshKey": {
+        "privateKey": "2.AtBTLL/Es4FkaBebGhT9XA==|nEWkqEoOXHhY53AikoAgNAHv4kG7eJpXuFHjZMRQW/QLmO/M8lUSMAIrfm+kt1vboWLdjd5FgDugjDV+WZMbPhxWSoBQxav5HYazqfA7+RW0hG3zHBqfkZylMbSoS+AU|jhUTbVVpVf3LFiqjS/8d9QDmrhkF9PE6HoQIEgsA9+0=",
+        "publicKey": "2.LAaMsJHx5jmMlxw39c00XA==|e+RvTaJQWuxqf6BeUuJEfhv9iSnJ/e5JcZMyuzUxNJb78+Be28JUjXVlRqIQUTZ2keFvptEOyeCokb43XZgwzw==|vctD15uchXF7k1fceEtBHsrujoYcTkmQiWRSswuL9wU=",
+        "keyFingerprint": "2.gHrC5IJhf6xoUW2LmtXIog==|0Ikq2HX0+/BjZ9lM+YbfHfRN8J2pnr1b63fb9VCnALbUoML4cEqNVuMsz/79W7p7U8+9pKdYuYogrgpxRJWvdA==|VI2uuYeyLlb8f4rNv0Yml10RbmVSd8IlQBV3nNnduhs="
+      },
+      "reprompt": 1
+    },
+    {
+      "id": "s2",
+      "type": 5,
+      "name": "2./kc0Jdg2YrVY8P7xJl/rQQ==|hcpfiSW+gTqxVVbsfblLJg==|2KDH/VJb6O4XuobliTKgTAVau/7UQ97v15IP8dkYjNk=",
+      "sshKey": null
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "s1",
+        "item": {
+          "type": 5,
+          "name": "Deploy key",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": true,
+          "fields": [],
+          "passwordHistory": [],
+          "sshKey": {
+            "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n-----END OPENSSH PRIVATE KEY-----",
+            "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI deploy@example.invalid",
+            "fingerprint": "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+          }
+        }
+      },
+      {
+        "cipher": "s2",
+        "item": {
+          "type": 5,
+          "name": "No part",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "sshKey": {
+            "privateKey": null,
+            "publicKey": null,
+            "fingerprint": null
+          }
+        }
+      }
+    ]
+  }
+}

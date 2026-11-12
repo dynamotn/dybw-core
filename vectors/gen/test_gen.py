@@ -1071,7 +1071,7 @@ def test_blob_tamper_breaks_only_the_named_part():
 def test_blob_is_rejected_where_it_cannot_be_written():
     account = gen.load_account("cose-v2")
     for over, why in (
-        ({"type": 3}, "login or a secure note"),
+        ({"type": 9}, "known type"),
         ({"tamper": ["name"]}, "not encrypted"),
     ):
         src = gen.expand_ns({**BLOB_FIXTURE["ciphers"][0], **over}, "bwss")
@@ -1196,3 +1196,70 @@ def test_secure_note_part_may_be_missing():
     for bad in ({**note, "type": 1}, {**note, "format": "blob"}):
         with pytest.raises(gen.GenError, match="secureNote needs a type 2 cipher in format fields"):
             enc({**bad, "secureNote": None})
+
+
+TYPED = {
+    "id": "t1",
+    "type": 3,
+    "name": "Card",
+    "card": {"cardholderName": "A B", "number": "4111", "code": None},
+    "fields": [{"name": "l", "value": None, "type": 3, "linkedId": 300}],
+    "reprompt": 1,
+}
+
+
+def test_typed_parts_round_trip_and_tamper():
+    account = gen.load_account("pbkdf2")
+    for part, typ, values in (
+        ("card", 3, TYPED["card"]),
+        ("identity", 4, {"firstName": "Ann", "ssn": None}),
+        ("sshKey", 5, {"privateKey": "k", "publicKey": "p", "keyFingerprint": "f"}),
+    ):
+        src = {k: v for k, v in TYPED.items() if k != "card"} | {"type": typ, part: values}
+        cipher = gen.encrypt_cipher(src, account, "open/t", "bwss")
+        assert cipher["reprompt"] == 1 and cipher["fields"][0]["linkedId"] == 300
+        assert all(v is None or v.startswith("2.") for v in cipher[part].values())
+        plain = gen.decrypt(cipher, account)
+        assert plain[part] == values and plain["reprompt"] == 1
+        assert plain["fields"] == [{"name": "l", "value": None, "type": 3, "linkedId": 300}]
+    cipher = gen.encrypt_cipher({**TYPED, "card": None}, account, "open/t", "bwss")
+    assert cipher["card"] is None
+    tampered = gen.encrypt_cipher({**TYPED, "tamper": ["card.number"]}, account, "open/t", "bwss")
+    with pytest.raises(ValueError):
+        gen.decrypt(tampered, account)
+
+
+def test_uri_match_types():
+    account = gen.load_account("pbkdf2")
+    login = {"username": None, "password": None, "totp": None, "passwordHistory": []}
+    uris = ["https://a.invalid", {"uri": "https://b.invalid", "match": 3}]
+    src = {"id": "l1", "type": 1, "name": "L", "login": {**login, "uris": uris}}
+    cipher = gen.encrypt_cipher(src, account, "open/t", "bwss")
+    assert [u["match"] for u in cipher["login"]["uris"]] == [None, 3]
+    assert gen.decrypt(cipher, account)["login"]["uris"] == uris
+    v2 = gen.load_account("cose-v2")
+    blob = gen.encrypt_cipher({**src, "format": "blob"}, v2, "open/t", "bwss")
+    assert gen.open_blob(blob, v2)["content"]["typeData"]["uris"] == [
+        {"uri": "https://a.invalid", "match": None},
+        {"uri": "https://b.invalid", "match": 3},
+    ]
+
+
+def test_typed_blobs_follow_the_sdk_shape():
+    account = gen.load_account("cose-v2")
+    ssh = {
+        "id": "s1",
+        "type": 5,
+        "name": "S",
+        "format": "blob",
+        "reprompt": 1,
+        "sshKey": {"privateKey": "k", "publicKey": "p", "keyFingerprint": "f"},
+    }
+    cipher = gen.encrypt_cipher(ssh, account, "open/t", "bwss")
+    assert cipher["reprompt"] == 1 and "sshKey" not in cipher
+    content = gen.open_blob(cipher, account)["content"]
+    assert content["typeData"] == {"type": "sshKey", "privateKey": "k", "publicKey": "p", "fingerprint": "f"}
+    card = gen.encrypt_cipher({**TYPED, "format": "blob"}, account, "open/t", "bwss")
+    content = gen.open_blob(card, account)["content"]
+    assert content["typeData"] == {"type": "card", "cardholderName": "A B", "number": "4111", "code": None}
+    assert content["fields"] == [{"name": "l", "value": None, "type": 3, "linkedId": 300}]

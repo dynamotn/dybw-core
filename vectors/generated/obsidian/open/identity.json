@@ -1,0 +1,118 @@
+{
+  "id": "open/identity",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "i1",
+      "type": 4,
+      "key": "2.hnFIcdFx/X2G4jln26IVDQ==|LgOsWiJkWTKEN5CnzKqbEz3YX5wpkc7zVMC7lPc5i5kEj4xvAPGfAMixZ2SRWahYNg30Inhk98MvlUWkyAvr3EFh3soI2QnuAvi2Sna/OJs=|qVMlkmXE2UA/byuXeNPtJMQp4gEnl9YMkMn0eN5APcU=",
+      "name": "2.zWOJE2NWau8ZLeKZwlEZKQ==|BfkUIhl2l7ox+/fhYhKwYQ==|Rr0Gw5IemQChAmse4VCe2lynejeB3txgyyeR2D02QsI=",
+      "identity": {
+        "title": "2.dfm7UOO8mXBeuxBF6xuzNw==|estq6W9dxOjYbPQZfK9i4g==|to5WLbIUhA8EjFlahR6MMF7E7/u1TkUM4MpqJC0DgXU=",
+        "firstName": "2.7uI6fRBBiPw83jdJF4EEGA==|ZUiQzX9fe4qI+2uhfvlozQ==|wEts34dSktIFUatV0pyG6F89XOVmFFRsR4k0Jw/aeGw=",
+        "middleName": "2.77PIShjJ2yjaJJFSnp5Jew==|YCel5twbMHmMA+f/GQn8ImxsA0lfC898PEVtez7qRpI=|msLXFDC4IsAHU/gN4/lUvdNy4hQDJAxWIFfW5lfN6Mg=",
+        "lastName": "2.wrQzNhNAy3iPwvS2WYiVLg==|7uYtbBBRh4+2nLTr1X2s5g==|DOUar6tIVA4MZvgC5mhPMcCA+fISjX6L4iiWXqSrEn4=",
+        "address1": "2.F7h5NBI4yDF1+Dbgi/IRrw==|u72dkomWJPrOKdwT+Ak1CQ==|UFOmh/xd1L9l3oKDlNEeMV3tXKaLIdW0XCVslvYLcDI=",
+        "address2": "2.vMWFytyLcUlEalpbKHsAYw==|Wpi6EdN+5PaBWZvEVWsCSg==|wbVpmHAPRVvMlOg9OMz3lVEyAj4TNFYhq9iy5rQIDts=",
+        "address3": "2.rNFnXCr3ro5cMh/xbME74Q==|Y5BsZBNq8ewSJMc5DEKyQA==|8JuP3pPLPLc+VM6b52Yyr38bOQda0wBE4y2cL3W52aQ=",
+        "city": "2.GEArkw3rwNdCfuOUv4CogQ==|uY3/e135C3vuP06k30oBsA==|8yn3v3frRgoRKc2x5C8M3YxFU6d3b724MxejfyfWQs0=",
+        "state": "2.7GZEhRYSQXbTjHTRMBf7aA==|u9NbJKjA4fTeCSUWkdVy3Q==|hnKGGRZTHAyh1CUfZQ2qLJkaePMpkd8+lDohgH5ZbMM=",
+        "postalCode": "2.D47xaDsDcYqBrcAUxciecg==|iodkv8wqAmU0Z0XYljMMhHr9Egc9s7ouNazMfb8KJb8=|LUDl+jfFx8gt9frWIB3vJp0aobXr+EMUh45NOoJNLG8=",
+        "country": "2.5NGTv3PSXiD+q2rsfAZJsA==|5tfL6vgQssZevWSAa+5Rdw==|L/D/ZDYynOfb7BvNjkUJz4RUr8SNdkMhcw/uNYDgSjA=",
+        "company": "2.MZmhECTYV71a3SS7Pb0giw==|dVJKCCQA9TPDc8l7nEeCig==|FxbDXk03Iv5S7/vfFm4ynw67c6L848C/b6IHc+OIV8M=",
+        "email": "2.HEl8EaOqtbq5vpF9kIDHYg==|uSBrDnr+LUVQHzMPqAcUbg==|aMFxHG8bk7p4WJJCDayWs2Jf7aJB0bOCoZ4zwdn/RUo=",
+        "phone": "2.9EHr/3xaAF9+AXI3M3yOcQ==|tnS3lHSpavSCEXkF2WEtrg==|HjWb9uTukaXznftlfesPJv+90LJ7z2aKXp1RQuj09aU=",
+        "ssn": "2.nLn+R9eCInAX6rxLHjZ2BQ==|+O0ciR6GLOjczjw7TEbh1A==|HDQDda4B79nG17QS9bb9sk2N44CHVFJpTnRGQC/vUiw=",
+        "username": "2./Slz8A7nGxhFS19GZ2o0mg==|JYE4gkTZFqdkebyLLnIk4w==|1y2dw287Au68ibQtt9QaMu1g3nukh01DvnODfRtIi7Q=",
+        "passportNumber": "2.xVB3Bg4tgLrxP0ACOsQPyg==|HSQLqlgDVd5FbFwon+cS7QE644FzFTGTgt/7cCxTmEI=|BfmSFyQj3ZcXQJyWtJDi47JHZOKBs8CbBMTFRVpU9RI=",
+        "licenseNumber": "2.LX+AafFtYnKZnPmnMk0u5A==|RA0fM8wGAR9ZvZ09pFxPDiQB1sAVRUQApnKuoMieEDU=|ubnwi2/5NroWQELGOfJJRook+85Lb7AbHW0ycGHSRc4="
+      }
+    },
+    {
+      "id": "i2",
+      "type": 4,
+      "name": "2.RgW1m7a9gUklBn6K/yvv+w==|91f3aDYc0jLYjw2CxNUZyw==|n27ItAhlqSGPSWeCa0Gy7QoXm8uptTxsBGW/hYEvPTY=",
+      "notes": "2.xhef4sIOJM9QltATrTz5cQ==|dNSV6ZOJP1o2UTpI/7F1XQ==|Kj7jx7x7anQLTya+iqI6+GrKTWpdQ0bJKRikFTthAM8=",
+      "identity": {
+        "firstName": "2.SLVp0O9/omYUw/pR4yTzvg==|1NGBw//IgcYDJKk3osJB8g==|i5cs/929XOez9VOpsRC1VnnCTje7uhfk/rNA2Uuvqgg=",
+        "ssn": null
+      }
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "i1",
+        "item": {
+          "type": 4,
+          "name": "Me",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "identity": {
+            "title": "title-value",
+            "firstName": "firstName-value",
+            "middleName": "middleName-value",
+            "lastName": "lastName-value",
+            "address1": "address1-value",
+            "address2": "address2-value",
+            "address3": "address3-value",
+            "city": "city-value",
+            "state": "state-value",
+            "postalCode": "postalCode-value",
+            "country": "country-value",
+            "company": "company-value",
+            "email": "email-value",
+            "phone": "phone-value",
+            "ssn": "ssn-value",
+            "username": "username-value",
+            "passportNumber": "passportNumber-value",
+            "licenseNumber": "licenseNumber-value"
+          }
+        }
+      },
+      {
+        "cipher": "i2",
+        "item": {
+          "type": 4,
+          "name": "Partial",
+          "notes": "n",
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": [],
+          "identity": {
+            "title": null,
+            "firstName": "Ann",
+            "middleName": null,
+            "lastName": null,
+            "address1": null,
+            "address2": null,
+            "address3": null,
+            "city": null,
+            "state": null,
+            "postalCode": null,
+            "country": null,
+            "company": null,
+            "email": null,
+            "phone": null,
+            "ssn": null,
+            "username": null,
+            "passportNumber": null,
+            "licenseNumber": null
+          }
+        }
+      }
+    ]
+  }
+}

@@ -161,6 +161,23 @@ pub struct Expect {
     pub write: Option<WriteExpect>,
     #[serde(default)]
     pub plan: Option<Vec<PlanEntry>>,
+    /// One cipher opened whole, and summarized, by a vault client (`vault::item`).
+    #[serde(default)]
+    pub open: Option<Vec<OpenExpect>>,
+}
+
+/// The opened item as plaintext JSON, or the reason it does not open. `summary`, when absent, is the item's (its
+/// type, name, a login's username, its folder), or the same error.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpenExpect {
+    pub cipher: String,
+    #[serde(default)]
+    pub item: Option<Value>,
+    #[serde(default)]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub summary: Option<Value>,
 }
 
 /// The scan of a read, or the error that stopped it with the requests that were sent first.

@@ -1,0 +1,72 @@
+{
+  "id": "open/unknown-type",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "u1",
+      "type": 9,
+      "folderId": "f",
+      "name": "2.+PWD+cg4QstMtyqKXVTVNw==|RU1ZkDOC4ycHYZLnmOJh6g==|ZX7Umhqe9BGUTFvIRCb8pnBFxx4oixKci5M4gjszT2A=",
+      "notes": "2.9nLWLdP1PjFCc0PF1t/PMw==|y1tRCPuAkBFqbPOT6nsnfEVs7Zjbj7yPYwzLtY/ind8=|kRTpFwfNmXmRQ0szmbNCD5OymL74EhjzWTJeiM54WPc=",
+      "fields": [
+        {
+          "name": "2.yi29SaPvubBQYz/lU5G8Bg==|kF5G5Aa8L664AfCaMtqi0Q==|zUQb+8F2xhCHHvnuC8G/qW467UeIb9Hfl1FEtWwNCBo=",
+          "value": "2.QjWRIX3Na+Sz2nsg1VOGfw==|28HP+gezA9NWPdlEXq+Mwg==|EDgV09OX24v23CX7zTJmYfOb+XabN+xU461kI2U0YJk=",
+          "type": 1
+        }
+      ],
+      "xBankAccount": {
+        "k": "v"
+      }
+    },
+    {
+      "id": "u2",
+      "type": 6,
+      "key": "2.SIKDxntvHmGIpvAmsE1MrA==|Y/kHQFuHir3VeQDkfhiZw103dx1EQV3ku6AoYYY0dIjRwhyRkZgcvujfg3Hkp1UyG6dDopjSQu3W0dqizbwpRq5vP7qrhX5IuTznmS0DblI=|FpkwOU6mf7zewxUaSG5sQ4bm3uzdxPA0pKZMVqU9y20=",
+      "name": "2.QdQ+SRTIsZxjcugYhq29+A==|blaszcTepSg1jLBMrvNGWg==|cUr2VCyjC+pVKZZA9emI8sI69/GJXDR/Uy+TyY0E/aM="
+    }
+  ],
+  "expect": {
+    "open": [
+      {
+        "cipher": "u1",
+        "item": {
+          "type": 9,
+          "name": "Bank account",
+          "notes": "a type from a newer server",
+          "folderId": "f",
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [
+            {
+              "name": "iban",
+              "value": "XX00 0000",
+              "type": 1,
+              "linkedId": null
+            }
+          ],
+          "passwordHistory": []
+        }
+      },
+      {
+        "cipher": "u2",
+        "item": {
+          "type": 6,
+          "name": "Passport",
+          "notes": null,
+          "folderId": null,
+          "organizationId": null,
+          "reprompt": false,
+          "fields": [],
+          "passwordHistory": []
+        }
+      }
+    ]
+  }
+}

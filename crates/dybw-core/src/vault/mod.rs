@@ -3,6 +3,7 @@
 
 mod blob;
 pub mod fields;
+pub mod item;
 pub mod namespace;
 pub mod orgs;
 pub mod scan;
@@ -61,3 +62,7 @@ mod blob_tests;
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod write_tests;
+
+#[cfg(test)]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod item_tests;

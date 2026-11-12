@@ -33,7 +33,7 @@ One JSON object per file.
 | `device` | object, optional | The device's sync state, below |
 | `local` | object, optional | `{ id: string \| null }`: the device's local values. An absent id and `null` both mean no local value; `""` is a value. Sync scenarios still write `null` for every id they plan for |
 | `operation` | object, optional | The write the tool performs, below |
-| `expect` | object | At least one of `read`, `write`, `plan`, below |
+| `expect` | object | At least one of `read`, `write`, `plan`, `open`, below |
 
 ### Plaintext cipher
 
@@ -42,23 +42,25 @@ Only `id`, `type` and `name` are required. An absent key means its default.
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `id` | string | | Cipher id |
-| `type` | 1, 2 or 3 | | 1 login, 2 secure note, 3 card (a card is skipped as `wrong-type`) |
+| `type` | integer ≥ 1 | | 1 login, 2 secure note, 3 card, 4 identity, 5 SSH key; any other is a type the core does not know. A read skips every type but 1 and 2 as `wrong-type` |
 | `name` | string | | |
 | `notes` | string or `null` | `null` | `null`, `""` and a text are three different states |
-| `login` | object or `null` | `null` | `{ username, password, uris: [string], totp, passwordHistory: [{ password, lastUsedDate }] }`; `username`, `password`, `totp` may be `null` |
+| `login` | object or `null` | `null` | `{ username, password, uris: [string \| { uri, match }], totp, passwordHistory: [{ password, lastUsedDate }] }`; `username`, `password`, `totp` may be `null`; a URI given as a string has no match type (`match: null`) |
+| `card`, `identity`, `sshKey` | object or `null` | absent | The typed part of a type 3, 4 or 5 cipher, as the server names its keys: card `cardholderName brand number expMonth expYear code`, identity `title firstName middleName lastName address1 address2 address3 city state postalCode country company email phone ssn username passportNumber licenseNumber`, SSH key `privateKey publicKey keyFingerprint`. Each value is a string or `null`, a key left out is absent. In a blob it becomes `typeData` (`{"type": "card" \| "identity" \| "sshKey", ...}`, the SSH fingerprint as `fingerprint`, the SDK's name) |
+| `reprompt` | 0 or 1 | absent | Emitted as is, outside the blob for a blob cipher |
 | `secureNote` | `null` | `{ type: 0 }` | 1.6, type 2 in format `fields` only: `null` is a server copy that lacks its secure note part |
-| `fields` | array or `null` | `null` | `[{ name, value, type: 0 \| 1 }]`, in order; `null` and `[]` differ |
+| `fields` | array or `null` | `null` | `[{ name, value, type: 0 \| 1 \| 2 \| 3, linkedId? }]` (text, hidden, boolean, linked), in order; `null` and `[]` differ; `linkedId` (integer or `null`) is emitted only when given |
 | `folderId` | string or `null` | `null` | |
 | `organizationId` | string or `null` | `null` | |
 | `itemKey` | bool | `false` | `true` gives the cipher a per-item key |
-| `format` | `"fields"` or `"blob"` | `"fields"` | `"blob"` (1.6) seals the cipher as Bitwarden's blob form, below. A blob cipher is a login (`type` 1) or a secure note (2), and always has an item key (`itemKey` is forced `true`), wrapped under the organization key when `organizationId` is set (an organization blob, which the SDK never writes, exists only to be held as uninspectable) |
+| `format` | `"fields"` or `"blob"` | `"fields"` | `"blob"` (1.6) seals the cipher as Bitwarden's blob form, below. A blob cipher is of a known type (1 to 5), and always has an item key (`itemKey` is forced `true`), wrapped under the organization key when `organizationId` is set (an organization blob, which the SDK never writes, exists only to be held as uninspectable) |
 | `formatVersion` | int | `1` | Blob only: the `format_version` of `data`. A value other than 1 writes a newer format |
 | `contentVersion` | string | `"1"` | Blob only: the `version` of the sealed CBOR content. Another value writes a newer content version |
 | `blobExtra` | object | `{}` | Blob only (1.6): unknown keys of the sealed `CipherBlobV1`, added after its known keys, verbatim. Every key must match `^x[A-Za-z0-9]+$`; a write must keep them (ADR 0021) |
 | `creationDate`, `revisionDate`, `deletedDate` | ISO 8601 or `null` | `null` | |
 | `edit`, `viewPassword` | bool | `true` | Organization permissions |
 | `pascalCase` | bool | `false` | `true` emits the server keys in PascalCase |
-| `tamper` | array of paths | `[]` | Source only, never emitted: each listed string is encrypted, then the first byte of its MAC is flipped, so it fails the MAC check. Paths are `name`, `notes`, `key` (the wrapped item key), `login.username`, `login.password`, `login.totp`, `login.uris[i].uri`, `login.passwordHistory[i].password`, `fields[i].name`, `fields[i].value`; each must be a string the cipher actually encrypts. A blob cipher accepts only `envelope` (one ciphertext byte of the sealed envelope flipped, so it fails its AEAD) and `wrapped_cek` (the first MAC byte of the wrapped content key flipped) |
+| `tamper` | array of paths | `[]` | Source only, never emitted: each listed string is encrypted, then the first byte of its MAC is flipped, so it fails the MAC check. Paths are `name`, `notes`, `key` (the wrapped item key), `login.username`, `login.password`, `login.totp`, `login.uris[i].uri`, `login.passwordHistory[i].password`, `fields[i].name`, `fields[i].value`, `card.<key>`, `identity.<key>`, `sshKey.<key>`; each must be a string the cipher actually encrypts. A blob cipher accepts only `envelope` (one ciphertext byte of the sealed envelope flipped, so it fails its AEAD) and `wrapped_cek` (the first MAC byte of the wrapped content key flipped) |
 | `extra` | object | `{}` | Unknown properties, passed through verbatim. Every key must match `^x[A-Za-z0-9]+$` (the `x` convention), so it can never collide with a known key |
 
 ### `device`
@@ -165,6 +167,24 @@ change to `fresh`.
   requires a feature the tool does not implement (`dybw:requires`, ADR 0020),
   so nothing is sent. 1.6 adds a third form, `{ "question": "first-write-back" |
   "evicts-foreign-history" }`: nothing was sent, and the tool must ask.
+- `open` (1.6, ADR 0025): `[{ cipher, item | error, summary? }]`, what a vault client
+  reads of one cipher, whatever the namespace (`vault::item`), with the account's
+  user key and, under `options.organizations`, its organization keys.
+  - `item` is the cipher opened whole, as plaintext: `{ type, name, notes, folderId,
+    organizationId, reprompt (bool), fields: [{ name, value, type, linkedId }],
+    passwordHistory: [{ password, lastUsedDate }] }` plus the typed part: `login`
+    `{ username, password, totp, uris: [{ uri, match }] }` for type 1, `card`,
+    `identity` (every key listed above, `null` when absent) or `sshKey`
+    `{ privateKey, publicKey, fingerprint }`. A secure note and a type the core does
+    not know have no typed part. An absent string is `null`.
+  - `error` is why the cipher does not open: `too-large`, `organization-key-missing`
+    (an organization the account did not unlock), `item-key`, `value` (any other
+    string fails to decrypt), `newer-format` (an organization blob, or a newer blob
+    format) or `blob`. Nothing of the item is returned with it.
+  - `summary` is what `list` decrypts: `{ type, name, user, folderId }`, `user` a
+    login's username, else `null`. When absent it is taken from `item`, or is the
+    same `error`; it is given when it differs, as when a tampered value lies
+    outside the name and the username.
 - `plan`: `[{ kind, id }]` sorted by `id`, with `kind` one of `pull`, `push`,
   `adopt`, `clear-local`, `forget`, `create`; or
   `{ kind: "conflict", id, conflict }` with `conflict` one of `both-changed`,
