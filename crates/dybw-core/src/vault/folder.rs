@@ -9,7 +9,8 @@ use std::fmt;
 use zeroize::Zeroizing;
 
 /// The folders of a `/sync` response by id. A name that does not decrypt keeps its id and holds the reason, so a
-/// caller can show the folder as unreadable. An id the sync lists twice is unreadable too: no name is picked. No `Clone`; `Debug` shows only the ids; every name is wiped on drop.
+/// caller can show the folder as unreadable. An id the sync lists twice is unreadable too: no name is picked.
+/// No `Clone`; `Debug` shows only the ids; every name is wiped on drop.
 pub struct FolderNames(BTreeMap<String, Result<Zeroizing<String>, Uninspectable>>);
 
 impl FolderNames {
