@@ -302,17 +302,29 @@ impl Prompter {
         Conversation::start(&self.program, self.env).await
     }
 
-    /// Asks for a password; `None` when the user cancelled.
+    /// Asks for a password with bwss's wording; `None` when the user cancelled.
     pub async fn password(
         &self,
         description: &str,
         error: Option<&str>,
     ) -> Result<Option<Zeroizing<String>>, PromptError> {
+        self.ask_password("Unlock keyring", "Master password:", description, error).await
+    }
+
+    /// Asks for a password under a caller-set `title` and `prompt`; `None`
+    /// when the user cancelled. Every text is sanitised like `description`.
+    pub async fn ask_password(
+        &self,
+        title: &str,
+        prompt: &str,
+        description: &str,
+        error: Option<&str>,
+    ) -> Result<Option<Zeroizing<String>>, PromptError> {
         tokio::time::timeout(self.timeout, async {
             let mut c = self.start().await?;
-            c.set("SETTITLE", "Unlock keyring").await?;
+            c.set("SETTITLE", title).await?;
             c.set("SETDESC", description).await?;
-            c.set("SETPROMPT", "Master password:").await?;
+            c.set("SETPROMPT", prompt).await?;
             if let Some(e) = error {
                 c.set("SETERROR", e).await?;
             }
@@ -356,9 +368,19 @@ impl Prompter {
     /// Asks whether an application may use an item. Without `offer_always`
     /// there is no second question: the answer is `Once` or `Deny`.
     pub async fn confirm(&self, description: &str, offer_always: bool) -> Result<Confirm, PromptError> {
+        self.ask_confirm("Keyring access", description, offer_always).await
+    }
+
+    /// [`Self::confirm`] under a caller-set `title`.
+    pub async fn ask_confirm(
+        &self,
+        title: &str,
+        description: &str,
+        offer_always: bool,
+    ) -> Result<Confirm, PromptError> {
         tokio::time::timeout(self.timeout, async {
             let mut c = self.start().await?;
-            c.set("SETTITLE", "Keyring access").await?;
+            c.set("SETTITLE", title).await?;
             c.set("SETDESC", description).await?;
             c.set("SETOK", "Allow").await?;
             c.set("SETCANCEL", "Deny").await?;
@@ -498,6 +520,37 @@ mod tests {
             error_of(p.password("d", None).await).as_deref(),
             Some("prompter protocol error: Broken pipe (os error 32)")
         );
+    }
+
+    #[tokio::test]
+    async fn the_caller_sets_the_title_and_prompt_and_the_old_helpers_keep_theirs() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pinentry");
+        let body = "#!/bin/sh\necho OK\nwhile IFS= read -r l; do\n  printf '%s\\n' \"$l\" >> \"$0.log\"\n  case \"$l\" in\n    GETPIN*) echo OK ;;\n    BYE*) echo OK; exit 0 ;;\n    *) echo OK ;;\n  esac\ndone\n";
+        std::fs::write(&path, body).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let p = Prompter::new(path.to_string_lossy(), LONG);
+        let log = || std::fs::read_to_string(path.with_extension("log")).unwrap_or_default();
+        let run = |log: String| log.lines().map(str::to_owned).collect::<Vec<_>>();
+
+        p.ask_password("Unlock\u{202e}Vault", "Passphrase:\n", "d", None).await.unwrap();
+        let lines = run(log());
+        assert!(lines.contains(&"SETTITLE UnlockVault".into()), "{lines:?}");
+        assert!(lines.contains(&"SETPROMPT Passphrase:%0A".into()), "{lines:?}");
+        std::fs::remove_file(path.with_extension("log")).unwrap();
+
+        p.password("d", None).await.unwrap();
+        let lines = run(log());
+        assert!(lines.contains(&"SETTITLE Unlock keyring".into()), "{lines:?}");
+        assert!(lines.contains(&"SETPROMPT Master password:".into()), "{lines:?}");
+        std::fs::remove_file(path.with_extension("log")).unwrap();
+
+        p.ask_confirm("Vault access", "d", false).await.unwrap();
+        assert!(run(log()).contains(&"SETTITLE Vault access".into()));
+        std::fs::remove_file(path.with_extension("log")).unwrap();
+        p.confirm("d", false).await.unwrap();
+        assert!(run(log()).contains(&"SETTITLE Keyring access".into()));
     }
 
     #[tokio::test]
