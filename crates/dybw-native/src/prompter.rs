@@ -2,13 +2,16 @@
 //! same mechanism gpg-agent uses: `pinentry-gnome3`, `pinentry-qt`, ... all
 //! work, and tests plug in a scripted one.
 
+use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
 use dybw_core::vault::write::HistoryAnswer;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use zeroize::Zeroizing;
+
+use crate::config::Trust;
 
 /// Answer to an access confirmation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,11 +51,39 @@ fn is_users_no(err: &str) -> bool {
 /// that became writable since the daemon started is refused).
 pub type Guard = std::sync::Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
 
+/// The variables a pinentry may inherit: the session's display and locale,
+/// nothing that points at a terminal (`GPG_TTY`, `TERM`), a search path
+/// (`PATH`), a loader (`LD_*`, `DYLD_*`) or pinentry's own data
+/// (`PINENTRY_USER_DATA`). The caller of the constructor picks the list; it
+/// is never derived from a request.
+pub const SESSION_ENV: &[&str] = &[
+    "XDG_SESSION_TYPE",
+    "DISPLAY",
+    "XAUTHORITY",
+    "XMODIFIERS",
+    "WAYLAND_DISPLAY",
+    "QT_QPA_PLATFORM",
+    "GTK_IM_MODULE",
+    "DBUS_SESSION_BUS_ADDRESS",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "LC_MESSAGES",
+    "HOME",
+    "USER",
+    "LOGNAME",
+];
+
+/// The longest reply line, and the longest PIN, taken from a pinentry.
+const MAX_REPLY: usize = 64 * 1024;
+
 #[derive(Clone)]
 pub struct Prompter {
+    /// The canonical absolute path `Trust::check` resolved (tests: any path).
     program: String,
     timeout: Duration,
     guard: Option<Guard>,
+    env: &'static [&'static str],
 }
 
 struct Conversation {
@@ -103,6 +134,12 @@ pub fn one_line(s: &str) -> String {
     s.chars().map(|c| if c.is_control() || is_invisible(c) { '\u{fffd}' } else { c }).collect()
 }
 
+/// `s` without what a dialog must not obey: every control character but the
+/// line break, and the invisible and bidi format characters.
+fn printable(s: &str) -> String {
+    s.chars().filter(|&c| c == '\n' || !(c.is_control() || is_invisible(c))).collect()
+}
+
 fn escape(s: &str) -> String {
     s.replace('%', "%25").replace('\r', "%0D").replace('\n', "%0A")
 }
@@ -141,8 +178,20 @@ enum Reply {
 }
 
 impl Conversation {
-    async fn start(program: &str) -> Result<Self, PromptError> {
-        let mut child = Command::new(program)
+    async fn start(program: &str, env: &[&str]) -> Result<Self, PromptError> {
+        let mut command = Command::new(program);
+        command.env_clear();
+        for name in env {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        // Its own process group, so a terminal's signals and job control do
+        // not reach it. shortcut: no `setsid` (it needs `unsafe`) and no
+        // group kill, so a timeout kills the pinentry but not a child of its
+        // own; upgrade when the agent can spend an `unsafe`-free kill of `-pgid`.
+        let mut child = command
+            .process_group(0)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -161,11 +210,18 @@ impl Conversation {
     async fn read_reply(&mut self) -> Result<Reply, PromptError> {
         let mut data: Option<Zeroizing<String>> = None;
         loop {
-            let mut line = Zeroizing::new(String::new());
-            let n = self.stdout.read_line(&mut line).await.map_err(io_error)?;
+            // One buffer, never grown: no stray copy of a PIN is left behind.
+            let mut buf = Zeroizing::new(Vec::with_capacity(MAX_REPLY + 1));
+            let limit = u64::try_from(MAX_REPLY + 1).unwrap_or(u64::MAX);
+            let n = (&mut self.stdout).take(limit).read_until(b'\n', &mut buf).await.map_err(io_error)?;
             if n == 0 {
                 return Err(PromptError::Protocol("prompter exited".into()));
             }
+            if n > MAX_REPLY {
+                return Err(PromptError::Protocol("reply line too long".into()));
+            }
+            let line =
+                std::str::from_utf8(&buf).map_err(|_| PromptError::Protocol("reply is not valid UTF-8".into()))?;
             let line = line.trim_end_matches(['\r', '\n']);
             if line == "OK" || line.starts_with("OK ") {
                 return Ok(Reply::Ok(data));
@@ -175,10 +231,11 @@ impl Conversation {
             }
             if let Some(d) = line.strip_prefix("D ") {
                 let chunk = unescape(d);
-                data = Some(match data.take() {
-                    Some(prev) => Zeroizing::new(format!("{}{}", prev.as_str(), chunk.as_str())),
-                    None => chunk,
-                });
+                let pin = data.get_or_insert_with(|| Zeroizing::new(String::with_capacity(MAX_REPLY)));
+                if pin.len() + chunk.len() > MAX_REPLY {
+                    return Err(PromptError::Protocol("reply too long".into()));
+                }
+                pin.push_str(&chunk);
             }
             // "S" status and "#" comment lines are ignored.
         }
@@ -192,7 +249,7 @@ impl Conversation {
     }
 
     async fn set(&mut self, cmd: &str, value: &str) -> Result<(), PromptError> {
-        match self.command(&format!("{cmd} {}", escape(value))).await? {
+        match self.command(&format!("{cmd} {}", escape(&printable(value)))).await? {
             Reply::Ok(_) => Ok(()),
             Reply::Err(e) => Err(PromptError::Protocol(format!("{cmd}: {e}"))),
         }
@@ -205,12 +262,32 @@ impl Conversation {
 }
 
 impl Prompter {
-    pub fn new(program: impl Into<String>, timeout: Duration) -> Self {
-        Prompter { program: program.into(), timeout, guard: None }
+    /// A prompter for `pinentry` once `trust` accepts it. It runs the
+    /// canonical path `Trust::check` resolved, and checks that path again
+    /// before every start (ADR 0008; the gap between that check and the
+    /// spawn is the accepted residual risk under the install-prefix rule).
+    /// The child sees only the variables of `env` (see [`SESSION_ENV`]).
+    pub fn trusted(
+        trust: Trust,
+        pinentry: &str,
+        timeout: Duration,
+        env: &'static [&'static str],
+    ) -> anyhow::Result<Self> {
+        let (resolved, _) = trust.check(pinentry)?;
+        let guard: Guard =
+            std::sync::Arc::new(move |p: &str| trust.verify(Path::new(p)).map(drop).map_err(|e| format!("{e:#}")));
+        Ok(Prompter { program: resolved.to_string_lossy().into_owned(), timeout, guard: Some(guard), env })
+    }
+
+    /// Any program, unchecked: tests only (the child gets `PATH`).
+    #[cfg(test)]
+    fn new(program: impl Into<String>, timeout: Duration) -> Self {
+        Prompter { program: program.into(), timeout, guard: None, env: &["PATH"] }
     }
 
     /// A prompter that runs `guard` on the program before every start.
-    pub fn guarded(program: impl Into<String>, timeout: Duration, guard: Guard) -> Self {
+    #[cfg(test)]
+    fn guarded(program: impl Into<String>, timeout: Duration, guard: Guard) -> Self {
         Prompter { guard: Some(guard), ..Self::new(program, timeout) }
     }
 
@@ -218,7 +295,7 @@ impl Prompter {
         if let Some(guard) = &self.guard {
             guard(&self.program).map_err(PromptError::Untrusted)?;
         }
-        Conversation::start(&self.program).await
+        Conversation::start(&self.program, self.env).await
     }
 
     /// Asks for a password; `None` when the user cancelled.
@@ -238,7 +315,8 @@ impl Prompter {
             let reply = c.command("GETPIN").await?;
             c.finish().await;
             match reply {
-                Reply::Ok(pin) => Ok(Some(pin.unwrap_or_default())),
+                // No data line: nothing was entered, which is a cancel.
+                Reply::Ok(pin) => Ok(pin),
                 Reply::Err(e) if err_code(&e) == ERR_CANCELED => Ok(None),
                 Reply::Err(e) => Err(PromptError::Protocol(format!("GETPIN: {e}"))),
             }
@@ -482,6 +560,102 @@ mod tests {
         std::fs::set_permissions(&path, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
         let p = Prompter::new(path.to_string_lossy(), LONG);
         assert_eq!(error_of(p.password("d", None).await).as_deref(), Some("prompter protocol error: prompter exited"));
+    }
+
+    /// The probe's answer (`HOME pid pgid`) for a child started with `env`.
+    async fn probe(env: &'static [&'static str]) -> String {
+        let mut p = scripted("env_probe.sh", LONG);
+        p.env = env;
+        p.password("d", None).await.ok().flatten().map(|pin| pin.as_str().to_owned()).unwrap_or_default()
+    }
+
+    #[tokio::test]
+    async fn the_child_sees_only_the_allowlisted_variables() {
+        // `HOME` is not allowlisted: absent (an unset allowlisted name is skipped).
+        assert!(probe(&["NO_SUCH_VARIABLE_FOR_DYBW"]).await.starts_with("absent "));
+        let home = std::env::var("HOME").unwrap();
+        let seen = probe(&["HOME", "PATH"]).await;
+        assert!(seen.starts_with(&format!("{home} ")), "{seen}");
+        assert!(!SESSION_ENV.contains(&"PATH"));
+        for name in ["GPG_TTY", "TERM", "PINENTRY_USER_DATA", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES"] {
+            assert!(!SESSION_ENV.contains(&name), "{name}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_child_leads_its_own_process_group() {
+        let seen = probe(&["PATH"]).await;
+        let mut ids = seen.rsplit(' ');
+        let (pgid, pid) = (ids.next().unwrap(), ids.next().unwrap());
+        assert_eq!(pgid, pid, "{seen}");
+    }
+
+    #[tokio::test]
+    async fn a_trusted_prompter_runs_the_canonical_path_and_checks_it_before_each_start() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let dir = tempfile::tempdir().unwrap();
+        let src = format!("{}/tests/fixtures/pinentry/cancelled.sh", env!("CARGO_MANIFEST_DIR"));
+        let path = dir.path().canonicalize().unwrap().join("pinentry");
+        std::fs::copy(&src, &path).unwrap();
+        let owner = std::fs::metadata(&path).unwrap().uid();
+        let trust = |uid: u32| Trust {
+            search: None,
+            user: crate::fsutil::User { uid, groups: Some(vec![]) },
+            exe: None,
+            home: None,
+        };
+        let stranger = trust(owner.wrapping_add(1).max(1));
+        // The program's owner could replace it: refused at construction.
+        assert!(Prompter::trusted(trust(owner), path.to_str().unwrap(), LONG, &["PATH"]).is_err());
+        // A relative name is not a path to run.
+        assert!(Prompter::trusted(stranger.clone(), "pinentry", LONG, &["PATH"]).is_err());
+        let p = Prompter::trusted(stranger, path.to_str().unwrap(), LONG, &["PATH"]).unwrap();
+        assert_eq!(p.program, path.to_str().unwrap(), "the canonical absolute path");
+        assert!(matches!(p.password("d", None).await, Ok(None)));
+        // Writable since: refused before the next start.
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o757)).unwrap();
+        let e = error_of(p.password("d", None).await).unwrap_or_default();
+        assert!(e.starts_with("refusing to run the prompter: "), "{e}");
+        assert!(e.contains("writable"), "{e}");
+    }
+
+    /// A pinentry whose GETPIN answer is `printf`-built from `body`.
+    fn getpin_answers(dir: &std::path::Path, body: &str) -> Prompter {
+        use std::os::unix::fs::PermissionsExt;
+        let script = format!(
+            "#!/bin/sh\necho OK\nwhile IFS= read -r l; do\n  case \"$l\" in\n    GETPIN*) {body} ;;\n    BYE*) echo OK; exit 0 ;;\n    *) echo OK ;;\n  esac\ndone\n"
+        );
+        let path = dir.join("pinentry");
+        std::fs::write(&path, script).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        Prompter::new(path.to_string_lossy(), LONG)
+    }
+
+    #[tokio::test]
+    async fn a_reply_is_bounded_and_a_missing_pin_is_a_cancel() {
+        let dir = tempfile::tempdir().unwrap();
+        // 70000 bytes on one line.
+        let long = getpin_answers(dir.path(), "printf 'D '; head -c 70000 /dev/zero | tr '\\0' a; echo; echo OK");
+        assert_eq!(
+            error_of(long.password("d", None).await).as_deref(),
+            Some("prompter protocol error: reply line too long")
+        );
+        // Two lines of 40000: each fits, the PIN does not.
+        let two = getpin_answers(
+            dir.path(),
+            "for i in 1 2; do printf 'D '; head -c 40000 /dev/zero | tr '\\0' a; echo; done; echo OK",
+        );
+        assert_eq!(error_of(two.password("d", None).await).as_deref(), Some("prompter protocol error: reply too long"));
+        // OK without a D line: nothing was entered.
+        let none = getpin_answers(dir.path(), "echo OK");
+        assert!(matches!(none.password("d", None).await, Ok(None)));
+    }
+
+    #[tokio::test]
+    async fn controls_and_invisible_characters_never_reach_the_dialog() {
+        let p = scripted("echo_error.sh", LONG);
+        let pin = p.password("d", Some("a\u{1b}[2Jb\u{202e}c\td\u{9b}e\rf\nline two")).await;
+        assert_eq!(pin.ok().flatten().as_deref().map(String::as_str), Some("a[2Jbcdef\nline two"));
     }
 
     #[tokio::test]

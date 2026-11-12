@@ -102,7 +102,7 @@ impl User {
 #[cfg(all(unix, not(target_os = "linux")))]
 fn tempfile_path() -> std::path::PathBuf {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
-    std::env::temp_dir().join(format!("bwss-uid-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!("dybw-uid-{}-{nanos}", std::process::id()))
 }
 
 #[cfg_attr(all(not(target_os = "linux"), not(test)), expect(dead_code, reason = "Linux only; tested everywhere"))]

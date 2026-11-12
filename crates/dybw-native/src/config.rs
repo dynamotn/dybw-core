@@ -334,7 +334,9 @@ pub fn resolve(doc: &Table) -> anyhow::Result<Settings> {
 pub enum PinentryRule {
     /// Neither the program nor any directory above it is writable by the user.
     NotWritable,
-    /// It lies under bwss's own installation prefix (Homebrew).
+    /// It lies under bwss's own installation prefix (Homebrew). The user can
+    /// write there, so the program can change between the check and the
+    /// spawn: accepted residual risk (ADR 0008).
     SamePrefix(PathBuf),
 }
 
@@ -407,6 +409,10 @@ fn sticky_shields(dir_mode: u32, dir_uid: u32, entry_uid: u32, user: &User) -> b
 }
 
 impl Trust {
+    /// The trust of this process, from its environment. `HOME` and `PATH`
+    /// come from the environment here: an agent serving other callers must
+    /// build `Trust` itself from the passwd home and require an absolute
+    /// `pinentry` (parked to P4.1).
     pub fn system() -> anyhow::Result<Self> {
         let exe = std::env::current_exe().and_then(std::fs::canonicalize).context("cannot find this executable")?;
         Ok(Trust {
