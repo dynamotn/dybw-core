@@ -206,6 +206,7 @@ impl VaultKeys {
         &self.0
     }
 
+    /// The user key: it opens personal items, and blobs (ADR 0021).
     pub fn user(&self) -> &SymmetricKey {
         &self.0.user
     }
@@ -374,7 +375,7 @@ pub async fn unlock<H: Http, C: Clock>(
 }
 
 /// `unlock` without a namespace: every step and check of `unlock`, no marker chosen.
-#[expect(clippy::too_many_arguments, reason = "the brief's signature: each port is the host's")]
+#[expect(clippy::too_many_arguments, reason = "`unlock`'s signature without the namespace: each port is the host's")]
 pub async fn unlock_vault<H: Http, C: Clock>(
     client: &mut Client<H, C>,
     storage: &impl Storage,
