@@ -1,0 +1,35 @@
+{
+  "id": "folders/cose",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "cose",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [],
+  "folders": [
+    {
+      "id": "folder-1",
+      "name": "Work ünï 😀"
+    },
+    {
+      "id": "folder-2",
+      "name": "Home/Sub"
+    }
+  ],
+  "expect": {
+    "folders": [
+      {
+        "id": "folder-1",
+        "name": "Work ünï 😀"
+      },
+      {
+        "id": "folder-2",
+        "name": "Home/Sub"
+      }
+    ]
+  }
+}

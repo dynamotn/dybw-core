@@ -330,6 +330,7 @@ def test_drbg_rsa_is_deterministic():
 
 # --- generator: build / check -------------------------------------------------
 
+import bwcrypto
 import gen
 
 FIXTURE = {
@@ -1263,3 +1264,18 @@ def test_typed_blobs_follow_the_sdk_shape():
     content = gen.open_blob(card, account)["content"]
     assert content["typeData"] == {"type": "card", "cardholderName": "A B", "number": "4111", "code": None}
     assert content["fields"] == [{"name": "l", "value": None, "type": 3, "linkedId": 300}]
+
+
+def test_folder_names_round_trip_and_tamper():
+    for name in ("pbkdf2", "cose"):
+        account = gen.load_account(name)
+        key = base64.b64decode(account["userKey"])
+        out = gen.encrypt_folder({"id": "f", "name": "Work ünï"}, account, "folders/t", "bwss")
+        assert out["id"] == "f" and bwcrypto.dec_any(out["name"], key).decode() == "Work ünï"
+        assert out == gen.encrypt_folder({"id": "f", "name": "Work ünï"}, account, "folders/t", "bwss")
+    account = gen.load_account("pbkdf2")
+    bad = gen.encrypt_folder({"id": "f", "name": "x", "tamper": True}, account, "folders/t", "bwss")
+    with pytest.raises(ValueError):
+        bwcrypto.dec_any(bad["name"], base64.b64decode(account["userKey"]))
+    with pytest.raises(gen.GenError, match="COSE"):
+        gen.encrypt_folder({"id": "f", "name": "x", "tamper": True}, gen.load_account("cose"), "folders/t", "bwss")

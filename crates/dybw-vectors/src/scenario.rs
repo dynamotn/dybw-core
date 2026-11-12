@@ -18,6 +18,9 @@ pub struct Scenario {
     pub options: Options,
     /// Server-shaped ciphers, kept as JSON: the core's own code reads them.
     pub ciphers: Vec<Value>,
+    /// Server-shaped folders (`id`, encrypted `name`), as a `/sync` response lists them.
+    #[serde(default)]
+    pub folders: Vec<Value>,
     #[serde(default)]
     pub device: Option<Device>,
     /// Cipher id to the device's local value; `None` is no local value.
@@ -164,6 +167,20 @@ pub struct Expect {
     /// One cipher opened whole, and summarized, by a vault client (`vault::item`).
     #[serde(default)]
     pub open: Option<Vec<OpenExpect>>,
+    /// The folder names a vault client reads from the sync (`vault::folder`).
+    #[serde(default)]
+    pub folders: Option<Vec<FolderExpect>>,
+}
+
+/// One folder's name, or why it does not decrypt.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FolderExpect {
+    pub id: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub error: Option<String>,
 }
 
 /// The opened item as plaintext JSON, or the reason it does not open. `summary`, when absent, is the item's (its

@@ -30,10 +30,11 @@ One JSON object per file.
 | `namespaces` | subset of `["bwss", "obsidian"]` | The scenario applies to each one listed. In field names and values, `{ns}` stands for the namespace |
 | `options` | object | `organizations` (bool, default `false`), `policy` (`"ask"` default, `"prefer-remote"`, `"prefer-local"`); for ADR 0018, `server` (`"self-hosted"` default, `https://vectors.invalid`; `"cloud"`, Bitwarden cloud US), `followsRedirects` (bool, default `false`: the host's HTTP follows redirects) and `acknowledged` (identity origins acknowledged on the device, default none) |
 | `ciphers` | array | Plaintext ciphers, below |
+| `folders` | array, optional | `[{ id, name, tamper? }]`: the `/sync` folders, each name encrypted under the user key; `tamper: true` breaks its MAC (a legacy account only) |
 | `device` | object, optional | The device's sync state, below |
 | `local` | object, optional | `{ id: string \| null }`: the device's local values. An absent id and `null` both mean no local value; `""` is a value. Sync scenarios still write `null` for every id they plan for |
 | `operation` | object, optional | The write the tool performs, below |
-| `expect` | object | At least one of `read`, `write`, `plan`, `open`, below |
+| `expect` | object | At least one of `read`, `write`, `plan`, `open`, `folders`, below |
 
 ### Plaintext cipher
 
@@ -185,6 +186,9 @@ change to `fresh`.
     login's username, else `null`. When absent it is taken from `item`, or is the
     same `error`; it is given when it differs, as when a tampered value lies
     outside the name and the username.
+- `folders` (1.6, ADR 0025): `[{ id, name | error }]`, the names a vault client reads
+  from the scenario's `folders` (`vault::folder`) with the account's user key.
+  `error` is `value`: the name does not decrypt. A folder that fails is still listed.
 - `plan`: `[{ kind, id }]` sorted by `id`, with `kind` one of `pull`, `push`,
   `adopt`, `clear-local`, `forget`, `create`; or
   `{ kind: "conflict", id, conflict }` with `conflict` one of `both-changed`,

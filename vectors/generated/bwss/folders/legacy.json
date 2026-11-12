@@ -1,0 +1,41 @@
+{
+  "id": "folders/legacy",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [],
+  "folders": [
+    {
+      "id": "folder-1",
+      "name": "2.BvIGOkGvgrMwsJkTeyLTvQ==|oFtsaDPtGgJTkxRFn1+cgg==|a/SlBfd0F2P27lmFDQEI3JQlSmjeZ3epv+J28QtPDeo="
+    },
+    {
+      "id": "folder-2",
+      "name": "2.k6uuZqmCoO68ce8HjDlGNA==|xXEJC32ysZtrmN2I4z+chg==|1tjzLDcQxFykgVRBrUygQEio2yymehR2k1bJ073q1L0="
+    },
+    {
+      "id": "folder-3",
+      "name": "2.97Jdgs1KYb+ME9gMnbLecQ==|uXHYyoc6qRG9XtklY+ie0Q==|vngCa1ETWRsnjA2Lp6/hHZyBF2SOhkZ6gM/CCOctkic="
+    }
+  ],
+  "expect": {
+    "folders": [
+      {
+        "id": "folder-1",
+        "name": "Work ünï 😀"
+      },
+      {
+        "id": "folder-2",
+        "name": ""
+      },
+      {
+        "id": "folder-3",
+        "error": "value"
+      }
+    ]
+  }
+}

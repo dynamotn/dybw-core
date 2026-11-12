@@ -132,11 +132,17 @@ fn open_vectors() {
 }
 
 #[test]
+fn folder_vectors() {
+    let counts = run_kind(Kind::Folders);
+    assert!(counts.values().all(|&n| n >= 2), "too few folder vectors: {counts:?}");
+}
+
+#[test]
 fn every_vector_runs() {
     let files = files();
     assert_eq!(
         Kind::ALL,
-        [Kind::Read, Kind::Write, Kind::Plan, Kind::Open],
+        [Kind::Read, Kind::Write, Kind::Plan, Kind::Open, Kind::Folders],
         "a kind of expectation without a vector test"
     );
     for ns in ["bwss", "obsidian"] {

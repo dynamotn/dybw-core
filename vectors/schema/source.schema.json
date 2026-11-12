@@ -52,6 +52,28 @@
         "$ref": "#/$defs/cipher"
       }
     },
+    "folders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tamper": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      }
+    },
     "operation": {
       "oneOf": [
         {
@@ -1343,6 +1365,40 @@
               {
                 "required": [
                   "item"
+                ]
+              },
+              {
+                "required": [
+                  "error"
+                ]
+              }
+            ]
+          }
+        },
+        "folders": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "error": {
+                "const": "value"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "name"
                 ]
               },
               {

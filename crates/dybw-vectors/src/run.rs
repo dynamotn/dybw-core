@@ -11,6 +11,7 @@ use dybw_core::ports::RsaOaep;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom};
 use dybw_core::vault::fields::{field_names, field_value, first_index, item_key};
+use dybw_core::vault::folder::folder_names;
 use dybw_core::vault::item::{self, Data, Item, Text};
 use dybw_core::vault::write::{HistoryAnswer, LineAppend, NewItem, Patch, ValueChange, WriteError, WriteRecord};
 use dybw_core::vault::{
@@ -598,4 +599,28 @@ pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
         compare(&format!("summary {}", w.cipher), summary, expected)?;
     }
     Ok(())
+}
+
+/// Checks `expect.folders`: the names `vault::folder::folder_names` reads from the scenario's folders with the
+/// account's user key, in id order, each a name or the error code; nothing listed, nothing in the map.
+pub async fn folders(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
+    let want = s.expect.folders.as_ref().ok_or("no expect.folders")?;
+    let keys = account_keys(files, &s.account, false, rsa).await;
+    let got: Vec<Value> = folder_names(&json!({ "folders": s.folders }), &keys.user)
+        .iter()
+        .map(|(id, r)| match r {
+            Ok(name) => json!({ "id": id, "name": name }),
+            Err(e) => json!({ "id": id, "error": uninspectable_code(e) }),
+        })
+        .collect();
+    let mut expected: Vec<Value> = want
+        .iter()
+        .map(|w| match (&w.name, &w.error) {
+            (Some(name), None) => Ok(json!({ "id": w.id, "name": name })),
+            (None, Some(error)) => Ok(json!({ "id": w.id, "error": error })),
+            _ => Err(format!("folder {}: give a name or an error", w.id)),
+        })
+        .collect::<Result<_, String>>()?;
+    expected.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    compare("folders", got, expected)
 }

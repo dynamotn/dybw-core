@@ -1,0 +1,44 @@
+{
+  "id": "folders/legacy",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [],
+  "folders": [
+    {
+      "id": "folder-1",
+      "name": "Work ünï 😀"
+    },
+    {
+      "id": "folder-2",
+      "name": ""
+    },
+    {
+      "id": "folder-3",
+      "name": "Tampered",
+      "tamper": true
+    }
+  ],
+  "expect": {
+    "folders": [
+      {
+        "id": "folder-1",
+        "name": "Work ünï 😀"
+      },
+      {
+        "id": "folder-2",
+        "name": ""
+      },
+      {
+        "id": "folder-3",
+        "error": "value"
+      }
+    ]
+  }
+}

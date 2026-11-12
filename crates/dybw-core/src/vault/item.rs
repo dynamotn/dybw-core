@@ -255,7 +255,8 @@ fn plain(cipher: &Value, key: &str) -> Option<String> {
 }
 
 /// Decrypts every part of one cipher: `user` opens personal items and blobs, `orgs` (the unlocked organizations,
-/// by id) organization items. A failure is the reason only, never a partial item or a decrypted text.
+/// by id) organization items; `orgs` must come from `unlock_organizations` (the opt-in), never be built from all
+/// organizations. A failure is the reason only, never a partial item or a decrypted text.
 pub fn open(cipher: &Value, user: &SymmetricKey, orgs: &BTreeMap<String, SymmetricKey>) -> Result<Item, Uninspectable> {
     let kind = kind(cipher);
     with_nodes(cipher, user, orgs, |top, t| {

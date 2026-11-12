@@ -13,7 +13,7 @@ function scenarioCount(): number {
   for (const [path, text] of files) {
     if (/^generated\/(bwss|obsidian)\/.*\.json$/.test(path)) {
       const expect = (JSON.parse(text) as { expect: Record<string, unknown> }).expect;
-      count += ["read", "write", "plan", "open"].filter((k) => expect[k] != null).length;
+      count += ["read", "write", "plan", "open", "folders"].filter((k) => expect[k] != null).length;
     }
   }
   return count;

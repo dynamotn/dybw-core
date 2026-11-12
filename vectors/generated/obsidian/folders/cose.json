@@ -1,0 +1,33 @@
+{
+  "id": "folders/cose",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "cose",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [],
+  "folders": [
+    {
+      "id": "folder-1",
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGNJgoOsFtc6N8wARcgvi/Hjn+depCozCTVgwYb8FMeVArDHzmLievJx1IcOv9w+Oqwqeu33K1D8y4WPv/XEjPhgtX99tcjhO1xZO"
+    },
+    {
+      "id": "folder-2",
+      "name": "7.g1g/owE6AAEReQN4I2FwcGxpY2F0aW9uL3guYml0d2FyZGVuLnV0ZjgtcGFkZGVkBFDiWRu7vDvs3nMGChgCsil7oQVYGMXtEqPLy8bLW2Rog1QK/lA3vvV7rDbRI1gwlAYhUc4iZKlzRxv4+889/Y6um5E6r3BSitO7x0V1I2Uo3ALrPT+BJzlMgSq9SacJ"
+    }
+  ],
+  "expect": {
+    "folders": [
+      {
+        "id": "folder-1",
+        "name": "Work ünï 😀"
+      },
+      {
+        "id": "folder-2",
+        "name": "Home/Sub"
+      }
+    ]
+  }
+}

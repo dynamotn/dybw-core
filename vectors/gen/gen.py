@@ -476,6 +476,16 @@ def _apply_case(cipher: dict, pascal: bool, extra: dict) -> dict:
     return {**out, **extra}
 
 
+def encrypt_folder(src: dict, account: dict, sid: str, ns: str) -> dict:
+    """A server folder: its name under the user key; ``tamper`` breaks its MAC (a legacy account only)."""
+    tamper = src.get("tamper", False)
+    e = _Encryptor(base64.b64decode(account["seed"]), sid, ns, f"folder:{src['id']}", False, ["name"] if tamper else [])
+    e.key = _owner_key(account, None)
+    if tamper and bwcrypto.is_cose(e.key):
+        raise GenError(f"folder {src['id']!r}: tamper is not supported on a COSE account")
+    return {"id": src["id"], "name": e.enc(src["name"], "name")}
+
+
 def check_operation_value(value: str) -> None:
     """A ``base64:`` operation value must be canonical base64 of bytes that are
     not valid UTF-8 (the read value rule, vectors/README.md)."""
@@ -514,6 +524,8 @@ def render_scenario(src: dict, ns: str, account: dict) -> dict:
     if dupes:
         raise GenError(f"duplicate cipher ids: {', '.join(dupes)}")
     out["ciphers"] = [encrypt_cipher(c, account, sid, ns) for c in body["ciphers"]]
+    if "folders" in body:
+        out["folders"] = [encrypt_folder(f, account, sid, ns) for f in body["folders"]]
     if "operation" in body:
         op = dict(body["operation"])
         if "value" in op:
