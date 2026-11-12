@@ -3,13 +3,14 @@
 
 use crate::api::{ApiError, ApiKey, Client, check_scheme, origin_of};
 use crate::crypto::{
-    CryptoError, KdfParams, Marker, SymmetricKey, derive_master_key, unwrap_signing_key, verify_security_state,
+    CryptoError, KdfParams, MarkScheme, Marker, SymmetricKey, derive_master_key, unwrap_signing_key,
+    verify_security_state,
 };
 use crate::ports::{Clock, Http, KdfRunner, PortError, Random, RsaOaep, Storage};
 use crate::vault::{Keys, Namespace, OrgProblem, Organizations, unlock_organizations, wrapped_private_key};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD as B64};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use zeroize::Zeroizing;
 
 /// The storage key of the device identifier.
@@ -159,6 +160,59 @@ impl Unlocked {
     /// Drops every key, which wipes it.
     pub fn lock(self) {
         drop(self);
+    }
+}
+
+/// An unlocked profile before any namespace: the keys and the decrypted `/sync`, every unlock check passed. One
+/// unlock serves every namespace: [`VaultKeys::for_namespace`] derives a namespace's marker on demand. No `Clone` and
+/// no `Debug`: the keys are wiped when it is dropped or locked.
+pub struct UnlockedVault {
+    pub keys: VaultKeys,
+    pub sync: Value,
+    pub org_problems: Vec<OrgProblem>,
+    pub warnings: Vec<UnlockWarning>,
+    /// The verified security state version (0 for a legacy user key).
+    pub security_version: u64,
+}
+
+impl UnlockedVault {
+    /// The same stable, non-secret id as [`Unlocked::user_key_id`].
+    pub fn user_key_id(&self) -> String {
+        key_id(self.keys.user())
+    }
+
+    /// The namespace form: the keys move, with `ns`'s marker; nothing is copied.
+    pub fn into_unlocked(self, ns: &Namespace) -> Unlocked {
+        let UnlockedVault { keys: VaultKeys(mut keys), sync, org_problems, warnings, security_version } = self;
+        keys.marker = Marker::new(&keys.user, ns.marks);
+        Unlocked { keys, sync, org_problems, warnings, security_version }
+    }
+}
+
+/// The user and organization keys of an [`UnlockedVault`], no namespace chosen. The marker inside is re-derived
+/// for each namespace asked for, and never shown before.
+pub struct VaultKeys(Keys);
+
+impl VaultKeys {
+    fn new(user: SymmetricKey, orgs: BTreeMap<String, SymmetricKey>, security_version: u64) -> VaultKeys {
+        // `Keys` needs a marker: any one does, as every way out of `VaultKeys` derives the namespace's own first.
+        let marker = Marker::new(&user, MarkScheme::Bwss);
+        VaultKeys(Keys { user, orgs, marker, security_version })
+    }
+
+    /// The keys a scan or a write of `ns` takes: these keys with `ns`'s marker, derived now.
+    pub fn for_namespace(&mut self, ns: &Namespace) -> &Keys {
+        self.0.marker = Marker::new(&self.0.user, ns.marks);
+        &self.0
+    }
+
+    pub fn user(&self) -> &SymmetricKey {
+        &self.0.user
+    }
+
+    /// The unlocked organizations' keys, by organization id.
+    pub fn orgs(&self) -> &BTreeMap<String, SymmetricKey> {
+        &self.0.orgs
     }
 }
 
@@ -316,6 +370,21 @@ pub async fn unlock<H: Http, C: Clock>(
     ns: &Namespace,
     allowed: &Organizations,
 ) -> Result<Unlocked, ProfileError> {
+    Ok(unlock_vault(client, storage, key, email, password, kdf, rsa, allowed).await?.into_unlocked(ns))
+}
+
+/// `unlock` without a namespace: every step and check of `unlock`, no marker chosen.
+#[expect(clippy::too_many_arguments, reason = "the brief's signature: each port is the host's")]
+pub async fn unlock_vault<H: Http, C: Clock>(
+    client: &mut Client<H, C>,
+    storage: &impl Storage,
+    key: &ApiKey,
+    email: &str,
+    password: Zeroizing<String>,
+    kdf: &impl KdfRunner,
+    rsa: &impl RsaOaep,
+    allowed: &Organizations,
+) -> Result<UnlockedVault, ProfileError> {
     client.login(key).await?;
     let sync = client.sync().await?;
     let picked = match source_one(&sync) {
@@ -325,7 +394,7 @@ pub async fn unlock<H: Http, C: Clock>(
             (KdfSource::Prelogin, client.prelogin(email).await?, protected, email.to_owned())
         }
     };
-    finish_unlock(sync, picked, storage, &key.origin, password, kdf, rsa, ns, allowed).await
+    finish_unlock(sync, picked, storage, &key.origin, password, kdf, rsa, allowed).await
 }
 
 /// A `/sync` kept by the host, with what an unlock needs beside it: the KDF `prelogin` gave when it was cached
@@ -351,6 +420,19 @@ pub async fn unlock_cached(
     ns: &Namespace,
     allowed: &Organizations,
 ) -> Result<Unlocked, ProfileError> {
+    Ok(unlock_vault_cached(cached, storage, origin, password, kdf, rsa, allowed).await?.into_unlocked(ns))
+}
+
+/// `unlock_cached` without a namespace: every step and check of `unlock_cached`, no marker chosen.
+pub async fn unlock_vault_cached(
+    cached: CachedSync,
+    storage: &impl Storage,
+    origin: &str,
+    password: Zeroizing<String>,
+    kdf: &impl KdfRunner,
+    rsa: &impl RsaOaep,
+    allowed: &Organizations,
+) -> Result<UnlockedVault, ProfileError> {
     let CachedSync { sync, prelogin_kdf, email } = cached;
     let picked = match source_one(&sync) {
         Some(picked) => picked,
@@ -360,7 +442,7 @@ pub async fn unlock_cached(
             (KdfSource::Prelogin, params, protected, email)
         }
     };
-    finish_unlock(sync, picked, storage, origin, password, kdf, rsa, ns, allowed).await
+    finish_unlock(sync, picked, storage, origin, password, kdf, rsa, allowed).await
 }
 
 /// Source 1 as (source, KDF, wrapped user key, salt).
@@ -385,9 +467,8 @@ async fn finish_unlock(
     password: Zeroizing<String>,
     kdf: &impl KdfRunner,
     rsa: &impl RsaOaep,
-    ns: &Namespace,
     allowed: &Organizations,
-) -> Result<Unlocked, ProfileError> {
+) -> Result<UnlockedVault, ProfileError> {
     if let Err(CryptoError::Kdf(why)) = params.validate() {
         return Err(CryptoError::Kdf(format!("{source}: {why}")).into());
     }
@@ -410,7 +491,7 @@ async fn finish_unlock(
     }
     let warnings =
         if params.meets_floors() { vec![] } else { vec![UnlockWarning::KdfBelowFloor { params, kdf_source: source }] };
-    Ok(open_keys(sync, user, version, warnings, rsa, ns, allowed).await)
+    Ok(open_keys(sync, user, version, warnings, rsa, allowed).await)
 }
 
 /// ADR 0019 on an opened user key: a COSE key needs a valid signed security state, a version below the saved one
@@ -427,26 +508,18 @@ async fn check_security(sync: &Value, user: &SymmetricKey, storage: &impl Storag
     Ok(version)
 }
 
-/// The organization keys and the marker, once every check passed.
+/// The organization keys, once every check passed.
 async fn open_keys(
     sync: Value,
     user: SymmetricKey,
     version: u64,
     warnings: Vec<UnlockWarning>,
     rsa: &impl RsaOaep,
-    ns: &Namespace,
     allowed: &Organizations,
-) -> Unlocked {
+) -> UnlockedVault {
     let profile = sync.get("profile").unwrap_or(&Value::Null);
     let (orgs, org_problems) = unlock_organizations(profile, &user, rsa, allowed).await;
-    let marker = Marker::new(&user, ns.marks);
-    Unlocked {
-        keys: Keys { user, orgs, marker, security_version: version },
-        sync,
-        org_problems,
-        warnings,
-        security_version: version,
-    }
+    UnlockedVault { keys: VaultKeys::new(user, orgs, version), sync, org_problems, warnings, security_version: version }
 }
 
 /// `unlock` with a user key the host remembered from an earlier unlock ("remember unlock"), instead of the
@@ -469,14 +542,13 @@ pub async fn unlock_with_key<H: Http, C: Clock>(
     let wrapped = sync.get("profile").and_then(wrapped_private_key).ok_or(ProfileError::WrongPassword)?;
     user.decrypt_pkcs8(wrapped).map_err(|_| ProfileError::WrongPassword)?;
     let version = check_security(&sync, &user, storage).await?;
-    Ok(open_keys(sync, user, version, vec![], rsa, ns, allowed).await)
+    Ok(open_keys(sync, user, version, vec![], rsa, allowed).await.into_unlocked(ns))
 }
 
 #[cfg(all(test, feature = "testing"))]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod tests {
     use super::*;
-    use crate::crypto::MarkScheme;
     use crate::testing::{MemStorage, SeededRandom, block_on};
     use base64::engine::general_purpose::STANDARD;
     use serde_json::json;

@@ -10,10 +10,10 @@ use dybw_core::crypto::{
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
 use dybw_core::profile::{
     CachedSync, KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf,
-    accept_security_version, unlock, unlock_cached, unlock_with_key,
+    accept_security_version, unlock, unlock_cached, unlock_vault, unlock_vault_cached, unlock_with_key,
 };
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
-use dybw_core::vault::{Namespace, Organizations};
+use dybw_core::vault::{Namespace, Organizations, ScanReport, scan_vault};
 use dybw_vectors::canonical::{NOW, canonicalize, drop_tool_defined};
 use dybw_vectors::keys::ScenarioKeys;
 use dybw_vectors::server::{Sent, VectorServer, urls};
@@ -1264,4 +1264,89 @@ fn a_remembered_key_logs_in_only_at_the_api_key_origin() {
     let err =
         block_on(unlock_with_key(&mut api, &storage, &key, user_key("org"), &AwsLcRsa, &Namespace::BWSS, &allowed));
     assert!(matches!(err, Err(ProfileError::Api(dybw_core::api::ApiError::WrongOrigin))), "{:?}", err.err());
+}
+
+// One unlock without a namespace serves every namespace (C1).
+
+/// A scan as compared here: each item's ids, value and mark, then the `Debug` of the rest (it leaves values out).
+fn scan_view(report: &ScanReport) -> String {
+    let items: Vec<_> = report.items.iter().map(|i| (&i.cipher_id, &i.id, i.value.to_vec(), i.mark)).collect();
+    format!("{items:?} {report:?}")
+}
+
+/// `view-password-hidden` of both namespaces in one vault, cipher ids prefixed to keep them apart.
+fn two_namespace_ciphers(dir: &Path) -> Vec<Value> {
+    let read = |ns: &str, prefix: &str| {
+        let path = dir.join(format!("generated/{ns}/read/view-password-hidden.json"));
+        let scenario: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let mut ciphers = scenario["ciphers"].as_array().unwrap().clone();
+        for c in &mut ciphers {
+            c["id"] = json!(format!("{prefix}{}", c["id"].as_str().unwrap()));
+        }
+        ciphers
+    };
+    [read("bwss", "b-"), read("obsidian", "o-")].concat()
+}
+
+#[test]
+fn one_unlock_serves_two_namespaces() {
+    let dir = vectors_dir().unwrap();
+    let keys = account_keys(&dir, "org", true);
+    let acc = account("org");
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let server = || VectorServer::new(keys.profile.clone(), two_namespace_ciphers(&dir), keys.prelogin.clone());
+    let allowed = Organizations::All;
+    let pw = || Zeroizing::new(password.to_owned());
+    let storage = MemStorage::default();
+
+    let mut api = client(server());
+    let mut vault =
+        block_on(unlock_vault(&mut api, &storage, &api_key(), email, pw(), &NativeArgon2, &AwsLcRsa, &allowed))
+            .unwrap();
+    assert_eq!(vault.keys.user().to_bytes(), keys.user.to_bytes());
+    assert_eq!(vault.keys.orgs().keys().collect::<Vec<_>>(), ["org-a", "org-b"]);
+    for (ns, cipher) in [(Namespace::BWSS, "b-c2"), (Namespace::OBSIDIAN, "o-c2"), (Namespace::BWSS, "b-c2")] {
+        let got = scan_vault(&vault.sync, &ns, vault.keys.for_namespace(&ns), &allowed);
+        let found: Vec<_> = got.items.iter().map(|i| (i.cipher_id.as_str(), i.id.as_str())).collect();
+        assert_eq!(found, [(cipher, "beta")], "{}", ns.name);
+        // The same as with keys made for that namespace alone.
+        let alone = account_keys(&dir, "org", true).into_keys(&ns);
+        assert_eq!(scan_view(&got), scan_view(&scan_vault(&vault.sync, &ns, &alone, &allowed)), "{}", ns.name);
+        // And the same as the namespace form of the unlock.
+        let mut api = client(server());
+        let old =
+            block_on(unlock(&mut api, &storage, &api_key(), email, pw(), &NativeArgon2, &AwsLcRsa, &ns, &allowed));
+        let old = old.unwrap();
+        assert_eq!(scan_view(&got), scan_view(&scan_vault(&old.sync, &ns, &old.keys, &allowed)), "{}", ns.name);
+    }
+    let id = vault.user_key_id();
+    let unlocked = vault.into_unlocked(&Namespace::OBSIDIAN);
+    assert_eq!(unlocked.user_key_id(), id);
+    let alone = account_keys(&dir, "org", true).into_keys(&Namespace::OBSIDIAN);
+    assert_eq!(unlocked.keys.marker.mark("id", "text"), alone.marker.mark("id", "text"));
+}
+
+/// The cached namespace-free form runs the cached unlock's checks: a wrong password is refused there too.
+#[test]
+fn cached_unlock_without_a_namespace() {
+    let (online, _) = online_then_cached("pbkdf2");
+    let acc = account("pbkdf2");
+    let (email, password) = (acc["email"].as_str().unwrap(), acc["password"].as_str().unwrap());
+    let open = |password: &str| {
+        let cached = CachedSync { sync: online.sync.clone(), prelogin_kdf: Some(PBKDF2_600K), email: email.to_owned() };
+        let (password, storage) = (Zeroizing::new(password.to_owned()), MemStorage::default());
+        block_on(unlock_vault_cached(
+            cached,
+            &storage,
+            &origin(),
+            password,
+            &NativeArgon2,
+            &AwsLcRsa,
+            &Organizations::None,
+        ))
+    };
+    let mut vault = open(password).unwrap();
+    assert_eq!(vault.keys.user().to_bytes(), online.keys.user.to_bytes());
+    assert_eq!(vault.keys.for_namespace(&Namespace::BWSS).marker.mark("i", "t"), online.keys.marker.mark("i", "t"));
+    assert!(matches!(open("not the password"), Err(ProfileError::WrongPassword)));
 }
