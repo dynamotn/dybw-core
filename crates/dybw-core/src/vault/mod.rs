@@ -61,7 +61,7 @@ mod orgs_tests;
 mod blob_tests;
 
 #[cfg(test)]
-#[expect(clippy::unwrap_used, reason = "tests")]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod folder_tests;
 
 #[cfg(test)]
