@@ -144,7 +144,8 @@ fn escape(s: &str) -> String {
     s.replace('%', "%25").replace('\r', "%0D").replace('\n', "%0A")
 }
 
-fn unescape(s: &str) -> Zeroizing<String> {
+/// `s` with its `%XX` escapes decoded; bytes that are not UTF-8 are an error, never U+FFFD.
+fn unescape(s: &str) -> Result<Zeroizing<String>, PromptError> {
     let bytes = s.as_bytes();
     let mut out = Zeroizing::new(Vec::with_capacity(bytes.len()));
     let mut i = 0;
@@ -164,7 +165,10 @@ fn unescape(s: &str) -> Zeroizing<String> {
         out.push(c);
         i += 1;
     }
-    Zeroizing::new(String::from_utf8_lossy(&out).into_owned())
+    let text = std::str::from_utf8(&out).map_err(|_| PromptError::Protocol("reply is not valid UTF-8".into()))?;
+    let mut copy = Zeroizing::new(String::with_capacity(text.len()));
+    copy.push_str(text);
+    Ok(copy)
 }
 
 /// A failed read from or write to the prompter.
@@ -230,7 +234,7 @@ impl Conversation {
                 return Ok(Reply::Err(rest.to_owned()));
             }
             if let Some(d) = line.strip_prefix("D ") {
-                let chunk = unescape(d);
+                let chunk = unescape(d)?;
                 let pin = data.get_or_insert_with(|| Zeroizing::new(String::with_capacity(MAX_REPLY)));
                 if pin.len() + chunk.len() > MAX_REPLY {
                     return Err(PromptError::Protocol("reply too long".into()));
@@ -562,7 +566,7 @@ mod tests {
         assert_eq!(error_of(p.password("d", None).await).as_deref(), Some("prompter protocol error: prompter exited"));
     }
 
-    /// The probe's answer (`HOME pid pgid`) for a child started with `env`.
+    /// The probe's answer (`CARGO_MANIFEST_DIR=<value> pid pgid`) for a child started with `env`.
     async fn probe(env: &'static [&'static str]) -> String {
         let mut p = scripted("env_probe.sh", LONG);
         p.env = env;
@@ -571,11 +575,12 @@ mod tests {
 
     #[tokio::test]
     async fn the_child_sees_only_the_allowlisted_variables() {
-        // `HOME` is not allowlisted: absent (an unset allowlisted name is skipped).
-        assert!(probe(&["NO_SUCH_VARIABLE_FOR_DYBW"]).await.starts_with("absent "));
-        let home = std::env::var("HOME").unwrap();
-        let seen = probe(&["HOME", "PATH"]).await;
-        assert!(seen.starts_with(&format!("{home} ")), "{seen}");
+        // The probed variable is set by cargo for every test run. Not allowlisted: absent
+        // (and an allowlisted name that is unset is skipped).
+        let seen = probe(&["NO_SUCH_VARIABLE_FOR_DYBW"]).await;
+        assert!(seen.starts_with("CARGO_MANIFEST_DIR=absent "), "{seen}");
+        let seen = probe(&["CARGO_MANIFEST_DIR"]).await;
+        assert!(seen.starts_with(&format!("CARGO_MANIFEST_DIR={} ", env!("CARGO_MANIFEST_DIR"))), "{seen}");
         assert!(!SESSION_ENV.contains(&"PATH"));
         for name in ["GPG_TTY", "TERM", "PINENTRY_USER_DATA", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES"] {
             assert!(!SESSION_ENV.contains(&name), "{name}");
@@ -584,7 +589,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_child_leads_its_own_process_group() {
-        let seen = probe(&["PATH"]).await;
+        let seen = probe(&[]).await;
         let mut ids = seen.rsplit(' ');
         let (pgid, pid) = (ids.next().unwrap(), ids.next().unwrap());
         assert_eq!(pgid, pid, "{seen}");
@@ -649,6 +654,16 @@ mod tests {
         // OK without a D line: nothing was entered.
         let none = getpin_answers(dir.path(), "echo OK");
         assert!(matches!(none.password("d", None).await, Ok(None)));
+    }
+
+    #[tokio::test]
+    async fn an_escaped_byte_that_is_not_utf8_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = getpin_answers(dir.path(), "echo 'D %FF'; echo OK");
+        assert_eq!(
+            error_of(p.password("d", None).await).as_deref(),
+            Some("prompter protocol error: reply is not valid UTF-8")
+        );
     }
 
     #[tokio::test]
@@ -727,24 +742,24 @@ mod tests {
     fn escaping_round_trips() {
         let s = "50% off\nline two\r";
         assert_eq!(escape(s), "50%25 off%0Aline two%0D");
-        assert_eq!(&*unescape(&escape(s)), s);
-        assert_eq!(&*unescape("pa%25ss%"), "pa%ss%");
-        assert_eq!(&*unescape("%zz"), "%zz");
+        assert_eq!(&*unescape(&escape(s)).unwrap(), s);
+        assert_eq!(&*unescape("pa%25ss%").unwrap(), "pa%ss%");
+        assert_eq!(&*unescape("%zz").unwrap(), "%zz");
     }
 
     #[test]
     fn a_percent_escape_at_the_very_end_is_decoded() {
-        assert_eq!(&*unescape("%41"), "A", "the whole string");
-        assert_eq!(&*unescape("pin%25"), "pin%");
-        assert_eq!(&*unescape("line%0A"), "line\n");
-        assert_eq!(&*unescape("%4"), "%4", "a truncated escape stays as sent");
+        assert_eq!(&*unescape("%41").unwrap(), "A", "the whole string");
+        assert_eq!(&*unescape("pin%25").unwrap(), "pin%");
+        assert_eq!(&*unescape("line%0A").unwrap(), "line\n");
+        assert_eq!(&*unescape("%4").unwrap(), "%4", "a truncated escape stays as sent");
     }
 
     #[test]
     fn only_hex_digits_form_a_percent_escape() {
         // from_str_radix would accept a sign.
-        assert_eq!(&*unescape("%+5x"), "%+5x");
-        assert_eq!(&*unescape("%-1"), "%-1");
+        assert_eq!(&*unescape("%+5x").unwrap(), "%+5x");
+        assert_eq!(&*unescape("%-1").unwrap(), "%-1");
     }
 
     #[test]
