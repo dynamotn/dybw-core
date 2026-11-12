@@ -1,0 +1,34 @@
+# $XDG_CONFIG_HOME/dybw/config.toml (usually ~/.config/dybw/config.toml)
+#
+# One file for every dybw tool (dybw ADR 0008). bwss reads the top level, the
+# profile it serves and [bwss]; it ignores the other tools' sections. An
+# unknown key in those three places stops bwss, so typos fail loudly.
+# Nothing here can switch a protection off: `acl` is refused, and per-app
+# access control is turned off on the device itself with `bwss acl off`.
+
+default = "personal"             # the profile bwss serves unless [bwss] says otherwise
+
+# Shared by every profile; a profile may override them.
+lock_timeout_minutes = 60        # lock after this long without use (0 = never)
+sync_interval_seconds = 300      # pull changes from Bitwarden this often
+# The program that asks for the master password: pinentry-gnome3,
+# pinentry-qt, pinentry-gtk-2, ... Neither it (links followed) nor any
+# directory above it may be writable by you, unless bwss and it come from
+# the same Homebrew prefix; otherwise bwss refuses to start.
+pinentry = "pinentry"
+
+[profiles.personal]
+server_url = "https://vault.bitwarden.com"   # self-hosted: https://vault.example.org
+email = "you@example.com"
+# lock_timeout_minutes = 15                  # an override for this profile only
+
+[bwss]
+profile = "personal"
+# Folder where new items are created. Items you mark with a bwss:id field in
+# any folder are used too.
+folder = "secret-service"
+backend = "bitwarden"            # or "memory" for tests and demos (with memory_password)
+# Follow the server's notifications hub while unlocked, and pull within a
+# few seconds of a change made elsewhere. sync_interval_seconds keeps
+# running as the fallback; false leaves only that timer.
+notifications = true

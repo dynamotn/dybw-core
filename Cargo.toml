@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/dybw-core", "crates/dybw-core-wasm", "crates/dybw-vectors"]
+members = ["crates/dybw-core", "crates/dybw-core-wasm", "crates/dybw-native", "crates/dybw-vectors"]
 resolver = "3"
 
 [workspace.package]

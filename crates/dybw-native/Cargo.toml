@@ -1,0 +1,30 @@
+[package]
+name = "dybw-native"
+description = "Native host for dybw-core: host ports, pinentry client and the ADR 0008 config"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+dybw-core = { path = "../dybw-core" }
+futures-util = { version = "0.3.34", default-features = false, features = ["sink"] }
+rand = "0.10.3"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls"] }
+rustls = { version = "0.23.46", default-features = false, features = ["aws_lc_rs", "std"] }
+rustls-native-certs = "0.8.5"
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time", "fs", "process", "io-util", "net"] }
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
+toml = "1.1.8"
+zeroize = { version = "1.9.1", features = ["derive", "serde"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1.54.1", features = ["test-util", "sync"] }
+
+[lints]
+workspace = true
