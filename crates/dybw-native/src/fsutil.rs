@@ -76,8 +76,9 @@ impl User {
     #[cfg(all(unix, not(target_os = "linux")))]
     pub fn current() -> std::io::Result<User> {
         use std::os::unix::fs::MetadataExt;
-        let probe = tempfile_path();
-        let file = std::fs::OpenOptions::new().write(true).create_new(true).open(&probe)?;
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let (probe, file) =
+            create_probe(&std::env::temp_dir(), || COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))?;
         let uid = file.metadata().map(|m| m.uid());
         let _ = std::fs::remove_file(&probe);
         Ok(User { uid: uid?, groups: None })
@@ -99,10 +100,19 @@ impl User {
     }
 }
 
+/// Creates a fresh probe file in `dir`, named by pid and `next()`; a name
+/// that is already taken is skipped, a few times.
 #[cfg(all(unix, not(target_os = "linux")))]
-fn tempfile_path() -> std::path::PathBuf {
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
-    std::env::temp_dir().join(format!("dybw-uid-{}-{nanos}", std::process::id()))
+fn create_probe(dir: &Path, mut next: impl FnMut() -> u64) -> std::io::Result<(std::path::PathBuf, std::fs::File)> {
+    let mut last = None;
+    for _ in 0..8 {
+        let probe = dir.join(format!("dybw-uid-{}-{}", std::process::id(), next()));
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&probe) {
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+            file => return file.map(|f| (probe, f)),
+        }
+    }
+    Err(last.unwrap_or_else(|| std::io::Error::other("no probe name")))
 }
 
 #[cfg_attr(all(not(target_os = "linux"), not(test)), expect(dead_code, reason = "Linux only; tested everywhere"))]
@@ -181,6 +191,32 @@ mod tests {
         let me = User::current().unwrap();
         assert_eq!(std::fs::metadata(dir.path()).unwrap().uid(), me.uid);
         assert!(me.may_write_file(&std::fs::metadata(dir.path()).unwrap()));
+    }
+
+    #[cfg(all(unix, not(target_os = "linux")))]
+    #[test]
+    fn the_uid_probe_skips_taken_names_and_gives_up_after_a_few() {
+        let dir = tempfile::tempdir().unwrap();
+        let name = |n: u64| dir.path().join(format!("dybw-uid-{}-{n}", std::process::id()));
+        std::fs::write(name(0), b"").unwrap();
+        std::fs::write(name(1), b"").unwrap();
+        let mut n = 0..;
+        let (probe, _) = create_probe(dir.path(), || n.next().unwrap()).unwrap();
+        assert_eq!(probe, name(2));
+        let e = create_probe(dir.path(), || 0).unwrap_err();
+        assert_eq!(e.kind(), std::io::ErrorKind::AlreadyExists);
+        assert!(create_probe(&dir.path().join("missing"), || 9).is_err());
+    }
+
+    #[cfg(all(unix, not(target_os = "linux")))]
+    #[test]
+    fn parallel_current_user_calls_all_succeed() {
+        for _ in 0..5 {
+            let threads: Vec<_> = (0..32).map(|_| std::thread::spawn(User::current)).collect();
+            for t in threads {
+                assert!(t.join().unwrap().is_ok());
+            }
+        }
     }
 
     #[test]
