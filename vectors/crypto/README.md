@@ -23,6 +23,8 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
 | `marks.json` | dybw-core | `vectors/crypto/marks.json` | written for M2; checked against bwss `6a0bc62` and plugin `409d2a4` | `37035135df1e65740837db6bd3b06ff85e577fb72486f6356165ba48a1607a92` |
 | `bwss-subkeys.json` | dybw-core | `vectors/crypto/bwss-subkeys.json` | written for M4 (ADR 0023); the `pbkdf2` rows checked against bwss `79ac1c1` | `596cb95198b679a70601e838e0b6099ef9e238dce10b74df0f60e9dbf7b0cee4` |
 | `../gen/gen_marks.py` | dybw-core | `vectors/gen/gen_marks.py` | written for M2 | `2026f804983228c0d3f3c320a61cd7f394498220fef6ee2d098ee37265bcb307` |
+| `totp.json` | dybw-core | `vectors/crypto/totp.json` | written for P4.3 (TOTP); the RFC 6238 Appendix B and Bitwarden SDK rows are asserted by the generator | `9a5bf5214990e9e085a89f3211d298ce7db0ed70d7a0c3b7f3433a8449897a02` |
+| `../gen/gen_totp.py` | dybw-core | `vectors/gen/gen_totp.py` | written for P4.3 | `a7c50eab02aa06cb4a0c4855bd17ad7218b2a5e8d554a7767eda64e0be13b38a` |
 | `sdk-m3.json` | sdk-internal | constants of `bitwarden-vault` `cipher/blob/sealed.rs` and `cipher/blob/v1.rs`, `bitwarden-core` `key_management/security_state.rs`, `bitwarden-crypto` `signing/signing_key.rs` and `signing/signed_object.rs` (the file and line of each are inside) | `3d16437` | `8f8817b95d912846513099f3a5502c023aac27f2ed1e19a69274046aa2f19e0b` |
 
 ## What each fixture covers
@@ -53,6 +55,17 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
   by `../gen/gen_marks.py`. The `pbkdf2` rows were checked against bwss `79ac1c1`
   (`derive` and `acl_confirm_tag`) with a throwaway test; the `cose-v2` rows are
   pinned by the core only (bwss has no COSE keys).
+- `totp.json`: TOTP known answers (profiles §7) for the core's `totp` module,
+  written by `../gen/gen_totp.py` (stdlib only, `--check` to compare). `parse`
+  rows give a login's `totp` field and either the parsed key (`algorithm`,
+  `digits`, `period`, the secret in hex) or the core's error code; they cover
+  rbw's base32 quirks (spaces, either case, padding optional), `otpauth://`
+  URIs with defaults and with every parameter, `steam://`, and every
+  out-of-range and malformed case. `generate` rows give a key, a unix time,
+  the code and the seconds left in its period: RFC 6238 Appendix B for SHA-1,
+  SHA-256 and SHA-512, the Bitwarden SDK's tests (`sdk-internal`
+  `crates/bitwarden-vault/src/totp.rs`, read 2026-11-15) including its Steam
+  answer, and further rows from the generator's reference.
 - `sdk-m3.json`: recorded SDK vectors for data model 1.6, each constant with
   its source `file` and `line` at `3d16437`, as strings (a Rust byte array is
   written as hex). `sealed` is a sealed blob (the `data` of a blob cipher) with

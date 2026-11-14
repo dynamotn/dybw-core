@@ -46,6 +46,12 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
     device state and passes.
   - `profile`: unlock, device identity, lock.
   - `testing` (feature): fakes and `block_on`.
+  - `totp` (feature, off by default and in `dybw-core-wasm`): parses a login's
+    `totp` field (`otpauth://totp/...`, bare base32 as rbw accepts it,
+    `steam://`) and generates RFC 6238 or Steam codes from a unix time, with
+    the seconds left in the period. Ranges follow Bitwarden's SDK (digits
+    1-10, period at least 1 s) and are refused, not clamped. Known answers in
+    `vectors/crypto/totp.json`.
 - `crates/dybw-vectors`: runs the conformance vectors against the core.
   `expected-failures.txt` lists no vector at the end of M3.
 - `crates/dybw-core-wasm`: the core for `wasm32-unknown-unknown` (M5), with the

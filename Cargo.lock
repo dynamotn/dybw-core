@@ -360,6 +360,7 @@ dependencies = [
  "const-oid",
  "crypto-common",
  "ctutils",
+ "zeroize",
 ]
 
 [[package]]
@@ -398,6 +399,7 @@ dependencies = [
  "pbkdf2",
  "serde",
  "serde_json",
+ "sha1",
  "sha2",
  "thiserror",
  "time",

@@ -1,0 +1,672 @@
+{
+  "about": "TOTP known answers: parse a login's totp field, then generate at a unix time. Written by vectors/gen/gen_totp.py. `secret` is hex; `algorithm` is SHA1, SHA256, SHA512 or STEAM; `error` is the core's TotpError code.",
+  "parse": [
+    {
+      "key": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "3132333435363738393031323334353637383930",
+      "note": "bare base32"
+    },
+    {
+      "key": "gezd gnbv gy3t qojq gezd gnbv gy3t qojq",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "3132333435363738393031323334353637383930",
+      "note": "spaces, lowercase"
+    },
+    {
+      "key": "  GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "3132333435363738393031323334353637383930",
+      "note": "surrounding whitespace"
+    },
+    {
+      "key": "GeZdGnBvGy3tQoJqGeZdGnBvGy3tQoJq",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "3132333435363738393031323334353637383930",
+      "note": "mixed case"
+    },
+    {
+      "key": "PIUDISEQYA",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "7a28344890c0",
+      "note": "no padding"
+    },
+    {
+      "key": "PIUDISEQYA======",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "7a28344890c0",
+      "note": "padding"
+    },
+    {
+      "key": "PIUDISEQYA=",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "7a28344890c0",
+      "note": "short padding"
+    },
+    {
+      "key": "PIUDISEQYA = = =",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "7a28344890c0",
+      "note": "spaces in the padding"
+    },
+    {
+      "key": "AB",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "00",
+      "note": "one byte"
+    },
+    {
+      "key": "JBSWY3DPEHPK3PXP",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef"
+    },
+    {
+      "key": "otpauth://totp/Example:alice@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "defaults"
+    },
+    {
+      "key": "otpauth://totp?secret=JBSWY3DPEHPK3PXP",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "no label"
+    },
+    {
+      "key": "otpauth://totp/?secret=JBSWY3DPEHPK3PXP",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "empty label"
+    },
+    {
+      "key": "otpauth://totp/ACME%20Co:alice?secret=JBSWY3DPEHPK3PXP&issuer=ACME%20Co&algorithm=SHA512&digits=8&period=60",
+      "algorithm": "SHA512",
+      "digits": 8,
+      "period": 60,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "every parameter"
+    },
+    {
+      "key": "OTPAUTH://TOTP/x?SECRET=jbswy3dpehpk3pxp&Algorithm=sha256&DIGITS=7&Period=45",
+      "algorithm": "SHA256",
+      "digits": 7,
+      "period": 45,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "case"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&algorithm=SHA1",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP#fragment&digits=12",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "fragment ignored"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSW%20Y3DP+EHPK%33PXP",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "percent and plus decoding"
+    },
+    {
+      "key": "otpauth://totp/x?&secret=JBSWY3DPEHPK3PXP&&digits=8&",
+      "algorithm": "SHA1",
+      "digits": 8,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "empty pairs"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&image=a%ZZ&counter",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "unknown parameters ignored"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=1",
+      "algorithm": "SHA1",
+      "digits": 1,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=10",
+      "algorithm": "SHA1",
+      "digits": 10,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=0008",
+      "algorithm": "SHA1",
+      "digits": 8,
+      "period": 30,
+      "secret": "48656c6c6f21deadbeef",
+      "note": "leading zeros"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=1",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 1,
+      "secret": "48656c6c6f21deadbeef"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=4294967295",
+      "algorithm": "SHA1",
+      "digits": 6,
+      "period": 4294967295,
+      "secret": "48656c6c6f21deadbeef"
+    },
+    {
+      "key": "steam://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ",
+      "algorithm": "STEAM",
+      "digits": 5,
+      "period": 30,
+      "secret": "3dc6caa4824a6d288767b2331e20b43166cb85d9"
+    },
+    {
+      "key": "StEaM://hxdm vjec jjws rb3h wizr 4ifu gftm xboz",
+      "algorithm": "STEAM",
+      "digits": 5,
+      "period": 30,
+      "secret": "3dc6caa4824a6d288767b2331e20b43166cb85d9"
+    },
+    {
+      "key": "",
+      "error": "empty-secret"
+    },
+    {
+      "key": "   ",
+      "error": "empty-secret"
+    },
+    {
+      "key": "====",
+      "error": "empty-secret"
+    },
+    {
+      "key": "steam://",
+      "error": "empty-secret"
+    },
+    {
+      "key": "otpauth://totp/x?secret=",
+      "error": "empty-secret"
+    },
+    {
+      "key": "otpauth://totp/x?secret",
+      "error": "empty-secret"
+    },
+    {
+      "key": "A",
+      "error": "invalid-base32",
+      "note": "length 1 mod 8"
+    },
+    {
+      "key": "ABC",
+      "error": "invalid-base32",
+      "note": "length 3 mod 8"
+    },
+    {
+      "key": "ABCDEF",
+      "error": "invalid-base32",
+      "note": "length 6 mod 8"
+    },
+    {
+      "key": "ABCDEFGHI",
+      "error": "invalid-base32",
+      "note": "length 1 mod 8"
+    },
+    {
+      "key": "GEZDGNB1",
+      "error": "invalid-base32",
+      "note": "not in the alphabet"
+    },
+    {
+      "key": "GEZDGNBV-GY3TQOJQ",
+      "error": "invalid-base32",
+      "note": "not in the alphabet"
+    },
+    {
+      "key": "GE=ZDGNBV",
+      "error": "invalid-base32",
+      "note": "data after padding"
+    },
+    {
+      "key": "steam://ABCD123",
+      "error": "invalid-base32"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PX0",
+      "error": "invalid-base32"
+    },
+    {
+      "key": "https://example.com/?secret=JBSWY3DPEHPK3PXP",
+      "error": "unsupported-scheme"
+    },
+    {
+      "key": "otpauth:totp?secret=JBSWY3DPEHPK3PXP",
+      "error": "unsupported-scheme"
+    },
+    {
+      "key": "otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP&counter=1",
+      "error": "unsupported-type"
+    },
+    {
+      "key": "otpauth://?secret=JBSWY3DPEHPK3PXP",
+      "error": "unsupported-type"
+    },
+    {
+      "key": "otpauth://totpx/x?secret=JBSWY3DPEHPK3PXP",
+      "error": "unsupported-type"
+    },
+    {
+      "key": "otpauth://totp/x",
+      "error": "missing-secret"
+    },
+    {
+      "key": "otpauth://totp/x?issuer=Example",
+      "error": "missing-secret"
+    },
+    {
+      "key": "otpauth://totp/x?secret=%G1",
+      "error": "malformed-uri"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSW%4",
+      "error": "malformed-uri"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSW%",
+      "error": "malformed-uri"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&secret=GEZDGNBV",
+      "error": "duplicate-parameter"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&ALGORITHM=SHA1&algorithm=SHA1",
+      "error": "duplicate-parameter"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=6&digits=6",
+      "error": "duplicate-parameter"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=30&period=30",
+      "error": "duplicate-parameter"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&algorithm=MD5",
+      "error": "unknown-algorithm"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&algorithm=SHA-1",
+      "error": "unknown-algorithm"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&algorithm=",
+      "error": "unknown-algorithm"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=0",
+      "error": "digits-out-of-range"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=11",
+      "error": "digits-out-of-range"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=12",
+      "error": "digits-out-of-range"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=256",
+      "error": "digits-out-of-range",
+      "note": "wraps to 0 as a byte"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=99999999999999999999999",
+      "error": "digits-out-of-range"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=",
+      "error": "invalid-digits"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=six",
+      "error": "invalid-digits"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=-6",
+      "error": "invalid-digits"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=+6",
+      "error": "invalid-digits"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&digits=6.0",
+      "error": "invalid-digits"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=0",
+      "error": "period-out-of-range"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=4294967296",
+      "error": "period-out-of-range"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=",
+      "error": "invalid-period"
+    },
+    {
+      "key": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=30s",
+      "error": "invalid-period"
+    },
+    {
+      "key": "otpauth://totp/x?digits=12",
+      "error": "digits-out-of-range",
+      "note": "a range error before the missing secret"
+    }
+  ],
+  "generate": [
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8",
+      "time": 59,
+      "code": "94287082",
+      "secondsRemaining": 1,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA====&algorithm=SHA256&digits=8",
+      "time": 59,
+      "code": "46119246",
+      "secondsRemaining": 1,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA=&algorithm=SHA512&digits=8",
+      "time": 59,
+      "code": "90693936",
+      "secondsRemaining": 1,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8",
+      "time": 1111111109,
+      "code": "07081804",
+      "secondsRemaining": 1,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA====&algorithm=SHA256&digits=8",
+      "time": 1111111109,
+      "code": "68084774",
+      "secondsRemaining": 1,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA=&algorithm=SHA512&digits=8",
+      "time": 1111111109,
+      "code": "25091201",
+      "secondsRemaining": 1,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8",
+      "time": 1111111111,
+      "code": "14050471",
+      "secondsRemaining": 29,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA====&algorithm=SHA256&digits=8",
+      "time": 1111111111,
+      "code": "67062674",
+      "secondsRemaining": 29,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA=&algorithm=SHA512&digits=8",
+      "time": 1111111111,
+      "code": "99943326",
+      "secondsRemaining": 29,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8",
+      "time": 1234567890,
+      "code": "89005924",
+      "secondsRemaining": 30,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA====&algorithm=SHA256&digits=8",
+      "time": 1234567890,
+      "code": "91819424",
+      "secondsRemaining": 30,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA=&algorithm=SHA512&digits=8",
+      "time": 1234567890,
+      "code": "93441116",
+      "secondsRemaining": 30,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8",
+      "time": 2000000000,
+      "code": "69279037",
+      "secondsRemaining": 10,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA====&algorithm=SHA256&digits=8",
+      "time": 2000000000,
+      "code": "90698825",
+      "secondsRemaining": 10,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA=&algorithm=SHA512&digits=8",
+      "time": 2000000000,
+      "code": "38618901",
+      "secondsRemaining": 10,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=8",
+      "time": 20000000000,
+      "code": "65353130",
+      "secondsRemaining": 10,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA====&algorithm=SHA256&digits=8",
+      "time": 20000000000,
+      "code": "77737706",
+      "secondsRemaining": 10,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "otpauth://totp/rfc6238?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA=&algorithm=SHA512&digits=8",
+      "time": 20000000000,
+      "code": "47863826",
+      "secondsRemaining": 10,
+      "note": "RFC 6238 Appendix B"
+    },
+    {
+      "key": "WQIQ25BRKZYCJVYP",
+      "time": 1672531200,
+      "code": "194506",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "wqiq25brkzycjvyp",
+      "time": 1672531200,
+      "code": "194506",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "PIUDISEQYA",
+      "time": 1672531200,
+      "code": "829846",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "PIUDISEQYA======",
+      "time": 1672531200,
+      "code": "829846",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "otpauth://totp/test-account?secret=WQIQ25BRKZYCJVYP",
+      "time": 1672531200,
+      "code": "194506",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "OTPauth://totp/test-account?secret=WQIQ25BRKZYCJVYP",
+      "time": 1672531200,
+      "code": "194506",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "otpauth://totp/test-account?secret=WQIQ25BRKZYCJVYP&period=60",
+      "time": 1672531200,
+      "code": "730364",
+      "secondsRemaining": 60,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "otpauth://totp/test-account?secret=WQIQ25BRKZYCJVYP&algorithm=SHA256",
+      "time": 1672531200,
+      "code": "842615",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "steam://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ",
+      "time": 1672531200,
+      "code": "7W6CJ",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "StEaM://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ",
+      "time": 1672531200,
+      "code": "7W6CJ",
+      "secondsRemaining": 30,
+      "note": "Bitwarden SDK test"
+    },
+    {
+      "key": "steam://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ",
+      "time": 0,
+      "code": "DW4F9",
+      "secondsRemaining": 30
+    },
+    {
+      "key": "steam://GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "time": 59,
+      "code": "PV9M4",
+      "secondsRemaining": 1
+    },
+    {
+      "key": "steam://GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "time": 1234567890,
+      "code": "VHHQY",
+      "secondsRemaining": 30
+    },
+    {
+      "key": "gezd gnbv gy3t qojq gezd gnbv gy3t qojq",
+      "time": 1234567890,
+      "code": "005924",
+      "secondsRemaining": 30,
+      "note": "rbw: spaces, lowercase"
+    },
+    {
+      "key": "otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=10",
+      "time": 1234567890,
+      "code": "0689005924",
+      "secondsRemaining": 30,
+      "note": "zero-padded"
+    },
+    {
+      "key": "otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=1",
+      "time": 59,
+      "code": "2",
+      "secondsRemaining": 1
+    },
+    {
+      "key": "otpauth://totp/ACME%20Co:alice?secret=JBSWY3DPEHPK3PXP&issuer=ACME%20Co&algorithm=SHA512&digits=7&period=45",
+      "time": 1700000000,
+      "code": "3957458",
+      "secondsRemaining": 10,
+      "note": "every parameter"
+    },
+    {
+      "key": "otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&period=4294967295",
+      "time": 12884901885,
+      "code": "969429",
+      "secondsRemaining": 4294967295
+    },
+    {
+      "key": "otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&period=1",
+      "time": 59,
+      "code": "083773",
+      "secondsRemaining": 1
+    },
+    {
+      "key": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "time": 0,
+      "code": "755224",
+      "secondsRemaining": 30,
+      "note": "start of a period"
+    }
+  ]
+}

@@ -8,4 +8,6 @@ pub mod profile;
 pub mod sync;
 #[cfg(feature = "testing")]
 pub mod testing;
+#[cfg(feature = "totp")]
+pub mod totp;
 pub mod vault;
