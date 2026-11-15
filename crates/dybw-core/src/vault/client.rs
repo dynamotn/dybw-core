@@ -385,7 +385,9 @@ pub fn edit(
 }
 
 /// The checks before `cipher`, the server's current copy, moves to the trash: live, at `base_revision`, editable, and
-/// readable with the keys given (an organization's, or not an organization blob).
+/// readable with the keys given (an organization's, or not an organization blob). The trash endpoint takes no
+/// revision, as in the official clients: an edit landing between this check and the trash is trashed too (it can be
+/// restored; nothing is purged).
 pub fn check_trash(
     cipher: &Value,
     base_revision: &str,

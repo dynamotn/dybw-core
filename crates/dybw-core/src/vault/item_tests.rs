@@ -162,3 +162,16 @@ fn debug_shows_no_decrypted_text() {
         assert!(shown.contains("c1") && !shown.contains("secret"), "{shown}");
     }
 }
+
+#[test]
+fn a_login_uri_that_does_not_decrypt_makes_the_item_unreadable() {
+    let bx = Bx::new();
+    let rng = SeededRandom::new(11);
+    let other = SymmetricKey::generate(&rng).unwrap();
+    let cipher = json!({
+        "type": 1,
+        "name": bx.keys.user.encrypt(b"n", &rng).unwrap(),
+        "login": { "uris": [{ "uri": other.encrypt(b"https://example.com", &rng).unwrap(), "match": null }] },
+    });
+    assert_eq!(open(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Value);
+}
