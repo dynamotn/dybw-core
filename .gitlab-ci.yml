@@ -41,7 +41,7 @@ check:
     - rustup component add rustfmt clippy
     - curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | sh
     - export PATH="$HOME/.local/bin:$PATH"
-    - apt-get update && apt-get install -y --no-install-recommends ripgrep
+    - apt-get update && apt-get install -y --no-install-recommends ripgrep python3
     - cargo fmt --all --check
     - cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
     - |
@@ -60,6 +60,7 @@ check:
         echo "forbidden dependency in dybw-core-wasm"; exit 1
       fi
     - uv run vectors/gen/gen.py check
+    - python3 -I vectors/gen/gen_totp.py --check
 
 test:
   stage: test

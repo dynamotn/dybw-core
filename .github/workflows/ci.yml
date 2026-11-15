@@ -60,6 +60,7 @@ jobs:
             echo "forbidden dependency in dybw-core-wasm"; exit 1
           fi
       - run: uv run vectors/gen/gen.py check
+      - run: python3 -I vectors/gen/gen_totp.py --check
 
   test:
     runs-on: ubuntu-latest
