@@ -662,6 +662,27 @@
       "secondsRemaining": 1
     },
     {
+      "key": "otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&period=1",
+      "time": 1099511627776,
+      "code": "445672",
+      "secondsRemaining": 1,
+      "note": "counter 2^40"
+    },
+    {
+      "key": "otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&period=1",
+      "time": 18446744073709551615,
+      "code": "094451",
+      "secondsRemaining": 1,
+      "note": "counter u64::MAX"
+    },
+    {
+      "key": "steam://GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "time": 18446744073709551615,
+      "code": "PJBVV",
+      "secondsRemaining": 15,
+      "note": "counter at u64::MAX / 30"
+    },
+    {
       "key": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
       "time": 0,
       "code": "755224",

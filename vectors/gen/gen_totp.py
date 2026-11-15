@@ -110,6 +110,12 @@ def generate_rows():
         ),
         gen_row("otpauth://totp/x?secret=%s&period=4294967295" % seed, 4294967295 * 3, SEEDS["SHA1"], period=4294967295),
         gen_row("otpauth://totp/x?secret=%s&period=1" % seed, 59, SEEDS["SHA1"], period=1),
+        # The counter is all 8 bytes: these overflow a 32-bit one.
+        gen_row("otpauth://totp/x?secret=%s&period=1" % seed, 2**40, SEEDS["SHA1"], period=1, note="counter 2^40"),
+        gen_row(
+            "otpauth://totp/x?secret=%s&period=1" % seed, 2**64 - 1, SEEDS["SHA1"], period=1, note="counter u64::MAX"
+        ),
+        gen_row("steam://" + seed, 2**64 - 1, SEEDS["SHA1"], "STEAM", 5, note="counter at u64::MAX / 30"),
         gen_row(seed, 0, SEEDS["SHA1"], note="start of a period"),
     ]
     return rows
