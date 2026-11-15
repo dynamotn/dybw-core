@@ -8,6 +8,12 @@ use crate::vault::write::{
 };
 use crate::vault::{Keys, Namespace, Organizations};
 use serde_json::Value;
+#[cfg(feature = "vault-client")]
+use {
+    crate::crypto::SymmetricKey,
+    crate::vault::client::{ClientEdit, NewEntry},
+    std::collections::BTreeMap,
+};
 
 /// Sends per write: the first one and up to two re-applications after an out-of-date rejection (bwss).
 pub const ATTEMPTS: usize = 3;
@@ -124,6 +130,62 @@ pub async fn create<H: Http, C: Clock>(
     item: &NewItem,
 ) -> Result<Value, SyncWriteError> {
     Ok(client.create_cipher(new_item(item, ns, keys, rng)?).await?)
+}
+
+/// A vault client's create (`vault::client::create`): a personal login or secure note. Returns the server's reply.
+#[cfg(feature = "vault-client")]
+pub async fn client_create<H: Http, C: Clock>(
+    client: &mut Client<H, C>,
+    user: &SymmetricKey,
+    security_version: u64,
+    rng: &impl Random,
+    entry: &NewEntry,
+) -> Result<Value, SyncWriteError> {
+    Ok(client.create_cipher(crate::vault::client::create(entry, user, security_version, rng)?).await?)
+}
+
+/// The server's copy of `cipher_id` for a vault client's write; one that is gone is `Gone`.
+#[cfg(feature = "vault-client")]
+async fn current<H: Http, C: Clock>(client: &mut Client<H, C>, cipher_id: &str) -> Result<Value, SyncWriteError> {
+    Ok(refetch(client, cipher_id).await?.ok_or(WriteError::Gone)?)
+}
+
+/// A vault client's edit (`vault::client::edit`) of `cipher_id`, applied to the server's current copy, fetched first
+/// so every part the edit does not change passes through as the server holds it now (§6.3). A copy at another
+/// revision than `edit.base_revision`, or a server that answers out of date, is `OutOfDate`: nothing is re-applied,
+/// the user decides again on the new copy (§6.5). Returns the server's reply, or `None` when the edit changes
+/// nothing, which sends nothing.
+#[cfg(feature = "vault-client")]
+pub async fn client_update<H: Http, C: Clock>(
+    client: &mut Client<H, C>,
+    user: &SymmetricKey,
+    orgs: &BTreeMap<String, SymmetricKey>,
+    rng: &impl Random,
+    now_ms: i64,
+    cipher_id: &str,
+    edit: &ClientEdit,
+) -> Result<Option<Value>, SyncWriteError> {
+    let fresh = current(client, cipher_id).await?;
+    let Some(body) = crate::vault::client::edit(&fresh, edit, user, orgs, rng, now_ms)? else { return Ok(None) };
+    match client.update_cipher(cipher_id, body).await {
+        Err(e) if e.is_out_of_date() => Err(WriteError::OutOfDate.into()),
+        sent => Ok(Some(sent?)),
+    }
+}
+
+/// A vault client's `remove`: moves `cipher_id` to the trash, never purges it, once the server's current copy passes
+/// `vault::client::check_trash` at `base_revision`.
+#[cfg(feature = "vault-client")]
+pub async fn client_trash<H: Http, C: Clock>(
+    client: &mut Client<H, C>,
+    user: &SymmetricKey,
+    orgs: &BTreeMap<String, SymmetricKey>,
+    cipher_id: &str,
+    base_revision: &str,
+) -> Result<(), SyncWriteError> {
+    let fresh = current(client, cipher_id).await?;
+    crate::vault::client::check_trash(&fresh, base_revision, user, orgs)?;
+    Ok(client.trash_cipher(cipher_id).await?)
 }
 
 /// The tool's `{ns}:id` when `cipher` is a live, readable item of the tool (and, with `want`, that item).

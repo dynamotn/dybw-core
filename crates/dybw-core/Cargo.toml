@@ -13,6 +13,9 @@ testing = []
 # The `totp` module (dybw code). Off by default and in dybw-core-wasm: the plugin has no use for it. The
 # keyed HMAC states are as good as the TOTP secret, so the hashes wipe them on drop here.
 totp = ["dep:sha1", "sha1/zeroize", "sha2/zeroize", "hmac/zeroize"]
+# `vault::client` and `sync::client_*`: the dybw CLI's creates, edits and trashes of ordinary items. Off by default
+# and in dybw-core-wasm: the plugin writes only through its namespace.
+vault-client = []
 
 [dependencies]
 aes = { version = "0.9.3", features = ["zeroize"] }
@@ -38,7 +41,7 @@ uuid = { version = "1.28.0", default-features = false }
 zeroize = { version = "1.9.1", features = ["derive", "serde"] }
 
 [dev-dependencies]
-dybw-core = { path = ".", features = ["testing", "native", "totp"] }
+dybw-core = { path = ".", features = ["testing", "native", "totp", "vault-client"] }
 
 [lints]
 workspace = true

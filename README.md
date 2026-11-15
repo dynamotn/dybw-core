@@ -52,6 +52,18 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
     the seconds left in the period. Ranges follow Bitwarden's SDK (digits
     1-10, period at least 1 s) and are refused, not clamped. Known answers in
     `vectors/crypto/totp.json`.
+  - `vault-client` (feature, off by default and in `dybw-core-wasm`):
+    `vault::client` and `sync::client_create` / `client_update` /
+    `client_trash`, the dybw CLI's writes of ordinary items. A create is a
+    personal login or secure note; an edit changes the name, notes and folder
+    of any item and a login's username, password and URIs, pushing a changed
+    password into the history and passing everything else through byte for
+    byte, other tools' markers included; a trash moves the item to the trash.
+    The writers fetch the cipher first and refuse a copy at another revision
+    than the edit was planned on, or a server's out-of-date answer, without
+    re-applying anything. Organization items are written under their key,
+    never read-only ones; a personal blob is re-sealed, an organization blob
+    refused. Vectors in `vectors/src/write/client/` (`expect.clientWrite`).
 - `crates/dybw-vectors`: runs the conformance vectors against the core.
   `expected-failures.txt` lists no vector at the end of M3.
 - `crates/dybw-core-wasm`: the core for `wasm32-unknown-unknown` (M5), with the

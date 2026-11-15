@@ -56,7 +56,7 @@ pub(super) fn text(v: Option<&Cbor>) -> Option<&str> {
 }
 
 /// Sets `key` where it is, or appends it, so every other key keeps its place.
-fn put(entries: &mut Vec<(Cbor, Cbor)>, key: &str, value: Cbor) {
+pub(super) fn put(entries: &mut Vec<(Cbor, Cbor)>, key: &str, value: Cbor) {
     match entries.iter_mut().find(|(k, _)| text(Some(k)) == Some(key)) {
         Some((_, v)) => *v = value,
         None => entries.push((Cbor::text(key), value)),
@@ -64,7 +64,7 @@ fn put(entries: &mut Vec<(Cbor, Cbor)>, key: &str, value: Cbor) {
 }
 
 /// Takes `key`'s value out, leaving null in its place for `put`; null when absent.
-fn take(entries: &mut [(Cbor, Cbor)], key: &str) -> Cbor {
+pub(super) fn take(entries: &mut [(Cbor, Cbor)], key: &str) -> Cbor {
     entries
         .iter_mut()
         .find(|(k, _)| text(Some(k)) == Some(key))
@@ -72,7 +72,7 @@ fn take(entries: &mut [(Cbor, Cbor)], key: &str) -> Cbor {
 }
 
 /// An empty text is no value, as a field-level write stores it.
-fn stored(value: &str) -> Cbor {
+pub(super) fn stored(value: &str) -> Cbor {
     if value.is_empty() { Cbor::Null } else { Cbor::text(value) }
 }
 

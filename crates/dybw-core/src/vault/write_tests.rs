@@ -1211,8 +1211,8 @@ fn write_errors_carry_no_value() {
             None,
             None,
             None,
-            None,
-            None,
+            Some("read-only"),
+            Some("gone"),
             None,
             None
         ]

@@ -2,6 +2,8 @@
 //! organization keys (§9, design §6.9).
 
 mod blob;
+#[cfg(feature = "vault-client")]
+pub mod client;
 pub mod fields;
 pub mod folder;
 pub mod item;

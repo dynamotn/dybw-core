@@ -19,8 +19,8 @@ use zeroize::Zeroizing;
 
 /// Bitwarden's limits, in encrypted characters (§6.4).
 const MAX_FIELD_ENC: usize = 5_000;
-const MAX_PASSWORD_ENC: usize = 5_000;
-const MAX_NOTES_ENC: usize = 10_000;
+pub(super) const MAX_PASSWORD_ENC: usize = 5_000;
+pub(super) const MAX_NOTES_ENC: usize = 10_000;
 const FIELD_TEXT: u64 = 0;
 const FIELD_HIDDEN: u64 = 1;
 /// `passwordHistory` keeps at most this many entries, newest first (§6.1).
@@ -198,6 +198,23 @@ pub enum WriteError {
     /// `Uninspectable`, the change is kept.
     #[error("the item requires a feature this tool does not implement")]
     Unsupported,
+    /// A vault client's edit or trash was planned on another revision than the server's copy (§6.5): nothing was
+    /// sent, and the caller shows the item again before asking.
+    #[error("the item changed on the server since it was read")]
+    OutOfDate,
+    /// A vault client's edit asked for a username, a password or URIs on an item that is not a login.
+    #[error("only a login has a username, a password and URIs")]
+    NotALogin,
+    /// A vault client's password change on an organization item whose password this account may not see (§9).
+    #[error("the organization hides this item's password")]
+    PasswordHidden,
+    /// A vault client's notes change while a tool's `{ns}:location=notes` says the notes hold its secret (§6.4).
+    #[error("the notes hold a tool's secret")]
+    NotesHeldByTool,
+    #[error("an item needs a name")]
+    NameRequired,
+    #[error("a URI match type is 0 to 5")]
+    BadUriMatch,
 }
 
 impl WriteError {
@@ -208,6 +225,14 @@ impl WriteError {
             WriteError::NotesTaken => Some("notes-hold-user-text"),
             WriteError::SourceChanged => Some("value-source-changed"),
             WriteError::Unsupported => Some("unsupported"),
+            WriteError::Gone => Some("gone"),
+            WriteError::ReadOnly => Some("read-only"),
+            WriteError::OutOfDate => Some("out-of-date"),
+            WriteError::NotALogin => Some("not-a-login"),
+            WriteError::PasswordHidden => Some("password-hidden"),
+            WriteError::NotesHeldByTool => Some("notes-held-by-tool"),
+            WriteError::NameRequired => Some("name-required"),
+            WriteError::BadUriMatch => Some("bad-uri-match"),
             _ => None,
         }
     }
@@ -221,7 +246,7 @@ pub fn encrypted_len(plain_len: usize, key: &SymmetricKey) -> usize {
 
 /// `now` as JavaScript's `toISOString` writes it, the form the vectors freeze. A clock outside the years 0000-9999
 /// is an error, never a made-up date.
-fn iso_ms(ms: i64) -> Result<String, WriteError> {
+pub(super) fn iso_ms(ms: i64) -> Result<String, WriteError> {
     let t = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
         .ok()
         .filter(|t| t.year() >= 0)
@@ -276,11 +301,11 @@ pub(crate) trait Body {
 
 /// A field-level cipher being written: the request body and the custom fields, each raw (encrypted) entry beside
 /// its decrypted name. Entries the write does not change are kept byte for byte.
-struct Fields<'a, R: Random> {
-    key: &'a SymmetricKey,
-    rng: &'a R,
-    body: Map<String, Value>,
-    fields: Vec<(Value, Option<String>)>,
+pub(super) struct Fields<'a, R: Random> {
+    pub(super) key: &'a SymmetricKey,
+    pub(super) rng: &'a R,
+    pub(super) body: Map<String, Value>,
+    pub(super) fields: Vec<(Value, Option<String>)>,
 }
 
 /// The cipher as returned, minus response-only metadata; the item key and unknown keys stay.
@@ -293,14 +318,14 @@ fn request_body(cipher: &Value) -> Map<String, Value> {
 }
 
 impl<'a, R: Random> Fields<'a, R> {
-    fn read(cipher: &Value, key: &'a SymmetricKey, rng: &'a R) -> Result<Self, CryptoError> {
+    pub(super) fn read(cipher: &Value, key: &'a SymmetricKey, rng: &'a R) -> Result<Self, CryptoError> {
         let names = field_names(cipher, key)?;
         let raw = cipher.get("fields").and_then(Value::as_array).cloned().unwrap_or_default();
         Ok(Fields { key, rng, body: request_body(cipher), fields: raw.into_iter().zip(names).collect() })
     }
 
     /// Encrypted under the item key; an empty text is no value (`null`), as the plugin stores it.
-    fn enc(&self, text: &str) -> Result<Value, CryptoError> {
+    pub(super) fn enc(&self, text: &str) -> Result<Value, CryptoError> {
         if text.is_empty() {
             return Ok(Value::Null);
         }
@@ -313,7 +338,7 @@ impl<'a, R: Random> Fields<'a, R> {
 
     /// The end of every update body: the edited fields, a `passwordHistory` that is always an array (the server
     /// replaces the history with it), a secure note's part, and the revision the write is based on.
-    fn finish(mut self, revision: &str) -> Map<String, Value> {
+    pub(super) fn finish(mut self, revision: &str) -> Map<String, Value> {
         let fields = self.take_fields();
         self.body.insert("fields".into(), fields);
         if !self.body.get("passwordHistory").is_some_and(Value::is_array) {
@@ -640,7 +665,7 @@ struct Guard<'a> {
 
 /// The update body of a blob cipher: its new `data` beside the cipher's own metadata and item key, with the
 /// field-level parts null, as the SDK sends it (ADR 0021).
-fn blob_body(cipher: &Value, data: String, revision: &str) -> Map<String, Value> {
+pub(super) fn blob_body(cipher: &Value, data: String, revision: &str) -> Map<String, Value> {
     let mut body = request_body(cipher);
     for k in ["name", "notes", "login", "fields", "passwordHistory"] {
         body.insert(k.into(), Value::Null);

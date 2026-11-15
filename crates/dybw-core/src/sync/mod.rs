@@ -17,10 +17,16 @@ pub use plan::{
 pub use queue::{FlushReport, Op, enqueue, flush, flush_until};
 pub use state::{DeviceState, parse_plugin_state, to_plugin_json};
 pub use write::{ATTEMPTS, DeleteOutcome, SyncWriteError, create, delete, update};
+#[cfg(feature = "vault-client")]
+pub use write::{client_create, client_trash, client_update};
 
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
 mod write_tests;
+
+#[cfg(all(test, feature = "vault-client"))]
+#[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
+mod client_tests;
 
 #[cfg(test)]
 #[expect(clippy::unwrap_used, clippy::indexing_slicing, reason = "tests")]
