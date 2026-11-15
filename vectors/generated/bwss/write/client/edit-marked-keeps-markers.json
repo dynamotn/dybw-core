@@ -1,0 +1,161 @@
+{
+  "id": "write/client/edit-marked-keeps-markers",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§3.1",
+    "§3.3",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "name": "2.Z9qcyHiQIBKmFNg/J4nu3Q==|uC3YBbBnVC8j16ZMkF+z1A==|qVZZLejTddklLTv7rw3QXskaHnlXVIyE147oMLS3PHo=",
+      "notes": null,
+      "login": {
+        "username": "2.BZyh+qEmkt3NyBv2LKK+vg==|NzQYssQRudWxJ8huvPMbQA==|i14/KYx1pJxNjWLLeT2icJK1g5d7lV9TxMoKg+7oPF0=",
+        "password": "2.oNb3P971LpWH+4xdrhKwVQ==|I/24AbCyp6a16r59FfeDzg==|s9hEUAC1JY++Rg5crp3P1WeRqvQD00nCASGqB+7VcQc=",
+        "uris": [
+          {
+            "uri": "2.glmetSi3EF22r/widJjzPA==|3J2kVdYn03sGuC/CWFidZT8qT9QBZWH3VRm4OoqcSOQ=|6hp4TlVB4Fkf6hxuKlaKSmoWn95kKLadlNVmG/Qq4AM=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.1yIyS1pcJBUeOqT3sUGSQg==|KgmuEK/teMvkSwIjUGOwCw==|g3MezTYJPaptHAzpfN4T+Bx1HLiMcq8TOLHDkEdCo7s=",
+          "value": "2.f05R9lcdb7hpB1UfeVVmBQ==|zc1qw7IuevSGz6WDcjFLsQ==|3YF4n9+IJyvj7OFo40aoHyOmi4D8h8VvDwHpd2aWbts=",
+          "type": 0
+        },
+        {
+          "name": "2.J3Z+dEUCR1knYxZU290ovA==|QTYjrzJmQPhyhzT15GsC063KQs/ycbhKWUQdHCpqRrU=|sFCb7BBOXECeJbkU21uXFQhCHRDKPg/KhjrCbnzfxSs=",
+          "value": "2.Hd8f+GtI8AybxOlFwSutDw==|M+DtO3UIdB/trXvMncA15w==|jua4RhkbsO2wdpxQtqbb1eqGSBmHVC8GDfKHQ1fiRac=",
+          "type": 0
+        },
+        {
+          "name": "2.PcogYgcxJPpTHKBClD+xqw==|RkPippNDaIgF4FOi2zBuaA==|rK5cnJWyI+TQarFp38STPU6IRF+TPGdpRffTBSoyf4s=",
+          "value": "2.3fsCHr5MTyww6WUvYrzPCg==|JOCACxPqX+3yREJTycz/ng==|tcc9hAkjew5vOcLzjPw+hQBiOzbBN5DIAkFpnOQ/Wcs=",
+          "type": 0
+        },
+        {
+          "name": "2.btNXYUTYVPkCKONTe4Dwcg==|db1l19rjYULz4+c1skUSkA==|e3bUqryV3L8Pih3y94MYlTl9pPYD/LJwLYk4mW8ip+U=",
+          "value": "2.cWk9tmbKwkCxb5YeBSYFgA==|3yUp0yjPR+ZV0PdAhf3e+Q==|QATaaCnCmBcbok4EWWra69jNdCAZD7+9wfu6QCgLojQ=",
+          "type": 1
+        },
+        {
+          "name": "2.FcrmKkx3zW6n2Ufv2ychkw==|6+V6r/youa2G3wLZIyfppQ==|utjF+4B1U048NBLOhI+mCwblxxlp2qxdKccEmzBFQhM=",
+          "value": "2.3ejYSuHNoIRUCAqYG3ux3Q==|oIDwgwUT0XQa/4mPHaSJiw==|F49Tf4q6fuRYaHgxaGJJro0go5neudvYciQ44omw4Fs=",
+          "type": 0
+        },
+        {
+          "name": "2.msKuS35R+bU71VzJUXwIRw==|hGSG+PcTCPN+zMGCdrsTFQ==|2i9H4Rxsmf7Sromcm0JQt+SFKY1fzN7156i6YTnx4RI=",
+          "value": "2.b6hIdpuhet6QiDevnxOtKg==|H0i2H9YJXMVYDu4sRPeufg==|+YkdYC/cGh/t/RnTyT9vjdHCT/41DHM3hAE9J9lQFcc=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "xUnknown": {
+        "kept": [
+          1,
+          true,
+          null
+        ]
+      }
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "API token (rotated)",
+    "notes": "rotated by hand",
+    "username": "robot",
+    "password": "rotated-token",
+    "uris": [
+      "https://api.example.invalid",
+      {
+        "uri": "https://api2.example.invalid",
+        "match": 1
+      }
+    ],
+    "folderId": "folder-2"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "API token (rotated)",
+          "notes": "rotated by hand",
+          "login": {
+            "username": "robot",
+            "password": "rotated-token",
+            "uris": [
+              "https://api.example.invalid",
+              "https://api2.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "shared-token"
+            ]
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "bwss:attr:service",
+              "value": "api",
+              "type": 0
+            },
+            {
+              "name": "other:id",
+              "value": "beta",
+              "type": 0
+            },
+            {
+              "name": "other:password",
+              "value": "other-secret",
+              "type": 1
+            },
+            {
+              "name": "dybw:requires",
+              "value": "other:feature",
+              "type": 0
+            },
+            {
+              "name": "bwss:id",
+              "value": "second copy",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": "folder-2",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

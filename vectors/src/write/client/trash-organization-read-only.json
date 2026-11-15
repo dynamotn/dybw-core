@@ -1,0 +1,37 @@
+{
+  "id": "write/client/trash-organization-read-only",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 2,
+      "name": "Shared note",
+      "notes": "text",
+      "organizationId": "org-a",
+      "edit": false,
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-trash",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "read-only"
+    }
+  }
+}

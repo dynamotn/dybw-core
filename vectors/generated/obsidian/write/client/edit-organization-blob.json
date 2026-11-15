@@ -1,0 +1,41 @@
+{
+  "id": "write/client/edit-organization-blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§4.2",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "2.e6lXLuHthnm64KvKjtxzfQ==|dDTenL5TV0tmj7btwtVp6U4oWO2m223lp7gZ7ckBoW8u5ps6B7mBaLFlRCkP7QGGw+26h3SSpZaFocahch5ou2O4TVWZTkEWom3KQeSDZVs=|pdkIFO+SNBRcKRsh670YjcHN6mENoviDuVl0+6nPf/Y=",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.wyzqcmiCYqT0vx6XsD5FDw==|mOJ2sZzz3IqSS93nS4aZ+Y8X49CmEa6uEBeEeoCSVeG/xgXkrgqeeqpomfcclG9p1I9XC+2hWQmWYP6bf0oWi0MaLqkwzrKK6SP+nuzfbLI=|O17QYYTTwXkgaLtEzL7zS1SpEK8R5G8PRz8TzkapkpM=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUHi1bzSoRmjYS5ixAtaONuE6AAE4gQI6AAE4gAGhBUxCVTKZtl96xDWicH9Yn8zOoS9iP4X9U5uNx67dg/98ST99cE22C4bHnbYa6n8QkpnMTiO2tAJdNVyxW/yd9ywSdJd0Ise31/pbDxfkKClMP8eNSg58a9dtClT5JZJKggNpdzYMeDR96miLaNAQVytKePeBlE+ws0cqwByLTqAm3hDP9G915AI6KlxraUqSoXi32RprfYxXEoAfaElllnmQIrgfe5Is6+u8F3HV2Q==\"}",
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Renamed"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "newer-format"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "write/client/trash-out-of-date",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "2.qzWpHLXoJOsHh1HSiU/Hxw==|meGa8nX2QHbSFrBauaXGOA==|XJRUrLbdLp3al8SDNwFvSD47nQzb9UNewP4P3/ZyZrM=",
+      "login": {
+        "username": "2.4nzvKdUDk0jcUwVfTXj7TQ==|ZFB5Hg+JH/Slximrfuf7Xw==|VisKfS6adA/GkzbVOAZ2JtdKhvhUv+HC4pDePLhWDqI=",
+        "password": "2.qK5QLJl2sUpOgKJE40ia+Q==|AUOqNvg6MoIdxxNctHzliCiK0cYd7fSJGeMiV0Ltrqs=|IWUkT7YgT/H8+SHiy0Fh/bXeBfr8NSk4aAEyzY6OLbI=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-02-02T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-trash",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "out-of-date"
+    }
+  }
+}

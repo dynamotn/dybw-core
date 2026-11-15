@@ -2,7 +2,7 @@
 
 use crate::canonical::{NOW_MS, canonicalize, drop_tool_defined};
 use crate::keys::account_keys;
-use crate::scenario::{Answer, Operation, Policy, ReadExpect, Scenario, Server, WriteExpect};
+use crate::scenario::{Answer, ClientLogin, ClientUri, Operation, Policy, ReadExpect, Scenario, Server, WriteExpect};
 use crate::server::{CLOUD, SERVER, VectorServer, urls};
 use crate::{Files, Outcome};
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
@@ -10,6 +10,7 @@ use dybw_core::api::{ApiError, ApiKey, Client, DeviceInfo, ServerUrls, origin_of
 use dybw_core::ports::RsaOaep;
 use dybw_core::sync::{self, Action, BaseEntry, DeviceState, LocalValues, SyncContext, SyncWriteError};
 use dybw_core::testing::{FixedClock, SeededRandom};
+use dybw_core::vault::client::{ClientEdit, NewEntry, NewKind, NewLogin, NewUri};
 use dybw_core::vault::fields::{field_names, field_value, first_index, item_key};
 use dybw_core::vault::folder::folder_names;
 use dybw_core::vault::item::{self, Data, Item, Text};
@@ -256,6 +257,9 @@ pub async fn write(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
             }
             Operation::Delete { id, .. } => {
                 sync::delete(&mut api, ns, &keys, &rng, &item(id)?.cipher, id).await.map(|_| ())
+            }
+            Operation::ClientCreate { .. } | Operation::ClientEdit { .. } | Operation::ClientTrash { .. } => {
+                return Err("a vault client's operation goes with expect.clientWrite".into());
             }
         })
     }
@@ -599,6 +603,107 @@ pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
         compare(&format!("summary {}", w.cipher), summary, expected)?;
     }
     Ok(())
+}
+
+fn z(s: &str) -> Zeroizing<String> {
+    Zeroizing::new(s.to_owned())
+}
+
+fn new_uris(uris: &[ClientUri]) -> Vec<NewUri> {
+    uris.iter()
+        .map(|u| match u {
+            ClientUri::Plain(uri) => NewUri { uri: z(uri), match_type: None },
+            ClientUri::Matched { uri, match_type } => NewUri { uri: z(uri), match_type: *match_type },
+        })
+        .collect()
+}
+
+/// The code of a vault client's refusal, as `expect.clientWrite.error` names it.
+fn client_error_code(e: &SyncWriteError) -> Option<&'static str> {
+    match e {
+        SyncWriteError::Write(WriteError::Uninspectable(u)) => Some(uninspectable_code(*u)),
+        SyncWriteError::Write(e) => e.code(),
+        _ => None,
+    }
+}
+
+/// Checks `expect.clientWrite`: runs a vault client's create, edit or trash (`sync::client_*`) against the fake
+/// server with the account's keys, then compares the decrypted requests it accepted, or the error code with nothing
+/// accepted. Unlike a tool's create, a vault client's whole body is compared: its name is the user's.
+pub async fn client_write(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
+    let want = s.expect.client_write.as_ref().ok_or("no expect.clientWrite")?;
+    let op = s.operation.as_ref().ok_or("expect.clientWrite needs an operation")?;
+    let keys = account_keys(files, &s.account, s.options.organizations, rsa).await;
+    let server = VectorServer::new(keys.profile.clone(), s.ciphers.clone(), keys.prelogin.clone());
+    let mut api = client(server.clone())?;
+    let rng = SeededRandom::new(0x0063_6c69_656e);
+    api.login(&api_key()?).await.map_err(|e| e.to_string())?;
+    api.sync().await.map_err(|e| e.to_string())?;
+    *server.fresh.borrow_mut() = op.fresh().cloned();
+    let outcome = match op {
+        Operation::ClientCreate { item } => {
+            let none = ClientLogin::default();
+            let kind = match (item.kind, &item.login) {
+                (1, login) => {
+                    let l = login.as_ref().unwrap_or(&none);
+                    NewKind::Login(NewLogin {
+                        username: z(&l.username),
+                        password: z(&l.password),
+                        totp: z(&l.totp),
+                        uris: new_uris(&l.uris),
+                    })
+                }
+                (2, None) => NewKind::SecureNote,
+                _ => return Err("a new item is a login, or a secure note without a login part".into()),
+            };
+            let entry =
+                NewEntry { name: z(&item.name), notes: z(&item.notes), folder_id: item.folder_id.clone(), kind };
+            sync::client_create(&mut api, &keys.user, keys.security_version, &rng, &entry).await.map(|_| ())
+        }
+        Operation::ClientEdit { cipher, base_revision, name, notes, username, password, uris, folder_id, .. } => {
+            let edit = ClientEdit {
+                base_revision: base_revision.clone(),
+                name: name.as_deref().map(z),
+                notes: notes.as_deref().map(z),
+                username: username.as_deref().map(z),
+                password: password.as_deref().map(z),
+                uris: uris.as_deref().map(new_uris),
+                folder_id: folder_id.clone(),
+            };
+            sync::client_update(&mut api, &keys.user, &keys.orgs, &rng, NOW_MS, cipher, &edit).await.map(|_| ())
+        }
+        Operation::ClientTrash { cipher, base_revision } => {
+            sync::client_trash(&mut api, &keys.user, &keys.orgs, cipher, base_revision).await
+        }
+        _ => return Err("expect.clientWrite goes with a vault client's operation".into()),
+    };
+    compare("out-of-date rejections", server.rejected.get(), u32::from(op.fresh().is_some()))?;
+    let sent =
+        server.sent.borrow().iter().map(|r| canonicalize(r, &keys.user, &keys.orgs)).collect::<Result<Vec<_>, _>>()?;
+    let want = match (want, outcome) {
+        (WriteExpect::Requests(want), Ok(())) => want.requests.as_slice(),
+        (WriteExpect::Error(want), Err(e)) => {
+            compare("error code", client_error_code(&e), Some(want.error.as_str()))?;
+            &[]
+        }
+        (WriteExpect::Question(_), _) => return Err("a vault client is never asked a history question".into()),
+        (_, Ok(())) => return Err("expected an error, the write succeeded".into()),
+        (_, Err(e)) => return Err(format!("unexpected error: {e}")),
+    };
+    // `secureNote` is compared only where the expectation lists it, as for a tool's write.
+    let sent: Vec<Value> = sent
+        .into_iter()
+        .enumerate()
+        .map(|(i, mut r)| {
+            if want.get(i).is_none_or(|w| w.get("secureNote").is_none())
+                && let Some(o) = r.as_object_mut()
+            {
+                o.remove("secureNote");
+            }
+            r
+        })
+        .collect();
+    compare("requests", sent.as_slice(), want)
 }
 
 /// Checks `expect.folders`: the names `vault::folder::folder_names` reads from the scenario's folders with the

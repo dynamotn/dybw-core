@@ -1,0 +1,41 @@
+{
+  "id": "write/client/trash",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§8.2"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "2.w3WncaZZ5FWc9pfuVJGtUA==|33khohHU8TBN1jdVDBcBeQ==|HkJ06rQf1tDt1UwAb9FlHqDzQgQ+Hk5PveIPB64udfQ=",
+      "login": {
+        "username": "2.yni4WcAVmq+QYa5ry628DA==|dZsJHWE2p6wF56F34UrG7A==|RNoVQBF7EcY4I21rhLbEVH/gScdNNSZBEc7Yxj73AyA=",
+        "password": "2.+z7zBi/258/5/8ZaXOR8FQ==|jceM58+WEgWh94m5iVkdfw==|ok/1SrXaznuk0zrJ+GuU4p/lkx9ttSSU7oRt/QGxsxQ=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-trash",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "trash",
+          "cipher": "c1"
+        }
+      ]
+    }
+  }
+}

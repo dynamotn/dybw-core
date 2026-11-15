@@ -1,0 +1,42 @@
+{
+  "id": "write/client/edit-organization-read-only",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "name": "2.eI4UToWgbr/pFvxgoqThBg==|8UsLZJqhIrWeNmfnMWnHQA==|mXzw52Fc6ualLawQ+JQDTg6UhA9q9n544vP4+lpwSq4=",
+      "login": {
+        "username": "2.KG15hDww49USBwKKH4vkYw==|60aVDMYlXWS8Jf8X4X2UUA==|jA0/gF01CM+uHI7+ZLfMJdQsVAZCxazj/X8iVJdwL+Y=",
+        "password": "2.Ab9Ypighlaebprpihz3+lw==|hPmif5xt6RUcHJDusMvC3g==|Yot1fqAz8zvYIa4IRKenUZAAlH+yJn9/iTSIICTqgeY=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "edit": false
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Renamed"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "read-only"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "write/client/edit-not-a-login",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "2.M1FpPdkc0VXPBrkpeaKNGA==|8ZUX6w9x0kFlxRyMexjvdQ==|wNjv2lrCdRSIgcUwHfaI9xjdiXv0ZpT+JK+NW2rvWPk=",
+      "notes": "2.i+u8/U46ciY+S1dDQ2G8Uw==|rRGXZTQiYSa+zSNVkfijfQ==|+sPneRkb5EnSgzexu6wIVSuygDXmLU/bKILUHmQWoMo=",
+      "secureNote": {
+        "type": 0
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "pw"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "not-a-login"
+    }
+  }
+}

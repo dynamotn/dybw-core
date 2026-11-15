@@ -1,0 +1,43 @@
+{
+  "id": "write/client/trash",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§8.2"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Old login",
+      "login": {
+        "username": "me",
+        "password": "pw",
+        "uris": [],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-trash",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "trash",
+          "cipher": "c1"
+        }
+      ]
+    }
+  }
+}

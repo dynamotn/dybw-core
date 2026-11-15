@@ -1,0 +1,51 @@
+{
+  "id": "write/client/edit-note-folder",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "folderId": "folder-1",
+      "name": "2.RN+UExucXPjnB+swQjhnbA==|WVWqE4uJt4dtAxgeS1n5lA==|VXtPoJEjTLmuBEoHcq34VfTRu8IfJ3fBXsOIZ7TRFyw=",
+      "notes": "2.82I8OzDAAba8D5dYPLq0QQ==|AUMgmxtUm4c/BKkg/1G1mg==|YV3AC+7QIOortxacsyjdfncFkCX6iHGZnR7Dg5MTY90=",
+      "secureNote": null,
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "folderId": null
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 2,
+          "name": "Note",
+          "notes": "text",
+          "login": null,
+          "secureNote": {
+            "type": 0
+          },
+          "fields": [],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

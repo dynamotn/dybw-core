@@ -1,0 +1,38 @@
+{
+  "id": "write/client/edit-organization-key-missing",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "name": "2.oBdVG15bHytrsV7RG4AZAQ==|rYaFXcWqTss2z4MMqdFbiw==|FtRhKP2UlDb1pfdtarkddiSlbVOAuLSJUGaanhRDODg=",
+      "login": {
+        "username": "2.HUunIWJDKcsTI8vAbQ3roQ==|fftlEWkXyto8rWPYu4EU5g==|T/JL4jCuPpTJDUmREdCIuJu7kO1jcepUwL0sSCr0G6w=",
+        "password": "2.hL3uuNgPYpZUSal1gQ0kbQ==|hvtBeVAFlqUHDmYIVsdHYw==|4w/H5P9yy1nsidUPbCdDzXghiLrJ8HpkHslBzReb6bs=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Renamed"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "organization-key-missing"
+    }
+  }
+}

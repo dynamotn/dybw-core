@@ -1,0 +1,40 @@
+{
+  "id": "write/client/edit-organization-key-missing",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "name": "Team login",
+      "login": {
+        "username": "team",
+        "password": "team-pw",
+        "uris": [],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "organizationId": "org-a",
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Renamed"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "organization-key-missing"
+    }
+  }
+}

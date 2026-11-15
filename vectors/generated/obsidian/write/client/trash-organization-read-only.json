@@ -1,0 +1,38 @@
+{
+  "id": "write/client/trash-organization-read-only",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 2,
+      "organizationId": "org-a",
+      "name": "2.zDPMj9VDIIng+ZKDLVBHdw==|ImuV5fGQs/IzlLfa4FcOEA==|xf5fBwycsvKg23kttLfhmfV5uYHZeGOADztv4iUu1Y8=",
+      "notes": "2.b8u/t9lUmJUTGO8Q5PneWg==|oc2bOOi7dctd8a9uJrFWcA==|pBEUm8jq5k2n+YpzDu39lL++75EbOzoiHnhurdeI58Q=",
+      "secureNote": {
+        "type": 0
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "edit": false
+    }
+  ],
+  "operation": {
+    "kind": "client-trash",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "read-only"
+    }
+  }
+}

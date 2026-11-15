@@ -34,7 +34,7 @@ One JSON object per file.
 | `device` | object, optional | The device's sync state, below |
 | `local` | object, optional | `{ id: string \| null }`: the device's local values. An absent id and `null` both mean no local value; `""` is a value. Sync scenarios still write `null` for every id they plan for |
 | `operation` | object, optional | The write the tool performs, below |
-| `expect` | object | At least one of `read`, `write`, `plan`, `open`, `folders`, below |
+| `expect` | object | At least one of `read`, `write`, `plan`, `open`, `folders`, `clientWrite`, below |
 
 ### Plaintext cipher
 
@@ -124,6 +124,25 @@ change to `fresh`.
     the question the copy raises, so the default `"write-to-login"` answers
     whichever one it is.
 
+- **Vault-client writes (1.6, ADR 0025).** Three more kinds are what a vault
+  client (the dybw CLI) sends, whatever the namespace; they go only with
+  `expect.clientWrite`, never with `expect.write`:
+  - `{ "kind": "client-create", "item": { "type": 1 | 2, "name", "notes"?,
+    "folderId"?, "login"?: { "username"?, "password"?, "totp"?, "uris"? } } }`:
+    a personal login or secure note (a secure note has no `login`). Absent
+    texts are empty, and an empty text is none. `uris` is
+    `[string | { uri, match }]`; an empty URI is left out. The item is a blob
+    on an account whose security state is at version 2 or higher.
+  - `{ "kind": "client-edit", "cipher", "baseRevision", "name"?, "notes"?,
+    "username"?, "password"?, "uris"?, "folderId"?, "fresh"? }`: an absent
+    part is left as it is, an empty text clears it, `folderId: null` moves
+    the item out of every folder, and `uris` is the whole new list. The
+    client fetches the cipher first; a copy whose `revisionDate` is not
+    `baseRevision` is refused, and with `fresh` the server rejects the write
+    as out of date, which is refused too: nothing is re-applied (§6.5).
+  - `{ "kind": "client-trash", "cipher", "baseRevision" }`: moves the cipher
+    to the trash after the same checks.
+
 - **Line union (1.6).** `appendLines` on `set-value` is an array of
   `{ "name", "lines": [string], "hidden": bool }`: after the value is written,
   for each entry the first field called `name` is split on `\n`, every line of
@@ -189,6 +208,20 @@ change to `fresh`.
 - `folders` (1.6, ADR 0025): `[{ id, name | error }]`, the names a vault client reads
   from the scenario's `folders` (`vault::folder`) with the account's user key.
   `error` is `value`: the name does not decrypt. A folder that fails is still listed.
+- `clientWrite` (1.6, ADR 0025): what a vault client's operation sends
+  (`vault::client`), as `{ "requests": [CanonicalRequest] }` compared whole
+  (a vault client's name is the user's, so a `POST` keeps its name and every
+  field), or `{ "error" }` with nothing sent. The codes: `out-of-date` (§6.5),
+  `gone` (trashed or deleted), `read-only` and `organization-key-missing`
+  (§9), `newer-format` (an organization blob, ADR 0021), `not-a-login` (a
+  username, password or URIs on another type), `password-hidden` (a password
+  change while `viewPassword` is `false`), `notes-held-by-tool` (a notes
+  change while a first `<ns>:location` of any namespace says `notes`, §6.4),
+  `name-required`, `bad-uri-match` (a match type above 5) and `too-long`
+  (Bitwarden's encrypted limits: name, username and TOTP 1,000, password
+  5,000, notes and each URI 10,000). A changed password goes first into the
+  history (§6.1); a part set to what it holds is not written, so an edit that
+  changes nothing sends nothing.
 - `plan`: `[{ kind, id }]` sorted by `id`, with `kind` one of `pull`, `push`,
   `adopt`, `clear-local`, `forget`, `create`; or
   `{ kind: "conflict", id, conflict }` with `conflict` one of `both-changed`,

@@ -1,0 +1,91 @@
+{
+  "id": "write/client/edit-blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§4.2",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": "folder-1",
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYbL52o+nZgZC3Gl495kWQZjsWQkN9aum6WFCOK2TIU3HKNS8wizY5AFJ0gwA7Rr7FhYoSlIiCvR+IHpwUY6/mTswMJbx524dIG6CqSRZbkr89gAjiQrVReMP1uaYBu6QTtSg7Ayc6N+FOHA==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.phIw4ZLUx5LLRGqdn5m5Kg==|NnZiPeV+Z3UWDqSPT7ksgC2+1sRrZqEoQI5JEAwqfBNFh7+JH2PcLyv61FWo++Wk9APwiH+1B/k1CmOzMELZEFtM5FeWZieLJp07t2h4eYA=|oXk7n4JgBvDd96yEAP8xYWyr5OiIUbWiZF7EHOWxljI=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUPPoUAVdyCxJFnDu18iyBU06AAE4gQI6AAE4gAGhBUwVeyWCbTSn9U+QT6VZAaXY6PmGrOilC+axQ/d6SgaIHxp3oA3ub9FGWYuTZq7enBbjFJIb+t9f9HNyHIzmLdqiU31jqURt8CpV+ilUXi2QBXVmuEjfsh3ID834TbzTVonKFlvR5Ojf4skiwIi/js9L53JMsqdzhXuTu9qQ0mZAofuuGxC387EKJWvrd3muVjtN2RPpHk3Bp5N6GMqVVrd7+bdAGDIcoqqpYOXqyrZaFM7WS1JG/fr739+5lsIdNjf+566NYfH63+183XDsIcGK3RcEgewT0UkP4iYs6KdlRMcY4NojOGhmSA/OTfaT1XzeLFSRCav6iLAyQxfn950yjTcwy/B2TzmUKnCOhQMlsp98UWEwYkd1T01oKaevYQWYSECBU0oFLarrqnirYptKp2eSqten/I9ouUI4s97ug9HlOsaMUmJN4CT0y84JXDQqUkT4j2+5JSylnnS1WKvY5On3v7nprSW6dVXUoK1JFUD6w3D24occ+Weuqo8fH/IOVQ6TIuZna2DbFmEMNN4efQk8BmsG71mchqs/CNOg+VywvmBtMeeJr9hVYHAbqlaMHHrm\"}",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "xTop": "top"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "username": "you",
+    "password": "new-pw"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Blob login",
+          "notes": "blob notes",
+          "login": {
+            "username": "you",
+            "password": "new-pw",
+            "uris": [
+              "https://a.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "old-pw",
+              "older-pw"
+            ]
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "other:password",
+              "value": "other-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": "folder-1",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {
+            "xTop": "top"
+          },
+          "blob": true,
+          "blobExtra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null,
+                "text"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

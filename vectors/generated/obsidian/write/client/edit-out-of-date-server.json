@@ -1,0 +1,50 @@
+{
+  "id": "write/client/edit-out-of-date-server",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.5"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "2.GJEvGZxeCyHbT2uulTVwEA==|qxp3XIYne8lpvfB17J88JA==|BDCu7X3e8a37dehby04vfqcoJ7070J7txH4Sf0SW99w=",
+      "login": {
+        "username": "2.gKTKA2Cqe0prH97GK15/jA==|kZfwAiZIAwqk2Nq1pOFrkQ==|SRxA77rLSN+3O+KKzmKbYXuMzVDxgCxsqYaAyEleMYc=",
+        "password": "2.EooPn5WmlwwvVGrQPXYR8Q==|f7INrJKFbWGLjjjKw7OnQw==|wzEisrJR7mUN37DOkzi2i507n4J9l1Wh++c2n+tLrgg=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "new-pw",
+    "fresh": {
+      "id": "c1",
+      "type": 1,
+      "name": "2.Fqso8B70p9uoJf5eypgMdQ==|jk7LUdnsqi6qWhGmmRRQAw==|aqPX2T+ZXpjSiGOVOla6Y7FNkKmoZ9SB9X8tpU+DXVk=",
+      "login": {
+        "username": "2.7qCGIKtjYps5jkTlZhRpaQ==|X1sXnGOaTzx0lLl4370LqA==|hH2vAafC6zYrAppL8K2X+mDjNYsr8okESZiI92sKOM0=",
+        "password": "2.UUsY++SAn1CjVtdT9EXAgg==|+/bvGCQgXMZR081HyFGxz3cHwqGp2C710XfYqX1MwjM=|10L04J/LLOoWzRkrbc0WdMEWe0LtwUNpyto1ljuHCJk=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-02-02T00:00:00.000Z"
+    }
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "out-of-date"
+    }
+  }
+}

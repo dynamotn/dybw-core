@@ -1,0 +1,38 @@
+{
+  "id": "write/client/edit-organization-key-missing",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "name": "2.sNGDbGXB1n3npwv0WTfx5g==|Gmm9uhAp3OtPUir3i49w5A==|NLe3dLpN4OlO92FNehR+PtIyymJ3EZ0DJhu+LKL2sT4=",
+      "login": {
+        "username": "2.+juMZa4zrHhUUVQ1C5Jt+Q==|jeVD/N9VN+uS90FgnjRjsg==|C5MnriXXCZReNiOSQw+cmy29CwFDC/i+shOn3n9BOXs=",
+        "password": "2.mxf7Nb1nS4vEAfn1m0ex5w==|q9+PHV0CtJik36i6O9mHhA==|Sk44qubQimL1XxkA0wZImnNySSwJZn1WZFn0NEtcJ0g=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Renamed"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "organization-key-missing"
+    }
+  }
+}

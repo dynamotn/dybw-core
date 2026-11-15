@@ -1,0 +1,79 @@
+{
+  "id": "write/client/edit-organization",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "key": "2.lAiEsTfulHlXBe1X0KfM+A==|3bOXdh4Zk3RWZQCGZ7Q4VZoA1D2PsGCqsbRoF+rQxtW6Mt796YgFP7w171e6s1VtkROcmo7cMsK5UJNJWmBLQ+X1ITIPkwQvJ4Qp5S+C7zE=|mQRFkr67G/xWF5AiweFJ7jbtNvrCnzdYab/Lap/hQ/k=",
+      "name": "2.2VzUDCEUM6BJIiPwVGUUoQ==|pZRwC/C33ogY+t9okYDydg==|gwxKQSBakWAIiRAxwyt8/gUv7PYRsNW7HO38O66t9YQ=",
+      "login": {
+        "username": "2.iuf9523PXj4Es8G3kyl8RQ==|75U1wO/C8h5KJYMRX1K0Wg==|2bl7DADRM3kX/FZ5GF9SAvI+wwI6n8S9jFW0d3Y/ulY=",
+        "password": "2.R6Z+lp28jjclgUEJXlXorg==|qB1q5j5t9c4qwY61Ac+0Vg==|iSMWeHSHqnMgtOe+DXZHTjxrH1Z4Y6qURT8aNceSUxk=",
+        "uris": [],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.x0OvAvvzBv57WVeiMnanig==|7XyPNU5edyTaLYNVIdoUCA==|u3I94DhmRtKmJidinNSaybOwXeKYSl0sOX9wPxsLluI=",
+          "value": "2.xihtQaGHoxGNpHdN5DXKjA==|fGO8Jx3Fz/w1jIFXAsnLRA==|ooCqL2gX5TocUXBIYnNnSn9xSJZpcAWUVH60G7j9+1Q=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "team-new"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "o1",
+          "type": 1,
+          "name": "Team login",
+          "notes": null,
+          "login": {
+            "username": "team",
+            "password": "team-new",
+            "uris": [],
+            "totp": null,
+            "passwordHistory": [
+              "team-old"
+            ]
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "team",
+              "type": 0
+            }
+          ],
+          "organizationId": "org-a",
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

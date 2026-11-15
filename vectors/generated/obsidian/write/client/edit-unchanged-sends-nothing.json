@@ -1,0 +1,54 @@
+{
+  "id": "write/client/edit-unchanged-sends-nothing",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": "folder-1",
+      "name": "2.ZCgosKPXbdEeBv4XONH3pg==|R6+ShOhtG+Cx9hsPq76eCA==|LHV4aJ+H907r4Fn55+jBwVAp4pErV2pspalmbeqVrME=",
+      "notes": "2.taMR6kNy+nToB8Oe3mZuAA==|TwqQMD+RhXauXmvCngzPoQ==|2gJ/bGZ3k5C70I+4z81WQEIggyOsryJVbJiyGt4xNtU=",
+      "login": {
+        "username": "2.sAe0bAaTndLp5R9xbxeW0A==|u/lmdJx4C49p/uBKp5DM3g==|vbXPatC5Lqpgy3+orIqbUdSGYZpBNI/8MdC7U8OhrnU=",
+        "password": "2.GEryFB3YE4+uoA6uDA3rTQ==|orQVQgG1zc4hHMUAxqJaVA==|N0ylPjemYwAYuOm7WZ/QbqAB5DKbrUpEBRLBWAB6tao=",
+        "uris": [
+          {
+            "uri": "2.TMR0tAesPffbEv9QYfPKDw==|2wVrrLBs9QEQmM98FDTlKBr+OFYGIcioC04qzx+RTZo=|LiCL4FGE0lK65gG9rc34hKMmZkoOaJi0YgBiBmlLlIk=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Mail",
+    "notes": "n",
+    "username": "me",
+    "password": "pw",
+    "uris": [
+      {
+        "uri": "https://a.example.invalid",
+        "match": null
+      }
+    ],
+    "folderId": "folder-1"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": []
+    }
+  }
+}

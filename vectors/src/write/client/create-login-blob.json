@@ -1,0 +1,58 @@
+{
+  "id": "write/client/create-login-blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§4.2",
+    "§6.2"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [],
+  "operation": {
+    "kind": "client-create",
+    "item": {
+      "type": 1,
+      "name": "Site",
+      "login": {
+        "username": "me",
+        "password": "pw",
+        "uris": [
+          "https://a.example.invalid"
+        ]
+      }
+    }
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "POST",
+          "cipher": null,
+          "type": 1,
+          "name": "Site",
+          "notes": null,
+          "login": {
+            "username": "me",
+            "password": "pw",
+            "uris": [
+              "https://a.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": []
+          },
+          "fields": [],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": null,
+          "hasItemKey": true,
+          "extra": {},
+          "blob": true
+        }
+      ]
+    }
+  }
+}

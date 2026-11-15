@@ -1,0 +1,65 @@
+{
+  "id": "write/client/create-login",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.2"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [],
+  "operation": {
+    "kind": "client-create",
+    "item": {
+      "type": 1,
+      "name": "Site ünï",
+      "notes": "created by dybw",
+      "folderId": "folder-1",
+      "login": {
+        "username": "me@example.invalid",
+        "password": "pw-😀",
+        "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+        "uris": [
+          "https://a.example.invalid",
+          {
+            "uri": "https://b.example.invalid",
+            "match": 3
+          },
+          ""
+        ]
+      }
+    }
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "POST",
+          "cipher": null,
+          "type": 1,
+          "name": "Site ünï",
+          "notes": "created by dybw",
+          "login": {
+            "username": "me@example.invalid",
+            "password": "pw-😀",
+            "uris": [
+              "https://a.example.invalid",
+              "https://b.example.invalid"
+            ],
+            "totp": "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP",
+            "passwordHistory": []
+          },
+          "fields": [],
+          "organizationId": null,
+          "folderId": "folder-1",
+          "lastKnownRevisionDate": null,
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

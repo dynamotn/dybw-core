@@ -1,0 +1,25 @@
+{
+  "id": "write/client/create-name-required",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [],
+  "operation": {
+    "kind": "client-create",
+    "item": {
+      "type": 2,
+      "name": "  "
+    }
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "name-required"
+    }
+  }
+}

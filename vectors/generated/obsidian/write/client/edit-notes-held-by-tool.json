@@ -1,0 +1,46 @@
+{
+  "id": "write/client/edit-notes-held-by-tool",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.4"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "2.FAQG2xaIkrimbRdvWaQh5w==|0+k6xS1F8yriZ6Y0HjFAkQ==|Nfo20wARlJe5fOc+ZzcKQuqtf1Ppl45jSsSmtCreXMk=",
+      "notes": "2.B7nB15AEH+pAPbrgAwHVNw==|5jRbsykKtBSILXivcoaNyajbJ2Iu8gbl9b4PywOFzdk=|KFLkqroKo9YrYgA4u2K0K5BBR2nMobZcUk3Nv6rybyw=",
+      "secureNote": {
+        "type": 0
+      },
+      "fields": [
+        {
+          "name": "2.k9ynPiI0K7ZKHj4lXkOgIg==|XSiA5infZIveMqeXeDbaXQ==|XBSir1s+bJ4yqDFionsl4QduI/q8VrI7I5ODSlI9Nyk=",
+          "value": "2.SSB7Bg2BB2YhDvszjuHsxg==|aQpwDm9YOyalvt7U4mJxRw==|ujsIV2mtsmG/2egKB8oCjfrKLwWMwvMy8zuVrpozthY=",
+          "type": 0
+        },
+        {
+          "name": "2.26ZVywyz6aU+JghnjgSyYg==|fDXv7gkWzKyuBMAlwTSpqzNjMEa2FYpyb1URPiTnPww=|iSUOct7m7kewQ3yhnmYaRQ3jw/ivWsbaWNXNgrQsQLk=",
+          "value": "2.6dlBu4Z/0vD2Pfxk39cvHw==|5DQchcSfFjSMmS/PrI6AiA==|EnZ+2EGIc16T05vSffUuux2rmTGHHYGdKkQD+h5HS+I=",
+          "type": 0
+        }
+      ],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "notes": "the user's text"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "notes-held-by-tool"
+    }
+  }
+}

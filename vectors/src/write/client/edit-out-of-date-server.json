@@ -1,0 +1,52 @@
+{
+  "id": "write/client/edit-out-of-date-server",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.5"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Mail",
+      "login": {
+        "username": "me",
+        "password": "old-pw",
+        "uris": [],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "new-pw",
+    "fresh": {
+      "id": "c1",
+      "type": 1,
+      "name": "Mail",
+      "login": {
+        "username": "me",
+        "password": "changed-elsewhere",
+        "uris": [],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "revisionDate": "2026-02-02T00:00:00.000Z"
+    }
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "out-of-date"
+    }
+  }
+}

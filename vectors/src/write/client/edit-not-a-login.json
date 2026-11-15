@@ -1,0 +1,32 @@
+{
+  "id": "write/client/edit-not-a-login",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Note",
+      "notes": "text",
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "pw"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "not-a-login"
+    }
+  }
+}

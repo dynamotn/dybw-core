@@ -1,0 +1,127 @@
+{
+  "id": "write/client/edit-blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§4.2",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "format": "blob",
+      "name": "Blob login",
+      "notes": "blob notes",
+      "login": {
+        "username": "me",
+        "password": "old-pw",
+        "uris": [
+          "https://a.example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": [
+          {
+            "password": "older-pw",
+            "lastUsedDate": "2025-01-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "other:password",
+          "value": "other-secret",
+          "type": 1
+        }
+      ],
+      "folderId": "folder-1",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "blobExtra": {
+        "xUnknown": {
+          "kept": [
+            1,
+            true,
+            null,
+            "text"
+          ]
+        }
+      },
+      "extra": {
+        "xTop": "top"
+      }
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "username": "you",
+    "password": "new-pw"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Blob login",
+          "notes": "blob notes",
+          "login": {
+            "username": "you",
+            "password": "new-pw",
+            "uris": [
+              "https://a.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "old-pw",
+              "older-pw"
+            ]
+          },
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "other:password",
+              "value": "other-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": "folder-1",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {
+            "xTop": "top"
+          },
+          "blob": true,
+          "blobExtra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null,
+                "text"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

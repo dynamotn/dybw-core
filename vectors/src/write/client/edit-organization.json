@@ -1,0 +1,81 @@
+{
+  "id": "write/client/edit-organization",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "name": "Team login",
+      "itemKey": true,
+      "login": {
+        "username": "team",
+        "password": "team-old",
+        "uris": [],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "team",
+          "type": 0
+        }
+      ],
+      "organizationId": "org-a",
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "team-new"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "o1",
+          "type": 1,
+          "name": "Team login",
+          "notes": null,
+          "login": {
+            "username": "team",
+            "password": "team-new",
+            "uris": [],
+            "totp": null,
+            "passwordHistory": [
+              "team-old"
+            ]
+          },
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "team",
+              "type": 0
+            }
+          ],
+          "organizationId": "org-a",
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

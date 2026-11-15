@@ -134,6 +134,77 @@ pub enum Operation {
         #[serde(default)]
         answer: Answer,
     },
+    /// A vault client's create (`expect.clientWrite`).
+    ClientCreate { item: ClientItem },
+    /// A vault client's edit of one cipher: an absent part is left as it is.
+    #[serde(rename_all = "camelCase")]
+    ClientEdit {
+        cipher: String,
+        base_revision: String,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        notes: Option<String>,
+        #[serde(default)]
+        username: Option<String>,
+        #[serde(default)]
+        password: Option<String>,
+        #[serde(default)]
+        uris: Option<Vec<ClientUri>>,
+        /// Absent leaves the folder; `null` moves the item out of every folder.
+        #[serde(default, deserialize_with = "present")]
+        folder_id: Option<Option<String>>,
+        #[serde(default)]
+        fresh: Option<Value>,
+    },
+    /// A vault client's `remove`.
+    #[serde(rename_all = "camelCase")]
+    ClientTrash { cipher: String, base_revision: String },
+}
+
+/// A key that is present, even as `null`: `Some(None)`.
+fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<String>>, D::Error> {
+    Option::<String>::deserialize(d).map(Some)
+}
+
+/// A new item of `operation.item`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ClientItem {
+    #[serde(rename = "type")]
+    pub kind: u64,
+    pub name: String,
+    #[serde(default)]
+    pub notes: String,
+    #[serde(default)]
+    pub folder_id: Option<String>,
+    #[serde(default)]
+    pub login: Option<ClientLogin>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClientLogin {
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
+    #[serde(default)]
+    pub totp: String,
+    #[serde(default)]
+    pub uris: Vec<ClientUri>,
+}
+
+/// A URI as a string (no match type), or with its match type.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum ClientUri {
+    Plain(String),
+    Matched {
+        uri: String,
+        #[serde(rename = "match")]
+        match_type: Option<u64>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -148,9 +219,11 @@ impl Operation {
     /// The cipher the server returns on the refetch after an out-of-date rejection.
     pub fn fresh(&self) -> Option<&Value> {
         match self {
-            Operation::SetValue { fresh, .. } | Operation::Create { fresh, .. } | Operation::Delete { fresh, .. } => {
-                fresh.as_ref()
-            }
+            Operation::SetValue { fresh, .. }
+            | Operation::Create { fresh, .. }
+            | Operation::Delete { fresh, .. }
+            | Operation::ClientEdit { fresh, .. } => fresh.as_ref(),
+            Operation::ClientCreate { .. } | Operation::ClientTrash { .. } => None,
         }
     }
 }
@@ -170,6 +243,9 @@ pub struct Expect {
     /// The folder names a vault client reads from the sync (`vault::folder`).
     #[serde(default)]
     pub folders: Option<Vec<FolderExpect>>,
+    /// What a vault client's create, edit or trash sends (`vault::client`), or why it sends nothing.
+    #[serde(default, rename = "clientWrite")]
+    pub client_write: Option<WriteExpect>,
 }
 
 /// One folder's name, or why it does not decrypt.

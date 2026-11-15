@@ -1,0 +1,91 @@
+{
+  "id": "write/client/edit-blob",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§4.2",
+    "§6.1",
+    "§6.3"
+  ],
+  "account": "cose-v2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": "folder-1",
+      "name": null,
+      "notes": null,
+      "login": null,
+      "fields": null,
+      "passwordHistory": null,
+      "key": "7.g1g+owE6AAEReQN4ImFwcGxpY2F0aW9uL3guYml0d2FyZGVuLmxlZ2FjeS1rZXkEUFHYp5ZxciEqDVIAAaWt0KKhBVgYOWPlWb8FLdrGl3/1eg/EP34nOhO9Kcb+WFAhAdFD8DA5WcOafpRxL0WMS9BrzCrVjhi5J/O1TbI1bhFMGhurHtrbBUlvQ8MLbWAk/cWIPjMyloW7nHSHwI+bZBtvqj8rb3GvLHGXF07nQQ==",
+      "data": "{\"format_version\":1,\"wrapped_cek\":\"2.ywgB2T8DwoW/cPb4SiuJSg==|QorJmZUwDlMljOhfgvM484oNpuQ/d73kwh92NlgdTFu0BRZ+HDo0hpvY5knSySdBJ5Oi/3gtY0uh7D3w+UdBcEj47m+10ub6TTamDMSmbwM=|W3mlIIxxzM1vDdb7By2kDPTCb4IRtUaILYPH9eRMd/g=\",\"envelope\":\"g1hHpQEDA3gjYXBwbGljYXRpb24veC5iaXR3YXJkZW4uY2Jvci1wYWRkZWQEUCgwi+IzO2AgffsJfxQpFM46AAE4gQI6AAE4gAGhBUxwGXF72yJe3wwoGWdZAaHyxfL2ToVtf9FrOxJHmzgNhngRyTK689hCqYy+fxyovmHU1V0l7LZLB3jaDR+ji62XgLeeinKAEyXsROUJ0SYQ8FPOmPxXDRl9FaVu0Fb91sIsmhpdBqwuaGLP57proM22F/POU8rclSBBI1x4UdtgtTWcGFHwnW0yEXsp1DhqBZtJkatkIycfI9R0W+zGN9wIeuEdPaGcaixY7uq8EXTasD3KVQVHY2dmcc/K9chYalAVsrBRokvluLUGkAKvkU597l+/3t6BDph6RzkHPkF9OZDhP8xdAeb+0hCvdQiWK21ME4DDkX5VwnB8dWQt7Dt8zMtrxLYDgejlu/AHSo34rMQ85li0lQUfVgnP7x/JyA89o1ndrtR9nmqfp6+O6qIPZc4f4pFk3IDSc6jDbugJ/W4oBZBl1teru+Y9m6Csknclynpms3g4k0PL/DtVIMYYEXX8mI8sqXgYTYgF276YvhYiTkBu/LjkCS/LvRE0ybNN1q+XyRSyC5yMMH/f3aoN2I/a3Q3MsZp6eE0p4PkQmIwdqXBqeYvauQI40VRrcws=\"}",
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "xTop": "top"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "username": "you",
+    "password": "new-pw"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "Blob login",
+          "notes": "blob notes",
+          "login": {
+            "username": "you",
+            "password": "new-pw",
+            "uris": [
+              "https://a.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "old-pw",
+              "older-pw"
+            ]
+          },
+          "fields": [
+            {
+              "name": "bwss:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "other:password",
+              "value": "other-secret",
+              "type": 1
+            }
+          ],
+          "organizationId": null,
+          "folderId": "folder-1",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {
+            "xTop": "top"
+          },
+          "blob": true,
+          "blobExtra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null,
+                "text"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

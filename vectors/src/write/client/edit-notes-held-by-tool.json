@@ -1,0 +1,45 @@
+{
+  "id": "write/client/edit-notes-held-by-tool",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.4"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "Big secret",
+      "notes": "the tool's oversize secret",
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:location",
+          "value": " notes ",
+          "type": 0
+        }
+      ],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "notes": "the user's text"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "notes-held-by-tool"
+    }
+  }
+}

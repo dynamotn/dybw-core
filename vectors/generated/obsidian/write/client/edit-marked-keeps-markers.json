@@ -1,0 +1,161 @@
+{
+  "id": "write/client/edit-marked-keeps-markers",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§3.1",
+    "§3.3",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "folderId": null,
+      "name": "2.t+UvzPak722Exav/OBNuHA==|Pws1qNdBzw1YbWQYHgEpqQ==|vNoo9t6kqkuQXDlwwj0aePIdlPlITUNGimdzgNqpzi8=",
+      "notes": null,
+      "login": {
+        "username": "2.xhgz9OkDCb9onQHNfAni+g==|XqKiyvnUNhAf7Y3ut7tlTg==|Xxjmc2kvX7JyypU4kUdNLEgZqR7TAtvIlO6pEAxj6Ys=",
+        "password": "2.UPckSSCJsQi796vi3pNJ9g==|rWtKwlYUmGA3RUw9Z2g1vg==|B+fQfHH2OuJ6yAGf/KARAMUICBXCv5kjtEDsdo7uWh4=",
+        "uris": [
+          {
+            "uri": "2.Mm5mH9eEfVJB1rIyNCvUSA==|p+ii6PwcI/nPhzd73F/+Enlqj/GP+dfAlm6EzSn7ObI=|81+QVDSG2ih0/LsIhAuArFXlTw+3Q6VPypfpPBFs+Ds=",
+            "match": null
+          }
+        ],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.UntahgM2IdXeHJgcvf/BFw==|rHl/P/VNejmPkzsweDEIQg==|LJ2GRlaukNyXL4XFsyRN0BVNtPGG6Lie5v+UlU/SHaE=",
+          "value": "2.ciGqT2IMzU7Xty/woJgDcA==|6XQx4+OXq3IIXkl4lNxUKQ==|ecJyAWn+mwXU8BdpACUFbYLIThakMQh0asaPHx6vqBk=",
+          "type": 0
+        },
+        {
+          "name": "2.I0io+/2JV8bOWl9HZDsE0Q==|jYpunolNwOzQpumfSriUayWDYoH7ju7JW8UQYshWBgo=|o9UY3yAIbTHp9hncZX1n2m8rh0y+i6TIT0UnkgiHmqw=",
+          "value": "2.4T+brWDws98LDtKKV/5/Rw==|9ZM/bnEK/lYLzsyt3KPoWA==|Mm459MRwcPsKZ6z13dQJudzE7z1Jn3yP524lyA965KQ=",
+          "type": 0
+        },
+        {
+          "name": "2.hnsc5Un1qv4vHsMucqxGSA==|jj8Y6JemRXRwT5BWNT2L+A==|ckUfDtR/b8FwitFyNR0O8W0pcI7RsKcttAaHAzK+GmA=",
+          "value": "2.EPDW+Wz2n7UH3g0V4ZX0eA==|2gjhFshtUqgEA3B57gat3w==|2PoP15hy9K21aHYMd2/MqJhu7i7Dvgzf+yAU7Ta5lQU=",
+          "type": 0
+        },
+        {
+          "name": "2.RvmeABoSKTdE4ntm5sXQpQ==|vc/JZUAesuy6oM5q4tEyZQ==|02duGX1bpigMEiIGLzZfaK1lkjdkH3XMHShzo7zqiIU=",
+          "value": "2.hgJb6bxjaClrC8onyWAiAA==|7tF0AeD5KOhEoy5iTJjneQ==|qIs7MkM8EinTqSzE0pBo/fjsSFFslyHdi16jdpjSA2o=",
+          "type": 1
+        },
+        {
+          "name": "2.PrROVrpW/GqewA5cKAGyGQ==|aJTN6UdO4jcUjVzkCESMug==|JuzIx22aKSFfXU+2+71i0PrS58o7PtvHsvWHYnwLAsw=",
+          "value": "2.ZGrBCpkhukb9KDtiy1EN+w==|i5rokCzyV0HLLJGowq3MBQ==|unjNl1Ey59X1b/bOpyXxtHbIc+eXcVl1QU2uUHj/gso=",
+          "type": 0
+        },
+        {
+          "name": "2.J+Cs2yg0+VzCBHhg6lZcSg==|0vq/eyi/22rYHxCzKPzLGw==|SdX+09Ef7GtIOJVaEFfnhpkEkFlqM+q7KL0vp0x+AYY=",
+          "value": "2.LHN8f4N+ah69A0EDsJJhXA==|gY25jyCWQ/M4rBClji235A==|iqHQJsMGWiM6S/Lkrpbjzizu2O9XvQnWFN/LSyeOdxc=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "xUnknown": {
+        "kept": [
+          1,
+          true,
+          null
+        ]
+      }
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "API token (rotated)",
+    "notes": "rotated by hand",
+    "username": "robot",
+    "password": "rotated-token",
+    "uris": [
+      "https://api.example.invalid",
+      {
+        "uri": "https://api2.example.invalid",
+        "match": 1
+      }
+    ],
+    "folderId": "folder-2"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "API token (rotated)",
+          "notes": "rotated by hand",
+          "login": {
+            "username": "robot",
+            "password": "rotated-token",
+            "uris": [
+              "https://api.example.invalid",
+              "https://api2.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "shared-token"
+            ]
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "obsidian:attr:service",
+              "value": "api",
+              "type": 0
+            },
+            {
+              "name": "other:id",
+              "value": "beta",
+              "type": 0
+            },
+            {
+              "name": "other:password",
+              "value": "other-secret",
+              "type": 1
+            },
+            {
+              "name": "dybw:requires",
+              "value": "other:feature",
+              "type": 0
+            },
+            {
+              "name": "obsidian:id",
+              "value": "second copy",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": "folder-2",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "write/client/edit-not-a-login",
+  "spec": "1.6",
+  "sections": [
+    "§1.1"
+  ],
+  "account": "pbkdf2",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 2,
+      "name": "2.RUCHub2km6NAHpIp8r3tQQ==|+bxeW2Q3MagRomTLy2TUOQ==|8zzGMf+wfFp9PGDLSQOGMAjA9XCRej/Shm04qgz4Ric=",
+      "notes": "2.QvuPuBYxUnCoJTS9LmDA6g==|Q8Wm0492Ks3OUVQIIaSGHA==|FymP5EJEgwwM0motx3aEKcFLujybs0qz8c39KuS3X9g=",
+      "secureNote": {
+        "type": 0
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "pw"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "not-a-login"
+    }
+  }
+}

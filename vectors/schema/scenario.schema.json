@@ -167,6 +167,86 @@
             "kind",
             "id"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client-create"
+            },
+            "item": {
+              "$ref": "source.schema.json#/$defs/clientItem"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "item"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client-edit"
+            },
+            "cipher": {
+              "type": "string"
+            },
+            "baseRevision": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            },
+            "uris": {
+              "$ref": "source.schema.json#/$defs/clientUris"
+            },
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fresh": {
+              "$ref": "#/$defs/serverCipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cipher",
+            "baseRevision"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client-trash"
+            },
+            "cipher": {
+              "type": "string"
+            },
+            "baseRevision": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cipher",
+            "baseRevision"
+          ]
         }
       ]
     },

@@ -171,6 +171,86 @@
             "kind",
             "id"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client-create"
+            },
+            "item": {
+              "$ref": "#/$defs/clientItem"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "item"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client-edit"
+            },
+            "cipher": {
+              "type": "string"
+            },
+            "baseRevision": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            },
+            "uris": {
+              "$ref": "#/$defs/clientUris"
+            },
+            "folderId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fresh": {
+              "$ref": "#/$defs/cipher"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cipher",
+            "baseRevision"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "client-trash"
+            },
+            "cipher": {
+              "type": "string"
+            },
+            "baseRevision": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cipher",
+            "baseRevision"
+          ]
         }
       ]
     },
@@ -1408,10 +1488,129 @@
               }
             ]
           }
+        },
+        "clientWrite": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/canonicalRequest"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "requests"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "enum": [
+                    "out-of-date",
+                    "gone",
+                    "read-only",
+                    "organization-key-missing",
+                    "newer-format",
+                    "not-a-login",
+                    "password-hidden",
+                    "notes-held-by-tool",
+                    "name-required",
+                    "bad-uri-match",
+                    "too-long"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "error"
+              ]
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "minProperties": 1
+    },
+    "clientItem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            },
+            "totp": {
+              "type": "string"
+            },
+            "uris": {
+              "$ref": "#/$defs/clientUris"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name"
+      ]
+    },
+    "clientUris": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "uri": {
+                "type": "string"
+              },
+              "match": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "uri",
+              "match"
+            ]
+          }
+        ]
+      }
     },
     "openedItem": {
       "type": "object",

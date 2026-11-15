@@ -1,0 +1,44 @@
+{
+  "id": "write/client/create-note",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.2"
+  ],
+  "account": "pbkdf2",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "ciphers": [],
+  "operation": {
+    "kind": "client-create",
+    "item": {
+      "type": 2,
+      "name": "Recovery codes",
+      "notes": "one\ntwo",
+      "folderId": null
+    }
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "POST",
+          "cipher": null,
+          "type": 2,
+          "name": "Recovery codes",
+          "notes": "one\ntwo",
+          "login": null,
+          "secureNote": {
+            "type": 0
+          },
+          "fields": [],
+          "organizationId": null,
+          "folderId": null,
+          "lastKnownRevisionDate": null,
+          "hasItemKey": false,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

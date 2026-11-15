@@ -1,0 +1,42 @@
+{
+  "id": "write/client/edit-organization-read-only",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "name": "2.QnWjQCklaghmRQQ6QCpCig==|6oidzp77TpGtPfpK+w2/rA==|xTMQdD/oU+jFc53uFL5dzxwPRo+PSFnDJPt/kN2JPaU=",
+      "login": {
+        "username": "2.iNE1yte3+24NiDp6AVk1ag==|zNqFpGuv7SRdeLQpNRqJ5Q==|wm2n34jy8Fbn+QXaeclztl7kGcl4TcYYT1Q4Jdh7XkU=",
+        "password": "2.NXnaKHJh82s8M4V9Eal/dA==|PDA7c7dset3o3d7eau5OSA==|1NkBDRjDqr/aFZqSjOZGl5inC3KBN9JIo78EZ+uQ7lk=",
+        "uris": [],
+        "totp": null
+      },
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "edit": false
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Renamed"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "read-only"
+    }
+  }
+}

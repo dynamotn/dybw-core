@@ -138,11 +138,17 @@ fn folder_vectors() {
 }
 
 #[test]
+fn client_write_vectors() {
+    let counts = run_kind(Kind::ClientWrite);
+    assert!(counts.values().all(|&n| n >= 15), "too few vault-client write vectors: {counts:?}");
+}
+
+#[test]
 fn every_vector_runs() {
     let files = files();
     assert_eq!(
         Kind::ALL,
-        [Kind::Read, Kind::Write, Kind::Plan, Kind::Open, Kind::Folders],
+        [Kind::Read, Kind::Write, Kind::Plan, Kind::Open, Kind::Folders, Kind::ClientWrite],
         "a kind of expectation without a vector test"
     );
     for ns in ["bwss", "obsidian"] {

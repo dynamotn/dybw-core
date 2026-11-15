@@ -1,0 +1,162 @@
+{
+  "id": "write/client/edit-marked-keeps-markers",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§3.1",
+    "§3.3",
+    "§6.3"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "API token",
+      "notes": null,
+      "login": {
+        "username": "bot",
+        "password": "shared-token",
+        "uris": [
+          "https://api.example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "fields": [
+        {
+          "name": "{ns}:id",
+          "value": "alpha",
+          "type": 0
+        },
+        {
+          "name": "{ns}:attr:service",
+          "value": "api",
+          "type": 0
+        },
+        {
+          "name": "other:id",
+          "value": "beta",
+          "type": 0
+        },
+        {
+          "name": "other:password",
+          "value": "other-secret",
+          "type": 1
+        },
+        {
+          "name": "dybw:requires",
+          "value": "other:feature",
+          "type": 0
+        },
+        {
+          "name": "{ns}:id",
+          "value": "second copy",
+          "type": 0
+        }
+      ],
+      "folderId": null,
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "extra": {
+        "xUnknown": {
+          "kept": [
+            1,
+            true,
+            null
+          ]
+        }
+      }
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "API token (rotated)",
+    "notes": "rotated by hand",
+    "username": "robot",
+    "password": "rotated-token",
+    "uris": [
+      "https://api.example.invalid",
+      {
+        "uri": "https://api2.example.invalid",
+        "match": 1
+      }
+    ],
+    "folderId": "folder-2"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "c1",
+          "type": 1,
+          "name": "API token (rotated)",
+          "notes": "rotated by hand",
+          "login": {
+            "username": "robot",
+            "password": "rotated-token",
+            "uris": [
+              "https://api.example.invalid",
+              "https://api2.example.invalid"
+            ],
+            "totp": null,
+            "passwordHistory": [
+              "shared-token"
+            ]
+          },
+          "fields": [
+            {
+              "name": "{ns}:id",
+              "value": "alpha",
+              "type": 0
+            },
+            {
+              "name": "{ns}:attr:service",
+              "value": "api",
+              "type": 0
+            },
+            {
+              "name": "other:id",
+              "value": "beta",
+              "type": 0
+            },
+            {
+              "name": "other:password",
+              "value": "other-secret",
+              "type": 1
+            },
+            {
+              "name": "dybw:requires",
+              "value": "other:feature",
+              "type": 0
+            },
+            {
+              "name": "{ns}:id",
+              "value": "second copy",
+              "type": 0
+            }
+          ],
+          "organizationId": null,
+          "folderId": "folder-2",
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": false,
+          "extra": {
+            "xUnknown": {
+              "kept": [
+                1,
+                true,
+                null
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

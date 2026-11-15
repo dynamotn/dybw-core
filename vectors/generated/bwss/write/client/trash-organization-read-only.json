@@ -1,0 +1,38 @@
+{
+  "id": "write/client/trash-organization-read-only",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "bwss",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 2,
+      "organizationId": "org-a",
+      "name": "2.u/FZ5aO/fYbazd0exWjzdQ==|Q1EDQRdUmy6EpSnG747CXQ==|+lijOUQvVlfRiNDgYqGBZxveskRzL8Vcce7DSAjwVZk=",
+      "notes": "2.2k7EUO1Fzd7xCk+TNXdfiA==|1KGHfEyMHQ6+b2Njj7j6VQ==|LUVD8/5CNMAzmQrVERaLWBHyB6fy/IoykBaKAEvwhv4=",
+      "secureNote": {
+        "type": 0
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z",
+      "edit": false
+    }
+  ],
+  "operation": {
+    "kind": "client-trash",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z"
+  },
+  "expect": {
+    "clientWrite": {
+      "error": "read-only"
+    }
+  }
+}

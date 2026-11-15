@@ -1,0 +1,79 @@
+{
+  "id": "write/client/edit-organization",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.1",
+    "§9"
+  ],
+  "account": "org",
+  "namespace": "obsidian",
+  "generator": "dybw-vectors-gen 1",
+  "options": {
+    "organizations": true
+  },
+  "ciphers": [
+    {
+      "id": "o1",
+      "type": 1,
+      "organizationId": "org-a",
+      "key": "2.S88NiRoGntnB974HsTsTzA==|RagEKb0U8vnXanfPAz7U2b1YLNg4zVe+t20Amn5widFi/slQZIdQuEqPJZ56hfvwUo/5Ow6bZYbcVjxHQBLlivH3hOb72kHSSULvWVvdL38=|BNi/WKxfOyL67WoXURouNoj6xxWFaggRWkvVNnCvj48=",
+      "name": "2.0TvG8muykdAhXn8mkzxqBg==|yPyBMUA6n3fPrMp/W9+1jw==|lZq3rirykSdbVSyY5+/u+f1vHW6JJRdFq9yDensvVnE=",
+      "login": {
+        "username": "2.CdoV46s0e4AaPVgdqEh8Zg==|/NRoKYVGIx6fp1txZcpfGA==|jFAeJonjziNwTwskA1yZwDDJvhVPJeWgl5Fp/nT3PQw=",
+        "password": "2.qk4htJ3yGImN8MmFrWf69A==|9tAU0bvEXXTfuSueC1p6hw==|6ZXhGm8EeHvvVWktUctC5RWUBtMKtRi/FYmpP9PVRAc=",
+        "uris": [],
+        "totp": null
+      },
+      "fields": [
+        {
+          "name": "2.PYF1d+JI5RhKfiCG2p5OnA==|MX3m3SoFEjxyxuq/+hFnTw==|6Q2c2NCrDFvA0UnxmoUqW/5vECwFXkqvw4zio/XtZH0=",
+          "value": "2.jZ4K76uD68w32hBz/csTLQ==|G9Gtm+j7ODoMW+XBsPqdhQ==|su3hbTZFmfzSxd8K5KcuZPVySxzjEeCka5H2ut/aEk8=",
+          "type": 0
+        }
+      ],
+      "passwordHistory": [],
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "o1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "password": "team-new"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": [
+        {
+          "method": "PUT",
+          "cipher": "o1",
+          "type": 1,
+          "name": "Team login",
+          "notes": null,
+          "login": {
+            "username": "team",
+            "password": "team-new",
+            "uris": [],
+            "totp": null,
+            "passwordHistory": [
+              "team-old"
+            ]
+          },
+          "fields": [
+            {
+              "name": "obsidian:id",
+              "value": "team",
+              "type": 0
+            }
+          ],
+          "organizationId": "org-a",
+          "folderId": null,
+          "lastKnownRevisionDate": "2026-01-01T00:00:00.000Z",
+          "hasItemKey": true,
+          "extra": {}
+        }
+      ]
+    }
+  }
+}

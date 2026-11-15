@@ -1,0 +1,53 @@
+{
+  "id": "write/client/edit-unchanged-sends-nothing",
+  "spec": "1.6",
+  "sections": [
+    "§1.1",
+    "§6.1"
+  ],
+  "account": "pbkdf2",
+  "namespaces": [
+    "bwss",
+    "obsidian"
+  ],
+  "ciphers": [
+    {
+      "id": "c1",
+      "type": 1,
+      "name": "Mail",
+      "notes": "n",
+      "folderId": "folder-1",
+      "login": {
+        "username": "me",
+        "password": "pw",
+        "uris": [
+          "https://a.example.invalid"
+        ],
+        "totp": null,
+        "passwordHistory": []
+      },
+      "revisionDate": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "operation": {
+    "kind": "client-edit",
+    "cipher": "c1",
+    "baseRevision": "2026-01-01T00:00:00.000Z",
+    "name": "Mail",
+    "notes": "n",
+    "username": "me",
+    "password": "pw",
+    "uris": [
+      {
+        "uri": "https://a.example.invalid",
+        "match": null
+      }
+    ],
+    "folderId": "folder-1"
+  },
+  "expect": {
+    "clientWrite": {
+      "requests": []
+    }
+  }
+}
