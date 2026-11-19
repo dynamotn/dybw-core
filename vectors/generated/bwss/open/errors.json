@@ -513,15 +513,95 @@
           "name": "Mail ünï 😀",
           "user": "me@example.invalid",
           "folderId": "folder-1"
-        }
+        },
+        "uris": [
+          {
+            "uri": "https://a.example.invalid",
+            "match": null
+          },
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "fieldNames": [
+          {
+            "name": "text",
+            "type": 0
+          },
+          {
+            "name": "hidden",
+            "type": 1
+          },
+          {
+            "name": "flag",
+            "type": 2
+          },
+          {
+            "name": "linked",
+            "type": 3
+          },
+          {
+            "name": "",
+            "type": 0
+          }
+        ]
       },
       {
         "cipher": "e3",
-        "error": "value"
+        "error": "value",
+        "fieldNames": [
+          {
+            "name": "text",
+            "type": 0
+          },
+          {
+            "name": "hidden",
+            "type": 1
+          },
+          {
+            "name": "flag",
+            "type": 2
+          },
+          {
+            "name": "linked",
+            "type": 3
+          },
+          {
+            "name": "",
+            "type": 0
+          }
+        ]
       },
       {
         "cipher": "e4",
-        "error": "value"
+        "error": "value",
+        "fieldNames": [
+          {
+            "name": "text",
+            "type": 0
+          },
+          {
+            "name": "hidden",
+            "type": 1
+          },
+          {
+            "name": "flag",
+            "type": 2
+          },
+          {
+            "name": "linked",
+            "type": 3
+          },
+          {
+            "name": "",
+            "type": 0
+          }
+        ]
       },
       {
         "cipher": "e5",
@@ -531,7 +611,43 @@
           "name": "Mail ünï 😀",
           "user": "me@example.invalid",
           "folderId": "folder-1"
-        }
+        },
+        "uris": [
+          {
+            "uri": "https://a.example.invalid",
+            "match": null
+          },
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "fieldNames": [
+          {
+            "name": "text",
+            "type": 0
+          },
+          {
+            "name": "hidden",
+            "type": 1
+          },
+          {
+            "name": "flag",
+            "type": 2
+          },
+          {
+            "name": "linked",
+            "type": 3
+          },
+          {
+            "name": "",
+            "type": 0
+          }
+        ]
       },
       {
         "cipher": "e6",
@@ -541,7 +657,43 @@
           "name": "Mail ünï 😀",
           "user": "me@example.invalid",
           "folderId": "folder-1"
-        }
+        },
+        "uris": [
+          {
+            "uri": "https://a.example.invalid",
+            "match": null
+          },
+          {
+            "uri": "https://b.example.invalid",
+            "match": 0
+          },
+          {
+            "uri": "^https://c\\.example\\.invalid/",
+            "match": 4
+          }
+        ],
+        "fieldNames": [
+          {
+            "name": "text",
+            "type": 0
+          },
+          {
+            "name": "hidden",
+            "type": 1
+          },
+          {
+            "name": "flag",
+            "type": 2
+          },
+          {
+            "name": "linked",
+            "type": 3
+          },
+          {
+            "name": "",
+            "type": 0
+          }
+        ]
       },
       {
         "cipher": "e7",
@@ -551,7 +703,14 @@
           "name": "Visa",
           "user": null,
           "folderId": null
-        }
+        },
+        "uris": [],
+        "fieldNames": [
+          {
+            "name": "pin",
+            "type": 1
+          }
+        ]
       },
       {
         "cipher": "e8",
@@ -561,7 +720,9 @@
           "name": "Deploy key",
           "user": null,
           "folderId": null
-        }
+        },
+        "uris": [],
+        "fieldNames": []
       },
       {
         "cipher": "e9",

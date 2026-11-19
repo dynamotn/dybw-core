@@ -590,6 +590,7 @@ pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
                 json!({ "type": m.kind, "name": m.name.as_str(), "user": shown_text(&m.user), "folderId": m.folder_id })
             })
             .map_err(uninspectable_code);
+        let opened = expected.clone();
         let expected = match (&w.summary, expected) {
             (Some(summary), _) => Ok(summary.clone()),
             (None, Ok(opened)) => {
@@ -600,7 +601,46 @@ pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
             }
             (None, Err(e)) => Err(e),
         };
-        compare(&format!("summary {}", w.cipher), summary, expected)?;
+        compare(&format!("summary {}", w.cipher), summary, expected.clone())?;
+        // The lookup (a summary and the login's URIs) and the field names are the opened item's parts, or the same error.
+        let lookup = item::summary_with_uris(cipher, &keys.user, &keys.orgs)
+            .map(|l| {
+                let uris: Vec<Value> =
+                    l.uris.iter().map(|u| json!({ "uri": shown_text(&u.uri), "match": u.match_type })).collect();
+                json!({
+                    "type": l.summary.kind, "name": l.summary.name.as_str(), "user": shown_text(&l.summary.user),
+                    "folderId": l.summary.folder_id, "uris": uris,
+                })
+            })
+            .map_err(uninspectable_code);
+        let with_uris = |summary: Value, uris: Value| {
+            let mut out = summary;
+            if let Some(o) = out.as_object_mut() {
+                o.insert("uris".to_owned(), uris);
+            }
+            out
+        };
+        let want_lookup = match (expected, opened.clone()) {
+            (Ok(summary), Ok(o)) => {
+                Ok(with_uris(summary, o.pointer("/item/login/uris").cloned().unwrap_or_else(|| json!([]))))
+            }
+            // The item does not open, yet its summary and URIs may read: the vector says so.
+            (Ok(summary), Err(_)) if w.uris.is_some() => Ok(with_uris(summary, w.uris.clone().unwrap_or_default())),
+            (Err(e), _) | (Ok(_), Err(e)) => Err(e),
+        };
+        compare(&format!("lookup {}", w.cipher), lookup, want_lookup)?;
+        let names = item::field_names(cipher, &keys.user, &keys.orgs)
+            .map(|fields| fields.iter().map(|f| json!({ "name": shown_text(&f.name), "type": f.kind })).collect())
+            .map_err(uninspectable_code);
+        let want_names = match (&w.field_names, opened) {
+            (Some(names), _) => Ok(names.clone()),
+            (None, Ok(o)) => {
+                let fields = o.pointer("/item/fields").and_then(Value::as_array).map_or(&[][..], Vec::as_slice);
+                Ok(fields.iter().map(|f| json!({ "name": f["name"], "type": f["type"] })).collect())
+            }
+            (None, Err(e)) => Err(e),
+        };
+        compare(&format!("field names {}", w.cipher), names, want_names)?;
     }
     Ok(())
 }

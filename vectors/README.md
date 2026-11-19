@@ -205,6 +205,12 @@ change to `fresh`.
     login's username, else `null`. When absent it is taken from `item`, or is the
     same `error`; it is given when it differs, as when a tampered value lies
     outside the name and the username.
+  - `uris` and `fieldNames` (1.6) are what `summary_with_uris` (the summary and a login's
+    `[{ uri, match }]`) and `field_names` (`[{ name, type }]`, never a value) read.
+    When absent they are taken from `item` (a summary with `uris`, or the `fields`), or
+    are the same `error`; they are given when the item does not open but these still
+    read, as when a tampered value lies outside the names and URIs (`summary` plus
+    `uris` for the first, `fieldNames` for the second).
 - `folders` (1.6, ADR 0025): `[{ id, name | error }]`, the names a vault client reads
   from the scenario's `folders` (`vault::folder`) with the account's user key.
   `error` is `value`: the name does not decrypt. A folder that fails is still listed.

@@ -271,6 +271,12 @@ pub struct OpenExpect {
     pub error: Option<String>,
     #[serde(default)]
     pub summary: Option<Value>,
+    /// A login's URIs, `[{ uri, match }]`, as `summary_with_uris` reads them when `item` is not given.
+    #[serde(default)]
+    pub uris: Option<Value>,
+    /// The custom fields' `[{ name, type }]`, as `field_names` reads them when `item` is not given.
+    #[serde(default, rename = "fieldNames")]
+    pub field_names: Option<Value>,
 }
 
 /// The scan of a read, or the error that stopped it with the requests that were sent first.
