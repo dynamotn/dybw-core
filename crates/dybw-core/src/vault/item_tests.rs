@@ -2,7 +2,7 @@
 //! parts, redaction and wiping.
 
 use super::blob_tests::{Bx, t};
-use super::item::{Data, Text, open, summary};
+use super::item::{Data, Text, field_names, open, summary, summary_with_uris};
 use super::scan::Uninspectable;
 use crate::crypto::{Cbor, SymmetricKey};
 use crate::testing::{SeededRandom, cbor_texts_alive};
@@ -174,4 +174,60 @@ fn a_login_uri_that_does_not_decrypt_makes_the_item_unreadable() {
         "login": { "uris": [{ "uri": other.encrypt(b"https://example.com", &rng).unwrap(), "match": null }] },
     });
     assert_eq!(open(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Value);
+}
+
+const BAD: &str = "not an enc string";
+
+#[test]
+fn the_narrow_decrypts_never_touch_a_password_notes_totp_or_value() {
+    let bx = Bx::new();
+    let rng = SeededRandom::new(12);
+    let enc = |s: &str| bx.keys.user.encrypt(s.as_bytes(), &rng).unwrap();
+    // Everything the narrow reads skip is garbage: decrypting any of it would fail.
+    let cipher = json!({
+        "id": "c1", "type": 1, "folderId": "f1", "name": enc("n"), "notes": BAD,
+        "login": {
+            "username": enc("me"), "password": BAD, "totp": BAD,
+            "uris": [{ "uri": enc("https://a.invalid"), "match": 4 }, { "uri": null }],
+        },
+        "fields": [{ "name": enc("f1"), "value": BAD, "type": 1 }, { "name": null, "value": BAD }],
+        "passwordHistory": [{ "password": BAD }],
+    });
+    assert_eq!(open(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Value);
+    let l = summary_with_uris(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!(
+        (l.summary.name.as_str(), text(&l.summary.user), l.summary.folder_id.as_deref()),
+        ("n", Some("me"), Some("f1"))
+    );
+    assert_eq!(
+        (text(&l.uris[0].uri), l.uris[0].match_type, text(&l.uris[1].uri)),
+        (Some("https://a.invalid"), Some(4), None)
+    );
+    let names = field_names(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!((text(&names[0].name), names[0].kind, text(&names[1].name), names[1].kind), (Some("f1"), 1, None, 0));
+    let shown = format!("{l:?} {:?}", names[0]);
+    assert!(shown.contains("c1") && !shown.contains("https") && !shown.contains("f1"), "{shown}");
+
+    // Another type has no URIs; a name that does not decrypt is `Value`, as for `open`.
+    let card = json!({ "type": 3, "name": enc("c"), "card": { "number": BAD }, "fields": [{ "name": BAD }] });
+    assert!(summary_with_uris(&card, &bx.keys.user, &bx.keys.orgs).unwrap().uris.is_empty());
+    assert_eq!(field_names(&card, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Value);
+}
+
+#[test]
+fn the_narrow_decrypts_open_a_blob_whole_and_wipe_it() {
+    let bx = Bx::new();
+    let uris = Cbor::Array(vec![map(vec![("uri", t("https://a.invalid")), ("match", Cbor::Uint(1))])]);
+    let login = map(vec![("type", t("login")), ("password", t("pw")), ("uris", uris)]);
+    let field = map(vec![("name", t("hidden")), ("value", t("v")), ("type", Cbor::Uint(1))]);
+    let content = map(vec![("name", t("L")), ("typeData", login), ("fields", Cbor::Array(vec![field]))]);
+    let cipher = blob(&bx, 1, content);
+    let l = summary_with_uris(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!((text(&l.uris[0].uri), l.uris[0].match_type), (Some("https://a.invalid"), Some(1)));
+    let names = field_names(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!((text(&names[0].name), names[0].kind), (Some("hidden"), 1));
+    assert_eq!(cbor_texts_alive(), 0, "the opened blob is wiped before either returns");
+    let wrong = blob(&bx, 2, map(vec![("name", t("x")), ("typeData", map(vec![("type", t("card"))]))]));
+    assert_eq!(field_names(&wrong, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Blob);
+    assert_eq!(cbor_texts_alive(), 0);
 }

@@ -350,14 +350,85 @@ pub fn summary(
     user: &SymmetricKey,
     orgs: &BTreeMap<String, SymmetricKey>,
 ) -> Result<Summary, Uninspectable> {
+    with_nodes(cipher, user, orgs, |top, t| summarize(cipher, top, t))
+}
+
+fn summarize(cipher: &Value, top: Node, t: Node) -> Result<Summary, Uninspectable> {
     let kind = kind(cipher);
+    Ok(Summary {
+        id: plain(cipher, "id").unwrap_or_default(),
+        kind,
+        folder_id: plain(cipher, "folderId"),
+        name: top.text("name")?.unwrap_or_default(),
+        user: if kind == 1 { t.text("username")? } else { None },
+    })
+}
+
+/// A [`Summary`] and a login's URIs: what a command needs to find an item by name, user, folder or URI, before the
+/// user confirms (ADR 0025). No `Clone`; `Debug` shows only the id and type.
+#[cfg(feature = "vault-client")]
+pub struct Lookup {
+    pub summary: Summary,
+    /// A login's URIs with their match types, in order; empty for every other type.
+    pub uris: Vec<Uri>,
+}
+
+#[cfg(feature = "vault-client")]
+impl fmt::Debug for Lookup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Lookup").field("id", &self.summary.id).field("kind", &self.summary.kind).finish_non_exhaustive()
+    }
+}
+
+/// [`summary`] plus a login's URIs: no password, notes, TOTP or custom field is decrypted, and the errors are
+/// `summary`'s. A blob is opened whole, as nothing smaller exists (ADR 0021), and wiped before this returns.
+#[cfg(feature = "vault-client")]
+pub fn summary_with_uris(
+    cipher: &Value,
+    user: &SymmetricKey,
+    orgs: &BTreeMap<String, SymmetricKey>,
+) -> Result<Lookup, Uninspectable> {
     with_nodes(cipher, user, orgs, |top, t| {
-        Ok(Summary {
-            id: plain(cipher, "id").unwrap_or_default(),
-            kind,
-            folder_id: plain(cipher, "folderId"),
-            name: top.text("name")?.unwrap_or_default(),
-            user: if kind == 1 { t.text("username")? } else { None },
-        })
+        let uris = if kind(cipher) == 1 {
+            t.list("uris")
+                .into_iter()
+                .map(|u| Ok(Uri { uri: u.text("uri")?, match_type: u.num("match") }))
+                .collect::<Result<_, _>>()?
+        } else {
+            Vec::new()
+        };
+        Ok(Lookup { summary: summarize(cipher, top, t)?, uris })
+    })
+}
+
+/// A custom field's name and type; its value is never decrypted.
+#[cfg(feature = "vault-client")]
+pub struct FieldName {
+    pub name: Text,
+    /// 0 text, 1 hidden, 2 boolean, 3 linked.
+    pub kind: u64,
+}
+
+#[cfg(feature = "vault-client")]
+impl fmt::Debug for FieldName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FieldName").field("kind", &self.kind).finish_non_exhaustive()
+    }
+}
+
+/// The custom fields' names and types of an item of any type, in order; no value, and nothing else of the item, is
+/// decrypted. A personal blob is opened whole, as nothing smaller exists (ADR 0021), and wiped before this returns.
+/// The errors are `open`'s, so a name that does not decrypt makes the item unreadable.
+#[cfg(feature = "vault-client")]
+pub fn field_names(
+    cipher: &Value,
+    user: &SymmetricKey,
+    orgs: &BTreeMap<String, SymmetricKey>,
+) -> Result<Vec<FieldName>, Uninspectable> {
+    with_nodes(cipher, user, orgs, |top, _| {
+        top.list("fields")
+            .into_iter()
+            .map(|f| Ok(FieldName { name: f.text("name")?, kind: f.num("type").unwrap_or_default() }))
+            .collect()
     })
 }
