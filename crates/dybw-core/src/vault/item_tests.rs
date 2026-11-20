@@ -2,7 +2,7 @@
 //! parts, redaction and wiping.
 
 use super::blob_tests::{Bx, t};
-use super::item::{Data, Text, field_names, open, summary, summary_with_uris};
+use super::item::{Data, Text, field_names, open, ssh_public, summary, summary_with_uris};
 use super::scan::Uninspectable;
 use crate::crypto::{Cbor, SymmetricKey};
 use crate::testing::{SeededRandom, cbor_texts_alive};
@@ -229,5 +229,51 @@ fn the_narrow_decrypts_open_a_blob_whole_and_wipe_it() {
     assert_eq!(cbor_texts_alive(), 0, "the opened blob is wiped before either returns");
     let wrong = blob(&bx, 2, map(vec![("name", t("x")), ("typeData", map(vec![("type", t("card"))]))]));
     assert_eq!(field_names(&wrong, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Blob);
+    assert_eq!(cbor_texts_alive(), 0);
+}
+
+#[test]
+fn ssh_public_never_decrypts_the_private_key_notes_or_fields() {
+    let bx = Bx::new();
+    let rng = SeededRandom::new(13);
+    let enc = |s: &str| bx.keys.user.encrypt(s.as_bytes(), &rng).unwrap();
+    // The private key, notes and field are garbage: decrypting any of them would fail.
+    let key = json!({
+        "id": "k1", "type": 5, "folderId": "f1", "name": enc("deploy"), "notes": BAD,
+        "sshKey": { "privateKey": BAD, "publicKey": enc("ssh-ed25519 AAAA"), "keyFingerprint": enc("SHA256:x") },
+        "fields": [{ "name": BAD, "value": BAD }],
+    });
+    assert_eq!(open(&key, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Value);
+    let p = ssh_public(&key, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!(
+        (p.summary.name.as_str(), p.summary.folder_id.as_deref(), text(&p.public_key), text(&p.fingerprint)),
+        ("deploy", Some("f1"), Some("ssh-ed25519 AAAA"), Some("SHA256:x"))
+    );
+    let shown = format!("{p:?}");
+    assert!(shown.contains("k1") && !shown.contains("deploy") && !shown.contains("ssh-ed25519"), "{shown}");
+
+    // A key without its part reads as absent; any other type is refused before anything is opened.
+    let bare = json!({ "type": 5, "name": enc("n"), "sshKey": null });
+    let p = ssh_public(&bare, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!((text(&p.public_key), text(&p.fingerprint)), (None, None));
+    let login = json!({ "type": 1, "name": BAD });
+    assert_eq!(ssh_public(&login, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::NotSshKey);
+}
+
+#[test]
+fn ssh_public_opens_a_blob_whole_and_wipes_it() {
+    let bx = Bx::new();
+    let ssh = map(vec![
+        ("type", t("sshKey")),
+        ("privateKey", t("PRIVATE")),
+        ("publicKey", t("ssh-ed25519 AAAA")),
+        ("fingerprint", t("SHA256:x")),
+    ]);
+    let cipher = blob(&bx, 5, map(vec![("name", t("K")), ("notes", t("secret")), ("typeData", ssh)]));
+    let p = ssh_public(&cipher, &bx.keys.user, &bx.keys.orgs).unwrap();
+    assert_eq!((text(&p.public_key), text(&p.fingerprint)), (Some("ssh-ed25519 AAAA"), Some("SHA256:x")));
+    assert_eq!(cbor_texts_alive(), 0, "the opened blob is wiped before it returns");
+    let wrong = blob(&bx, 5, map(vec![("name", t("x")), ("typeData", map(vec![("type", t("card"))]))]));
+    assert_eq!(ssh_public(&wrong, &bx.keys.user, &bx.keys.orgs).unwrap_err(), Uninspectable::Blob);
     assert_eq!(cbor_texts_alive(), 0);
 }

@@ -5,7 +5,7 @@
 use dybw_core::crypto::SymmetricKey;
 use dybw_core::testing::SeededRandom;
 use dybw_core::vault::Uninspectable;
-use dybw_core::vault::item::{field_names, open, summary, summary_with_uris};
+use dybw_core::vault::item::{field_names, open, ssh_public, summary, summary_with_uris};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -74,5 +74,43 @@ fn the_narrow_decrypts_report_the_same_errors_as_open() {
     ] {
         assert_eq!(summary_with_uris(&cipher, &user, &orgs).unwrap_err(), why);
         assert_eq!(field_names(&cipher, &user, &orgs).unwrap_err(), why);
+    }
+}
+
+#[test]
+fn ssh_public_reports_the_summary_errors_and_refuses_other_types() {
+    let rng = SeededRandom::new(23);
+    let user = SymmetricKey::generate(&rng).unwrap();
+    let other = SymmetricKey::generate(&rng).unwrap();
+    let orgs = BTreeMap::new();
+    let enc = |s: &str| user.encrypt(s.as_bytes(), &rng).unwrap();
+    let key = |name: &str, public: &str| -> Value {
+        json!({
+            "id": "k1", "type": 5, "name": name, "notes": BAD,
+            "sshKey": { "privateKey": BAD, "publicKey": public, "keyFingerprint": enc("SHA256:x") },
+        })
+    };
+    let (n, p) = (enc("secret-name"), enc("ssh-ed25519 AAAA"));
+    let ok = ssh_public(&key(&n, &p), &user, &orgs).unwrap();
+    assert_eq!(
+        (ok.summary.name.as_str(), ok.public_key.as_deref().map(|s| s.as_str()), ok.fingerprint.is_some()),
+        ("secret-name", Some("ssh-ed25519 AAAA"), true)
+    );
+    assert!(!format!("{ok:?}").contains("secret"));
+
+    for bad in [key(BAD, &p), key(&n, BAD)] {
+        assert_eq!(ssh_public(&bad, &user, &orgs).unwrap_err(), Uninspectable::Value);
+    }
+    let large = json!({ "type": 5, "notes": "x".repeat(1024 * 1024) });
+    let foreign = json!({ "type": 5, "organizationId": "org2" });
+    let sealed = json!({ "type": 5, "key": other.encrypt(&other.to_bytes(), &rng).unwrap() });
+    let login = json!({ "type": 1, "name": enc("n") });
+    for (cipher, why) in [
+        (large, Uninspectable::TooLarge),
+        (foreign, Uninspectable::OrganizationKeyMissing),
+        (sealed, Uninspectable::ItemKey),
+        (login, Uninspectable::NotSshKey),
+    ] {
+        assert_eq!(ssh_public(&cipher, &user, &orgs).unwrap_err(), why);
     }
 }

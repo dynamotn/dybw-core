@@ -245,6 +245,14 @@ fn with_nodes<T>(
     read(top, top.at(part.unwrap_or_default()))
 }
 
+fn fingerprint(top: Node, t: Node) -> Result<Text, Uninspectable> {
+    // The server's name; a blob's `typeData` says `fingerprint`.
+    match top {
+        Node::Json(..) => t.text("keyFingerprint"),
+        Node::Cbor(_) => t.text("fingerprint"),
+    }
+}
+
 fn kind(cipher: &Value) -> u64 {
     cipher.get("type").and_then(Value::as_u64).unwrap_or_default()
 }
@@ -303,11 +311,7 @@ pub fn open(cipher: &Value, user: &SymmetricKey, orgs: &BTreeMap<String, Symmetr
             5 => Data::SshKey(SshKey {
                 private_key: t.text("privateKey")?,
                 public_key: t.text("publicKey")?,
-                // The server's name; a blob's `typeData` says `fingerprint`.
-                fingerprint: match top {
-                    Node::Json(..) => t.text("keyFingerprint")?,
-                    Node::Cbor(_) => t.text("fingerprint")?,
-                },
+                fingerprint: fingerprint(top, t)?,
             }),
             _ => Data::Unknown,
         };
@@ -430,5 +434,45 @@ pub fn field_names(
             .into_iter()
             .map(|f| Ok(FieldName { name: f.text("name")?, kind: f.num("type").unwrap_or_default() }))
             .collect()
+    })
+}
+
+/// What the SSH agent lists of a key (ADR 0025): the summary, the public key and its fingerprint. No `Clone`;
+/// `Debug` shows only the id and type.
+#[cfg(feature = "vault-client")]
+pub struct SshPublic {
+    pub summary: Summary,
+    pub public_key: Text,
+    pub fingerprint: Text,
+}
+
+#[cfg(feature = "vault-client")]
+impl fmt::Debug for SshPublic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SshPublic")
+            .field("id", &self.summary.id)
+            .field("kind", &self.summary.kind)
+            .finish_non_exhaustive()
+    }
+}
+
+/// An SSH key's name, public key and fingerprint: the private key, notes and fields are never decrypted. Any other
+/// type is [`Uninspectable::NotSshKey`], checked before anything is opened; otherwise the errors are `summary`'s.
+/// A personal blob is opened whole, as nothing smaller exists (ADR 0021), and wiped before this returns.
+#[cfg(feature = "vault-client")]
+pub fn ssh_public(
+    cipher: &Value,
+    user: &SymmetricKey,
+    orgs: &BTreeMap<String, SymmetricKey>,
+) -> Result<SshPublic, Uninspectable> {
+    if kind(cipher) != 5 {
+        return Err(Uninspectable::NotSshKey);
+    }
+    with_nodes(cipher, user, orgs, |top, t| {
+        Ok(SshPublic {
+            summary: summarize(cipher, top, t)?,
+            public_key: t.text("publicKey")?,
+            fingerprint: fingerprint(top, t)?,
+        })
     })
 }

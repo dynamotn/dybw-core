@@ -87,6 +87,8 @@ pub enum Uninspectable {
     Blob,
     /// A cipher whose JSON is longer than `MAX_CIPHER` (ADR 0019): never decrypted.
     TooLarge,
+    /// A cipher that is not an SSH key, asked for its public key (`vault::item::ssh_public`).
+    NotSshKey,
 }
 
 /// Largest cipher, as its JSON, that is read (ADR 0019).
