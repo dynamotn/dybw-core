@@ -44,7 +44,8 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
     create.
   - `sync`: the out-of-date writer, the write queue, the three-way planner,
     device state and passes.
-  - `profile`: unlock, device identity, lock.
+  - `profile`: unlock (with the password, or with a user key online or on a
+    cached `/sync`), device identity, lock.
   - `testing` (feature): fakes and `block_on`.
   - `totp` (feature, off by default and in `dybw-core-wasm`): parses a login's
     `totp` field (`otpauth://totp/...`, bare base32 as rbw accepts it,

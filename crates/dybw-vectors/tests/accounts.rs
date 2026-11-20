@@ -10,7 +10,8 @@ use dybw_core::crypto::{
 use dybw_core::ports::{Argon2Input, Http, HttpRequest, HttpResponse, KdfRunner, PortError, Storage};
 use dybw_core::profile::{
     CachedSync, KdfPin, KdfSource, ProfileError, SecurityFault, UnlockWarning, Unlocked, accept_kdf,
-    accept_security_version, unlock, unlock_cached, unlock_vault, unlock_vault_cached, unlock_with_key,
+    accept_security_version, unlock, unlock_cached, unlock_vault, unlock_vault_cached, unlock_vault_with_key_cached,
+    unlock_with_key, unlock_with_key_cached,
 };
 use dybw_core::testing::{FixedClock, MemStorage, SeededRandom, block_on};
 use dybw_core::vault::{Namespace, Organizations, ScanReport, scan_vault};
@@ -1264,6 +1265,93 @@ fn a_remembered_key_logs_in_only_at_the_api_key_origin() {
     let err =
         block_on(unlock_with_key(&mut api, &storage, &key, user_key("org"), &AwsLcRsa, &Namespace::BWSS, &allowed));
     assert!(matches!(err, Err(ProfileError::Api(dybw_core::api::ApiError::WrongOrigin))), "{:?}", err.err());
+}
+
+// Unlock with a key on a cached `/sync` (P4.6, ADR 0006 protectors): `unlock_with_key`'s checks, no network.
+
+/// The normalized `/sync` an online key unlock of `profile` kept.
+fn cached_sync_of(profile: Value, user: SymmetricKey) -> Value {
+    key_unlock(profile, user, &MemStorage::default(), &Organizations::None).result.unwrap().sync
+}
+
+#[test]
+fn a_key_unlocks_a_cached_sync_offline() {
+    let sync = cached_sync_of(profile_of("org"), user_key("org"));
+    let storage = MemStorage::default();
+    let unlocked = block_on(unlock_with_key_cached(
+        sync.clone(),
+        &storage,
+        user_key("org"),
+        &AwsLcRsa,
+        &Namespace::BWSS,
+        &Organizations::All,
+    ))
+    .unwrap();
+    assert_eq!(unlocked.keys.user.to_bytes().to_vec(), b64(&account("org")["userKey"]));
+    assert_eq!(unlocked.keys.orgs.len(), account("org")["organizations"].as_array().unwrap().len());
+    assert!(unlocked.org_problems.is_empty() && unlocked.warnings.is_empty());
+    assert_eq!(unlocked.security_version, 0);
+    // No KDF ran, so no pin was written; a legacy key saves no security version.
+    assert_eq!(block_on(storage.load("kdf-pin")).unwrap(), None);
+    assert_eq!(stored_version(&storage), None);
+    // The namespace-free form gives the same keys.
+    let mut vault = block_on(unlock_vault_with_key_cached(
+        sync.clone(),
+        &MemStorage::default(),
+        user_key("org"),
+        &AwsLcRsa,
+        &Organizations::None,
+    ))
+    .unwrap();
+    assert_eq!(vault.keys.user().to_bytes(), unlocked.keys.user.to_bytes());
+    assert!(vault.keys.orgs().is_empty());
+    assert_eq!(vault.keys.for_namespace(&Namespace::BWSS).marker.mark("i", "t"), unlocked.keys.marker.mark("i", "t"));
+    // A COSE key with a signed security state saves its version, as online.
+    let storage = MemStorage::default();
+    let sync = cached_sync_of(cose_v2_with_private_key(), user_key("cose-v2"));
+    let cose =
+        block_on(unlock_vault_with_key_cached(sync, &storage, user_key("cose-v2"), &AwsLcRsa, &Organizations::None));
+    assert_eq!(cose.unwrap().security_version, 2);
+    assert_eq!(stored_version(&storage).unwrap(), b"2");
+}
+
+#[test]
+fn a_cached_key_unlock_refuses_what_the_online_one_refuses() {
+    let open = |sync: Value, user: SymmetricKey, storage: &MemStorage| {
+        block_on(unlock_vault_with_key_cached(sync, storage, user, &AwsLcRsa, &Organizations::None)).map(|_| ())
+    };
+    let org = cached_sync_of(profile_of("org"), user_key("org"));
+    // A stale key (another account's, as after a rotation) opens no private key; nothing is saved.
+    let storage = MemStorage::default();
+    let err = open(org.clone(), user_key("pbkdf2"), &storage);
+    assert!(matches!(err, Err(ProfileError::WrongPassword)), "{err:?}");
+    assert_eq!(stored_version(&storage), None);
+    // No private key to check against fails closed.
+    let mut bare = org.clone();
+    bare["profile"].as_object_mut().unwrap().remove("privateKey");
+    assert!(matches!(open(bare, user_key("org"), &MemStorage::default()), Err(ProfileError::WrongPassword)));
+    // A security state older than the one this device saw.
+    let storage = MemStorage::default();
+    block_on(storage.save("security-version", b"2")).unwrap();
+    let err = open(org, user_key("org"), &storage);
+    assert!(matches!(err, Err(ProfileError::SecurityDowngrade { seen: 2, offered: 0 })), "{err:?}");
+    // A forged state on a COSE account.
+    let mut forged = cached_sync_of(cose_v2_with_private_key(), user_key("cose-v2"));
+    forged["profile"]["accountKeys"]["securityState"]["securityState"] = json!("!");
+    let storage = MemStorage::default();
+    let err = open(forged, user_key("cose-v2"), &storage);
+    assert!(matches!(err, Err(ProfileError::SecurityState(SecurityFault::Invalid))), "{err:?}");
+    assert_eq!(stored_version(&storage), None);
+    // The namespace form passes the error on.
+    let err = block_on(unlock_with_key_cached(
+        json!({}),
+        &MemStorage::default(),
+        user_key("org"),
+        &AwsLcRsa,
+        &Namespace::BWSS,
+        &Organizations::None,
+    ));
+    assert!(matches!(err, Err(ProfileError::WrongPassword)), "{:?}", err.err());
 }
 
 // One unlock without a namespace serves every namespace (C1).

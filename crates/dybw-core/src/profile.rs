@@ -543,11 +543,37 @@ pub async fn unlock_with_key<H: Http, C: Clock>(
 ) -> Result<Unlocked, ProfileError> {
     client.login(key).await?;
     let sync = client.sync().await?;
+    Ok(unlock_vault_with_key_cached(sync, storage, user, rsa, allowed).await?.into_unlocked(ns))
+}
+
+/// `unlock_with_key` without the network, on a cached `/sync` (an earlier `Unlocked.sync`, never a raw server
+/// response): the same private key check, then the same security state checks; no KDF runs, so the KDF pin is
+/// neither read nor written. For a key from a protector (ADR 0006), or a remembered key while offline. A key that
+/// opens no private key is `WrongPassword`, before anything is saved.
+pub async fn unlock_with_key_cached(
+    sync: Value,
+    storage: &impl Storage,
+    user: SymmetricKey,
+    rsa: &impl RsaOaep,
+    ns: &Namespace,
+    allowed: &Organizations,
+) -> Result<Unlocked, ProfileError> {
+    Ok(unlock_vault_with_key_cached(sync, storage, user, rsa, allowed).await?.into_unlocked(ns))
+}
+
+/// `unlock_with_key_cached` without a namespace: every check of it, no marker chosen.
+pub async fn unlock_vault_with_key_cached(
+    sync: Value,
+    storage: &impl Storage,
+    user: SymmetricKey,
+    rsa: &impl RsaOaep,
+    allowed: &Organizations,
+) -> Result<UnlockedVault, ProfileError> {
     if !opens_private_key(&sync, &user) {
         return Err(ProfileError::WrongPassword);
     }
     let version = check_security(&sync, &user, storage).await?;
-    Ok(open_keys(sync, user, version, vec![], rsa, allowed).await.into_unlocked(ns))
+    Ok(open_keys(sync, user, version, vec![], rsa, allowed).await)
 }
 
 /// The check on a user key that did not come from the master password (a remembered key, a protector): it must open
