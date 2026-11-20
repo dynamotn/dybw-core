@@ -140,6 +140,45 @@
       "error": "format"
     },
     {
+      "about": "unknown field in a hardware KDF",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\",\"salt\":\"x\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "a pin with a hardware KDF",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "a biometric protector with an Argon2id KDF",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "format"
+    },
+    {
       "about": "unknown KDF",
       "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"pbkdf2\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
       "kek": {
@@ -322,6 +361,20 @@
       "error": "binding"
     },
     {
+      "about": "a copied blob reports its binding whatever its count",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":5}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "binding",
+      "attemptsAfter": 5
+    },
+    {
       "about": "five failed attempts",
       "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":5}",
       "kek": {
@@ -404,15 +457,15 @@
     },
     {
       "about": "protector renamed: the name is authenticated",
-      "raw": "{\"version\":1,\"protector\":\"login\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "raw": "{\"version\":1,\"protector\":\"login\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
       "kek": {
-        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+        "secret": "2468"
       },
       "binding": {
         "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
         "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
       },
-      "account": "xaes-256-gcm",
+      "account": "org",
       "error": "wrong",
       "attemptsAfter": 1
     },

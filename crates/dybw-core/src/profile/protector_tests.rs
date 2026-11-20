@@ -75,7 +75,8 @@ fn error_vectors() {
 #[test]
 fn the_fifth_failure_invalidates_and_a_success_resets() {
     let doc = vectors();
-    let row = doc["errors"].as_array().unwrap().iter().find(|r| r["attemptsAfter"] == 5).unwrap();
+    let row =
+        doc["errors"].as_array().unwrap().iter().find(|r| r["attemptsAfter"] == 5 && r["error"] == "wrong").unwrap();
     let mut blob = ProtectorBlob::from_json(row["raw"].as_str().unwrap().as_bytes()).unwrap();
     let (sync, binding) = (&doc["accounts"]["xaes-256-gcm"]["sync"], binding_of(&row["binding"]));
     let wrong = kek_of(&row["kek"]);
@@ -217,4 +218,20 @@ fn unwrap_checks_a_blob_that_skipped_from_json() {
     let sync = &doc["accounts"]["org"]["sync"];
     let e = block_on(unwrap(&mut blob, &kek_of(&row["kek"]), binding_of(&row["binding"]), sync, &Panics)).unwrap_err();
     assert_eq!(e, ProtectorError::WeakKdf);
+}
+
+/// `biometric` takes hardware bytes and `pin` and `login` a secret: a mismatch is refused before anything is drawn.
+#[test]
+fn wrap_ties_the_protector_to_its_kind_of_factor() {
+    let user = SymmetricKey::generate(&SeededRandom::new(1)).unwrap();
+    let binding = Binding { device_id: "dev-1", machine: "machine-1" };
+    let params = KdfParams::Argon2id { iterations: 3, memory_mib: 64, parallelism: 1 };
+    for protector in [Protector::Pin, Protector::Login] {
+        let hw = KekSource::Hardware(Zeroizing::new([1; 32]));
+        let e = block_on(wrap(&user, protector, hw, binding, &NativeArgon2, &SeededRandom::new(1)));
+        assert_eq!(e.unwrap_err(), ProtectorError::Kek, "{protector:?}");
+    }
+    let secret = KekSource::Secret { secret: Zeroizing::new(b"x".to_vec()), params };
+    let e = block_on(wrap(&user, Protector::Biometric, secret, binding, &NativeArgon2, &SeededRandom::new(1)));
+    assert_eq!(e.unwrap_err(), ProtectorError::Kek);
 }

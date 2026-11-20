@@ -25,8 +25,8 @@ prefix `test/fixtures/`). bwss = the `dynamo-tools/bwss` repository at commit
 | `../gen/gen_marks.py` | dybw-core | `vectors/gen/gen_marks.py` | written for M2 | `2026f804983228c0d3f3c320a61cd7f394498220fef6ee2d098ee37265bcb307` |
 | `totp.json` | dybw-core | `vectors/crypto/totp.json` | written for P4.3 (TOTP); the RFC 6238 Appendix B and Bitwarden SDK rows are asserted by the generator | `9a5bf5214990e9e085a89f3211d298ce7db0ed70d7a0c3b7f3433a8449897a02` |
 | `../gen/gen_totp.py` | dybw-core | `vectors/gen/gen_totp.py` | written for P4.3 | `a7c50eab02aa06cb4a0c4855bd17ad7218b2a5e8d554a7767eda64e0be13b38a` |
-| `protector.json` | dybw-core | `vectors/crypto/protector.json` | written for P4.6 (ADR 0006); Argon2id, HKDF and the type 2 wrap come from argon2-cffi and `cryptography`, independent of the core | `a4a2d913ac13f38066f56fd50bcab96f1f370067eb764c31470984725799cf82` |
-| `../gen/gen_protector.py` | dybw-core | `vectors/gen/gen_protector.py` | written for P4.6 | `3147f97ea1adb100d9cb58526fa4bcc1205206320a91e3e27ab402da6e04ec64` |
+| `protector.json` | dybw-core | `vectors/crypto/protector.json` | written for P4.6 (ADR 0006); Argon2id, HKDF and the type 2 wrap come from argon2-cffi and `cryptography`, independent of the core | `f3f7e104af8cb7f513b9a26b2702d474e187491ef1a9f1d2cf009348d7f1ebed` |
+| `../gen/gen_protector.py` | dybw-core | `vectors/gen/gen_protector.py` | written for P4.6 | `65ff14b7897bc9d8e2c114678f67554a84a3cbbd85056475cda343ada05055a8` |
 | `sdk-m3.json` | sdk-internal | constants of `bitwarden-vault` `cipher/blob/sealed.rs` and `cipher/blob/v1.rs`, `bitwarden-core` `key_management/security_state.rs`, `bitwarden-crypto` `signing/signing_key.rs` and `signing/signed_object.rs` (the file and line of each are inside) | `3d16437` | `8f8817b95d912846513099f3a5502c023aac27f2ed1e19a69274046aa2f19e0b` |
 
 ## What each fixture covers

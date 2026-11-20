@@ -37,6 +37,11 @@ impl Protector {
             Protector::Login => "login",
         }
     }
+
+    /// Whether the KEK comes from hardware (`biometric`); `pin` and `login` are Argon2id over a secret.
+    fn hardware(self) -> bool {
+        self == Protector::Biometric
+    }
 }
 
 /// What binds a protector to this device: the profile's device identifier and the machine fingerprint
@@ -120,7 +125,8 @@ impl From<PortError> for ProtectorError {
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 enum BlobKdf {
     Argon2id { iterations: u32, memory: u32, parallelism: u32, salt: String },
-    Hardware,
+    // A struct variant, not a unit one, so `deny_unknown_fields` refuses extra keys here too.
+    Hardware {},
 }
 
 /// A protector as the host stores it (device state, 0600 on disk, or memory only): JSON with no secret in clear.
@@ -182,9 +188,15 @@ impl ProtectorBlob {
         self.attempts = 0;
     }
 
-    /// The version, binding fields and floors; answers the Argon2id parameters and salt, `None` for a hardware KEK.
+    /// The version, binding fields, the KDF of the protector's kind and the floors; answers the Argon2id parameters
+    /// and salt, `None` for a hardware KEK.
     fn check(&self) -> Result<Option<Argon>, ProtectorError> {
-        if self.version != VERSION || self.device_id.is_empty() || self.machine.is_empty() {
+        let hardware = matches!(self.kdf, BlobKdf::Hardware {});
+        if self.version != VERSION
+            || self.device_id.is_empty()
+            || self.machine.is_empty()
+            || hardware != self.protector.hardware()
+        {
             return Err(ProtectorError::Format);
         }
         let BlobKdf::Argon2id { iterations, memory, parallelism, ref salt } = self.kdf else { return Ok(None) };
@@ -224,8 +236,8 @@ impl ProtectorBlob {
     }
 }
 
-/// Wraps `user` as a new `protector` bound to `binding`. A secret's parameters must meet the floors; its salt comes
-/// from `rng`. The caller enrolls only after the master password unlocked `user` on this device (ADR 0006).
+/// Wraps `user` as a new `protector` bound to `binding`. `biometric` takes hardware bytes, `pin` and `login` a secret
+/// (else `Kek`), whose parameters must meet the floors; its salt comes from `rng`. The caller enrolls only after the master password unlocked `user` on this device (ADR 0006).
 pub async fn wrap(
     user: &SymmetricKey,
     protector: Protector,
@@ -236,6 +248,9 @@ pub async fn wrap(
 ) -> Result<ProtectorBlob, ProtectorError> {
     if binding.device_id.is_empty() || binding.machine.is_empty() {
         return Err(ProtectorError::Binding);
+    }
+    if matches!(source, KekSource::Hardware(_)) != protector.hardware() {
+        return Err(ProtectorError::Kek);
     }
     let (kdf, kek, argon) = match source {
         KekSource::Secret { secret, params } => {
@@ -248,7 +263,7 @@ pub async fn wrap(
             let kdf = BlobKdf::Argon2id { iterations, memory: memory_mib, parallelism, salt: B64.encode(salt) };
             (kdf, Kek::Secret(secret), Some((iterations, memory_mib, parallelism, salt)))
         }
-        KekSource::Hardware(bytes) => (BlobKdf::Hardware, Kek::Hardware(bytes), None),
+        KekSource::Hardware(bytes) => (BlobKdf::Hardware {}, Kek::Hardware(bytes), None),
     };
     let mut blob = ProtectorBlob {
         version: VERSION,
@@ -264,8 +279,8 @@ pub async fn wrap(
     Ok(blob)
 }
 
-/// Unwraps the user key, in this order: the blob's format and floors, the attempt count, the binding (before any KDF
-/// runs), the KEK's kind, the MAC (`Wrong` counts an attempt in `blob`), then the master password's check against
+/// Unwraps the user key, in this order: the blob's format and floors, the binding (a copied blob reports `Binding`
+/// whatever its count), the attempt count, the KEK's kind (no KDF runs before it), the MAC (`Wrong` counts an attempt in `blob`), then the master password's check against
 /// the cached `sync`: the key must open the account's private key, else `Stale`. Success resets the count. The host
 /// persists `blob` after every call, deletes it on `Stale` or once `invalidated()`, and ignores and reports it on
 /// `Binding`.
@@ -277,11 +292,11 @@ pub async fn unwrap(
     runner: &impl KdfRunner,
 ) -> Result<SymmetricKey, ProtectorError> {
     let argon = blob.check()?;
-    if blob.invalidated() {
-        return Err(ProtectorError::Invalidated);
-    }
     if blob.device_id != binding.device_id || blob.machine != binding.machine {
         return Err(ProtectorError::Binding);
+    }
+    if blob.invalidated() {
+        return Err(ProtectorError::Invalidated);
     }
     let key = blob.wrapping_key(kek, argon, runner).await?;
     let user = match key.decrypt_key(&blob.wrapped_key) {
