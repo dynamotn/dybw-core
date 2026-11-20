@@ -16,6 +16,9 @@ totp = ["dep:sha1", "sha1/zeroize", "sha2/zeroize", "hmac/zeroize"]
 # `vault::client` and `sync::client_*`: the dybw CLI's creates, edits and trashes of ordinary items. Off by default
 # and in dybw-core-wasm: the plugin writes only through its namespace.
 vault-client = []
+# `profile::protector`: ADR 0006's local unlock protectors (PIN, Touch ID, login password). Native only: off by
+# default and never in dybw-core-wasm, which has no device to bind a protector to.
+protectors = ["native"]
 
 [dependencies]
 aes = { version = "0.9.3", features = ["zeroize"] }
@@ -41,7 +44,7 @@ uuid = { version = "1.28.0", default-features = false }
 zeroize = { version = "1.9.1", features = ["derive", "serde"] }
 
 [dev-dependencies]
-dybw-core = { path = ".", features = ["testing", "native", "totp", "vault-client"] }
+dybw-core = { path = ".", features = ["testing", "native", "totp", "vault-client", "protectors"] }
 
 [lints]
 workspace = true

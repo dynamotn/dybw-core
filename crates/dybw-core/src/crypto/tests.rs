@@ -222,3 +222,14 @@ fn two_encryptions_of_one_value_differ() {
         assert_eq!((key.decrypt_str(&a).unwrap().as_str(), key.decrypt_str(&b).unwrap().as_str()), ("same", "same"));
     }
 }
+
+/// RFC 5869 appendix A.1 (SHA-256): the first 42 bytes of the 64 `hkdf` expands are the published OKM.
+#[cfg(feature = "protectors")]
+#[test]
+fn hkdf_matches_rfc5869() {
+    let hex =
+        |s: &str| (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect::<Vec<_>>();
+    let key = SymmetricKey::hkdf(&hex("000102030405060708090a0b0c"), &[0x0b; 22], &hex("f0f1f2f3f4f5f6f7f8f9"));
+    let okm = hex("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865");
+    assert_eq!(&key.to_bytes()[..42], okm.as_slice());
+}

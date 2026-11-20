@@ -1,0 +1,462 @@
+{
+  "about": "ADR 0006 protector blobs (profile::protector), written by vectors/gen/gen_protector.py. `raw` is the stored blob text; `kek` is a UTF-8 `secret` or base64 `hardware` bytes; `account` names an entry of `accounts`, whose `sync` is what the key is checked against and whose `userKey` an unwrap returns. `error` is ProtectorError::code; `attemptsAfter` is the blob's count after the call.",
+  "accounts": {
+    "org": {
+      "userKey": "6MhN5iVbCtWXi4M63qEkuf67OU0yDgd/VR0CHkhmgh94oLsO/18z1zJsiiiHg6NWKAxBMLrKUNVzRagxIiCdug==",
+      "sync": {
+        "profile": {
+          "privateKey": "2.QMEHrdhib3ZO/qIKNw+2Cw==|6aV5i6fVu4qeBb5LylChwk0leAoT9WEa7HI8N4XNblMAJ1OgPjdZnooYfDe1DUDw/kEtt9AjMGAiTLnynByqkHLA7L4pEXkGU1jUB/20WtEx+N7Y3UBn79mmExxNjPjsatZMgspSreXLoF0u/9ce7YA2MRSyXVyc2MR0PjnVQy4XJeOvXDK2XitxdXAJXMzH7ikqu7twE7jd+/HWDkfS9ez3n5JKKU4E0+zy8gR/U3+mEPfPkixZYe3R1erMMJxR3JdtOWObHbFK67xkipk6KT4b3o9zU3AKwSV60bXiZ9LgjOPn3wEHNWYtGlkgtTwb9zdEcKiewjkXr6ll3onO/iLY+oF8nOw6cCjtEhH83NsU5e6y5djJJeRwdw+RndXm1aqTk7TGLZ37mEB61iwdlwbISogRptg+tr2a3wHhZWzhIGRl3Gegd/BnKx00s9GHGMkXPbOg59KtxGADsAs3OOAbVtnLprQrmMWQbvo5JFll3oxZbjn1HCHJOoep49zollq39j1E8Lsgk67Lw3qJaUfuU44nfhXfix8eE2Jal8oKjoew4UfnqKtHlhbWGINWNQFtHLqfzFETDR0LDF4igMqSWiL7UuF23PljzALU/Qs6rsHgJ+3H35HH2rezU8VQQQ29lhfxJbPEm/bQTQVkoao25bugrs4VqVKS/n9/Ozd3zBgjTRjjtM4c7RKVwsTJKzCA8d5oiJLXx2/m4g2t5NaXJQW7Rvl2SbWRgY7AWTqd1VxybCZDOcb2m2Q8HkPlqJEOfBayGToEhfv6KFjjD/o7QzANE6R2UaHrn6X0zz8rvzJf7cUSe56Z46NAkedRT41KxngVOn1tSfW3QuY/DDMLosDR/c7mHzw5SFtRZLAZV8YBvqKJtZ7jgTuePytRKFR9MTPxEz79FHwCavYJyWdOi6aioqTqzKqnSfdBxzyE+6a/jDHHnsV3h0au4KrULrf7fcNAR+qhAk0Wpq8GU6j4hiUjDthnkIq31uck4M7FFmvqZGEpLUPkxKqogRuSH5vD06xMit258oKOP+uy7a0zV7mRIf2+TvFpPgHixUgUxUxPsPmynsFphJ4E3d3AkhB0h1o3KjurUpfA7+vJsD8BcuW8VkOabpgvJlB5/hOkPF1HVD2GrTA9+8TtuNf4UgyCk7RKZ3xBAifFucgg9D7rJxDxAOmB0bD3bQQEHKZvdCpJtqdCru1ZR/SJJ+9eDwNe5aFsHnkLlFxXhWjVuVzMKDgM4GGxEc0ftK6EZBmA2/mZhPYFXwLpuJSU8dm1rf7iENl1Kcv170p9wLtwHW85RfeuuuVxKoy6WiNNBs/rv68BhCEkZ684i4aY3ZoJz2ln84Fai5LUfdFL2SXkrx8vto9pHj0i/qYVKGivCJE+DYelYSqyiHwznpGaqI6X7nVTB52WV0OWJSUWXZAVrrvxd9VS2lora6FLkXQMMMXWKSzg4ADRuXMbUs7QA+X4NqfAy3BawHgHBSJ8M9MPrNB/PiYzdxUBL1f+q0hWtOKchT4/TwK1+K3yUV4NEouxS/rYzRkSA0tQCgE08XKxpE/9ZaD+4EODhkYGhjxir59Uc0PRmgS2kSfcSKZbbZIF80aFzEd5uo8ysKkgET4Z3uxHL/utMddQ1n6laAh+Jpk=|Sf7G/5ihwOfSW7VNMCE8C7VnZhaSBzLEgfNOr3lKJ8A="
+        }
+      }
+    },
+    "xaes-256-gcm": {
+      "userKey": "pQEEAlADvib3Qcrom0WSYpQvnz2zAzoAARF5BIQDBAUGIFggdBN5yo1IqAwUD5KSGP2Gr+kCLJCRqOVdE+UnquFtZngB",
+      "sync": {
+        "profile": {
+          "privateKey": "7.g1gdowE6AAEReQMZARwEUAO+JvdByuibRZJilC+fPbOhBVgYyaPTcvSlBBrLOJCuv7MzESkvqtHw4FQ7WQTSW5sZcyEzqz3LlcDtLa2bC6LdLj4cwYZEFhncZ4CVq/oGxfcmmm8hY0hbg3vkWHdFdNmSPdzuWAUV8WYQzFtaDueytb7wmD1xf/p6FRMir+favv4lim1a+UMjBAT9s4Rt+IDeExWEPlPlVLV1wGw4F+yhJWH8BtW/W65tSO0JQ6mg8GFkhUvj5YSnylk/KZnJMZ5iDhbFMSFteb0vQg3wBCDpP6mNftQPs26M2rhWA0JWywstxuzvPo4fU+fNoqHZIjEkk/N9VT6vxmb3fBHheEoLXz6e5ghbsW43tdGt7bNuTMY5qXGLfR0zz3UsmhkfWd5nA+5zJfaTyGv3jPURYWlSC05WU3LtxPSXTVs99mdOEvUJKrlXfJyf98975V669F7JSb3Mla6fr6gO+eRGU/JGZySdEEsrDcYF62AX35oiaBpQTTUDxZ9mN2ZNBXcu0A3Bzr6NSZjdw2GJt5vjb/ggc4/bQKxCV7YTxdc1XJxRrTjVUCBiUK2ygenP5ei+7yl+lNicwN6uSUXuvYE6xXIvn//BFZJtHT104D2JFUq8s9INrEa2sMbjAAU09BzkN9BC1laVTwEp6HS1naChpo/9eog0aB3JB7XNjIDlZiNlTIie0F+ES7vjf04/5eSOQtJhx49YWOhu9JmEvw+K+ySUL/8k+CvbGx60hBrdGta7WiYRuyA/7Y1zMDk6AAW/qokfBq+bW5HLK+vHHpiGUnCTJhTNIeKVH/u9KMyO2T3/Nk9cparwC7P+IXAnBsF6w3cK4eZDsiU8AqaEGx74/NqpkAIs5TJCy6e/culO7UcO0CAXst5Abg16PhwUesnXT0F6+/7FLxo0B7mJ5v1y1yJ/+E8MotI7mXL0yUvIWdFYCODmJ/GpV38+udybkuXPMR9kWoUinvKIR1dL+FZ0zEZSMGTxqRzt3Q53di+x2566cxceSJhvvIiMqafRlQ2nIpi7NGl5XgSI+WuarKPqG+4HFLZqHZsIgn9bCRcOpjTF1/cOX4lsRvlf1ynVZNg3yXOSOX26IbdE+TRJKkvlB3AEtqCbh1trRrgCAxCyUjUEkHg583CBdKG/nKeckOJ7/tKYy6SCiiUuWpCUFm8KFFIHo6kb6ajztoq8A2Eq1gjk4aq8owNKE8MZXLWFf72riautsJ6imIY134iPdr7p7oZDq6V1iyg+QJ5G0TuJsyfxjuuHS3rIwoLMk9SQ9zyTKlq1SO0w8lMpM9Yt//z5Wfq0HGpJKSiGVg8Q5e4717PKZ8VBdbtWkrSW6QwDYPQakRxjimm5Gx0dvAtR5SLAdx+AGRju6Y5fAA4Lq0ChDPW3K+YomU1yf+7r8OT6DQQzDqDWftSFKQEEa8wFjS1doTB4Om2WEhvv9XOg2ZqvOrw5ARMuHhFHzkzFGV6YJOB+eBUtrq808OEhqhqEWaQLkERu9npJ0//0oDFpfnL9Fs7r3/d4iYaAru4fWYSYxUXF4epTR3ECSmicgFq9MjjjpLHKfi94i/hwdjE3I+WsB/gfJHpFaJfW+Zv6hsR9+hHW8emXONNV3f21wcmGZlXEjGrPHf7kd8d8RoiqjJ6rn+2OphfwH+03FYNSI+l5jXhTxbgUd2dfzMKxrLR2S1oQSfEt2KWgyYEt2lTNoW83EuHeXg=="
+        }
+      }
+    },
+    "xchacha20-poly1305": {
+      "userKey": "pQEEAlDSq8wlYBIDvcB/q5unSvlQAzoAARFvBIQDBAUGIFgg+5ladrPigfEMYMld0iZm0mruAyAJ6A5l3IMtct4RVd8B",
+      "sync": {
+        "profile": {
+          "privateKey": "7.g1gdowE6AAERbwMZARwEUNKrzCVgEgO9wH+rm6dK+VChBVgYGX4oR1lfjbzO5s8qrKlKx3N7N/7rVPbUWQTSDCj5/0bKRUxNSjXLIm8pLGxdOsK9ltPVuyvLTsxB05kW0o9y+qq/CUYd9VIB5WPS8s2yy7nsUEX4amkaOQKjT5hJ8yS8NAE77+SF9Pz5+dW3KuclMP1v+xsxtRKEllasf2ETQ9pkZ9gJPflnnSt/G+fIiXqVKP/Cm31gLXnwyyOQ5PnZren/6rSQIZ3m619hKfXbvz2/8ZO5G4EtAkLEXaHUBW1GBjlJoxgaes2I6nYK51u7+m3mx8ZlcdjF8I45kWgTpLo9KtVQ7Ykxu6BcPcMA6br1g26p1XgJrR/JyyPtDDzma5+OQ+K2uFDYjMFD8d/QG7BPaGBv5+S7GVWwHbq743cQFjJwvjdiiakeUR6ZuKeFaf7fYE+KxGGpCFZHqgtLI7qtQthiB3MyJDrIu3bKgY4mg/wmx/8qEiAp+9vPhBsnUv0GcAnREILnJvmWkXtLoGHESkvhZZFRUEgq1WeV5fbu9APwPRQU5l4nosmkcD3yYP1IiPKQZjPwV/3m9/pGIsX3+mjNJ0cTT8egh3cLZG7eDf8IghiKG+QfWHIOoS2G6EjV/nQUdY86D1fBm4b62tS3HpcaYj5no+MRgvpW9fqEjfb4uqwAKH/OKbwtLVEgZzkt/duaz4tbFuwk4avuCAvGc2eER/oHR5VxSbU3sy7tr0ajpyJkR0PBbSCBQ647UyNbcfKp9g5/ntTnrsdRHE8sUuP79Vv4QxyHQYcoeTNP9U+bfy5bTrszF/myv51xgmbwbNYdx64HqzmMm4muw2K91xNDcf+u2mMv4qeIwLzFGt3bBdd8P29bHU4HwfsP7movXpExvd6Yzrij4zlISQPoWpQy/zM4O26GMC5nQHDI7OvRPUAMJl+Qo69ySBHuVFEHxAV2zl1aEp4k+U9zkY6hL1tj5GxQbL11dKiWTc6G54zoLNIs373rGBQUPaBmmkSla7vLNhuyE/3qCddT1Q5NmO9hC2Rgi+VZcnC4oD32sHSivu0UfakB9NZhtYedHDQqsn5R0w7zLiKqNj0QEN7tGAKKQeXUDNrQw/bnbAdyKDXj9sgAFm0rL9pDrYYor+aBoNlmNSzlOY82McdcqnhGqsyX4M7M9KzKkYn7K53Ho7IpLQ9O6ypEOjbSJcE7JDp5RXb2f/NssjDAgbH3KbiGGilqc+NLIaU8Np/un30W9/F4bbd6t63ac+uXbtuIjAy3z9R+7zYiXWlnkeFA2aM/DFqnYdUdAyw1MWsB/ZDZIGVrmK3d+LClTIkuRxa0jnWTcUQ9o6iVWheS9FwHTyOb3GnGM6guO6XQtw8HvWKBdB0VwmS1eYY6M/tZgQbTfX+OLAGlPVga2oXlGgTd3EljSU0hNbOzXblozSC+GmMWutOsYr2Lp/2ys3qzzG0fd3Op/Gc+xO8quCCE3RlC4uSNSk/1fxCcRHtiYdgGEwbTGh/wkOf+a0FnI1iqCCvDIY+KOLQzSCZqcvbMF941+bDpCYc4k+uwV0s31CVC/d6l6Oy/1qATwl0R3DTccg7n+7g1cPpIqBtf7U8XtI2aW9mwHuI5rd8yJ6Vdc5q4WmAVTK9J95tevsywYxVG/pEEkz41/QSEHyXde1q7+SVodmEJCXtHtAmSi24fhtSHjyUU/e11AUzfFa2YciHIAQ=="
+        }
+      }
+    },
+    "no-private-key": {
+      "userKey": null,
+      "sync": {
+        "profile": {}
+      }
+    }
+  },
+  "unwrap": [
+    {
+      "about": "pin over the floor parameters, legacy user key",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "attemptsAfter": 0
+    },
+    {
+      "about": "login password, stronger parameters, COSE user key",
+      "raw": "{\"version\":1,\"protector\":\"login\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":4,\"memory\":128,\"parallelism\":2,\"salt\":\"gHjt1WKf32kGiameXPG7a1J94h5NwPI6f47NXx+k8rs=\"},\"wrappedKey\":\"2.Dn+qawtOMJfFlA4cRKV+AA==|/CwAouB5+5ys2Pm6Ie03LRpEJXc0zGm3GkTNAG8/j875Z3MVW1YPLPqVhsbV0kN1qAYwXK2DZ46l7VLucrAMp13KrHAWO7h7Z0EWAVxnlUA=|me8qLXs4tkoq578NSzxLmzk/M5p/yumkdSA+3Be22mQ=\",\"attempts\":0}",
+      "kek": {
+        "secret": "login password ✓"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "attemptsAfter": 0
+    },
+    {
+      "about": "biometric hardware bytes, COSE user key",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "attemptsAfter": 0
+    },
+    {
+      "about": "a success resets the attempt count",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.czcq1YLAsgSdNUTscRGHIA==|6tIxYTTeLisxaA0XbgflqS5DSO9du71ZQTogkkJiRZ8hI7gH0Ww+HOgVLx1nzXwCSersp+H2cYnxTNwxJzzKfnQmGZfK4OAaadOWIefHaCA=|eJHFAFVo+oKE5yL2SAmr1ODX2Z22ohfO8f5tvgPkOK8=\",\"attempts\":3}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "attemptsAfter": 0
+    }
+  ],
+  "errors": [
+    {
+      "about": "not JSON",
+      "raw": "{",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "format"
+    },
+    {
+      "about": "unknown version",
+      "raw": "{\"version\":2,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "unknown field",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0,\"extra\":1}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "unknown protector",
+      "raw": "{\"version\":1,\"protector\":\"face\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "unknown KDF",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"pbkdf2\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "missing attempts",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\"}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "empty device id",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "empty machine fingerprint",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": ""
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "salt of 16 bytes",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"AAAAAAAAAAAAAAAAAAAAAA==\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "format"
+    },
+    {
+      "about": "wrapped key not an EncString",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"not an encstring\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "wrapped key of type 7",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"7.AAAA\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "format"
+    },
+    {
+      "about": "memory 63 MiB",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":63,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "weak-kdf"
+    },
+    {
+      "about": "iterations 2",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":2,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "weak-kdf"
+    },
+    {
+      "about": "parallelism 0",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":0,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "weak-kdf"
+    },
+    {
+      "about": "memory above 1 GiB",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":1025,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "weak-kdf"
+    },
+    {
+      "about": "iterations above 10",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":11,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "weak-kdf"
+    },
+    {
+      "about": "another device id",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "binding"
+    },
+    {
+      "about": "another machine",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "0123456789abcdef0123456789abcdef"
+      },
+      "account": "org",
+      "error": "binding"
+    },
+    {
+      "about": "five failed attempts",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":5}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "invalidated"
+    },
+    {
+      "about": "a secret for a hardware protector",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "2468"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "kek"
+    },
+    {
+      "about": "hardware bytes for a secret protector",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "kek"
+    },
+    {
+      "about": "wrong PIN",
+      "raw": "{\"version\":1,\"protector\":\"pin\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"argon2id\",\"iterations\":3,\"memory\":64,\"parallelism\":1,\"salt\":\"JMMm1TNGwiUBWc/clGkm9EMUEjPsTUXttEmfN5tPLuA=\"},\"wrappedKey\":\"2.4QOCN/IpIDRuvAu47Zfqiw==|hixi9IZPnkHgBDd7ztv2pn2xv/7svxYnRqQHwhP+5Hmp8YEsVghFgHC6NAI5svXglivSPzbOpiz53HS1U1LomlFL/RUldsDw6wX1UAE+T9E=|tY1X2+uYTZqmV79w6kQb+xumvJh1yLTO7hFB5+Lntkw=\",\"attempts\":0}",
+      "kek": {
+        "secret": "1357"
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "org",
+      "error": "wrong",
+      "attemptsAfter": 1
+    },
+    {
+      "about": "wrong hardware bytes, the fifth failure",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":4}",
+      "kek": {
+        "hardware": "ao/lIBSEe8opJXoojcacWpZunyZaJeFWG0ss+6yRKSY="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "wrong",
+      "attemptsAfter": 5
+    },
+    {
+      "about": "device id edited to this device's: the binding is authenticated",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "wrong",
+      "attemptsAfter": 1
+    },
+    {
+      "about": "protector renamed: the name is authenticated",
+      "raw": "{\"version\":1,\"protector\":\"login\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "wrong",
+      "attemptsAfter": 1
+    },
+    {
+      "about": "rotated user key: another account's private key",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xchacha20-poly1305",
+      "error": "stale",
+      "attemptsAfter": 0
+    },
+    {
+      "about": "legacy key against a COSE account",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.czcq1YLAsgSdNUTscRGHIA==|6tIxYTTeLisxaA0XbgflqS5DSO9du71ZQTogkkJiRZ8hI7gH0Ww+HOgVLx1nzXwCSersp+H2cYnxTNwxJzzKfnQmGZfK4OAaadOWIefHaCA=|eJHFAFVo+oKE5yL2SAmr1ODX2Z22ohfO8f5tvgPkOK8=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "xaes-256-gcm",
+      "error": "stale",
+      "attemptsAfter": 0
+    },
+    {
+      "about": "no private key to check against",
+      "raw": "{\"version\":1,\"protector\":\"biometric\",\"deviceId\":\"4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c\",\"machine\":\"564D4F2A-1B2C-4D3E-8F40-VECTORS00001\",\"kdf\":{\"type\":\"hardware\"},\"wrappedKey\":\"2.3j/v90n0Zg2Qw6MOP/6HXA==|wHw8NxT/UoBmKA2b5acz2R4usz7m6MgMGtjb4QxQ1xEac1kwH5tC/91h8GbaSn9nzDheeGqKPdCwdRNT/OY28xgxcy2sNrp2Bt6b8LSPq7A=|f3oe6hbTmCBx8XA2HV6Yq8OR60HpqtjQSXsAZAdCGYw=\",\"attempts\":0}",
+      "kek": {
+        "hardware": "ahzsrELAqagr4f2YGQoig6YtqCjdSmfPd3ElboXN6xo="
+      },
+      "binding": {
+        "deviceId": "4b1c7e2a-9d3f-4e5a-8b6c-0d1e2f3a4b5c",
+        "machine": "564D4F2A-1B2C-4D3E-8F40-VECTORS00001"
+      },
+      "account": "no-private-key",
+      "error": "stale",
+      "attemptsAfter": 0
+    }
+  ]
+}

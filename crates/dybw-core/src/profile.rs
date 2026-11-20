@@ -13,6 +13,9 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use zeroize::Zeroizing;
 
+#[cfg(feature = "protectors")]
+pub mod protector;
+
 /// The storage key of the device identifier.
 const DEVICE: &str = "device";
 /// Domain separation for [`Unlocked::user_key_id`], so the id is no hash of the key used anywhere else.
@@ -540,10 +543,18 @@ pub async fn unlock_with_key<H: Http, C: Clock>(
 ) -> Result<Unlocked, ProfileError> {
     client.login(key).await?;
     let sync = client.sync().await?;
-    let wrapped = sync.get("profile").and_then(wrapped_private_key).ok_or(ProfileError::WrongPassword)?;
-    user.decrypt_pkcs8(wrapped).map_err(|_| ProfileError::WrongPassword)?;
+    if !opens_private_key(&sync, &user) {
+        return Err(ProfileError::WrongPassword);
+    }
     let version = check_security(&sync, &user, storage).await?;
     Ok(open_keys(sync, user, version, vec![], rsa, allowed).await.into_unlocked(ns))
+}
+
+/// The check on a user key that did not come from the master password (a remembered key, a protector): it must open
+/// the account's private key in `sync`. A stale key (rotated, or another account's) opens nothing, and an account
+/// without a private key cannot be checked, which fails closed.
+fn opens_private_key(sync: &Value, user: &SymmetricKey) -> bool {
+    sync.get("profile").and_then(wrapped_private_key).is_some_and(|wrapped| user.decrypt_pkcs8(wrapped).is_ok())
 }
 
 #[cfg(all(test, feature = "testing"))]

@@ -64,6 +64,19 @@ uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi py
     re-applying anything. Organization items are written under their key,
     never read-only ones; a personal blob is re-sealed, an organization blob
     refused. Vectors in `vectors/src/write/client/` (`expect.clientWrite`).
+  - `protectors` (feature, off by default and never in `dybw-core-wasm`; it
+    turns on `native`): `profile::protector`, ADR 0006's local unlock. A
+    protector (`pin`, `biometric`, `login`) is the user key wrapped under a
+    key from a local factor: Argon2id over a secret (floors 64 MiB, 3
+    iterations, 1 lane, enforced on wrap and on read) or 32 bytes from
+    hardware, then HKDF-SHA256 with the device id and machine fingerprint as
+    salt and `dybw-unlock:<protector>` as info, so an edited binding or name
+    fails the MAC. The blob is versioned JSON (device state, never synced)
+    with an attempt count: `unwrap` refuses another device or machine
+    (`binding`), five failures (`invalidated`), a wrong factor (`wrong`,
+    counted), and a key that no longer opens the account's private key
+    (`stale`, after a rotation). Known answers in
+    `vectors/crypto/protector.json`.
 - `crates/dybw-vectors`: runs the conformance vectors against the core.
   `expected-failures.txt` lists no vector at the end of M3.
 - `crates/dybw-core-wasm`: the core for `wasm32-unknown-unknown` (M5), with the
@@ -327,6 +340,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
 uv run vectors/gen/gen.py check
+uv run vectors/gen/gen_protector.py --check
 ```
 
 `cargo deny check` (advisories, bans, licences and sources; `deny.toml` allows

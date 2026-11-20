@@ -61,6 +61,7 @@ jobs:
           fi
       - run: uv run vectors/gen/gen.py check
       - run: python3 -I vectors/gen/gen_totp.py --check
+      - run: uv run vectors/gen/gen_protector.py --check
 
   test:
     runs-on: ubuntu-latest

@@ -104,6 +104,16 @@ impl SymmetricKey {
         Self::legacy(*expand(b"enc"), *expand(b"mac"))
     }
 
+    /// HKDF-SHA256 (RFC 5869), extract then expand to 64 bytes, as a legacy key (`enc ‖ mac`): a protector's
+    /// wrapping key (ADR 0006). Built on the same HMAC as `stretch`, so no HKDF crate is needed.
+    #[cfg(feature = "protectors")]
+    pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8]) -> Self {
+        let prk = Zeroizing::new(hmac(salt, &[ikm]));
+        let t1 = Zeroizing::new(hmac(prk.as_ref(), &[info, &[1]]));
+        let t2 = Zeroizing::new(hmac(prk.as_ref(), &[t1.as_ref(), info, &[2]]));
+        Self::legacy(*t1, *t2)
+    }
+
     pub fn generate(rng: &impl Random) -> Result<Self, CryptoError> {
         let mut b = Zeroizing::new([0u8; 64]);
         rng.fill(b.as_mut())?;

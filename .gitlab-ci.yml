@@ -61,6 +61,7 @@ check:
       fi
     - uv run vectors/gen/gen.py check
     - python3 -I vectors/gen/gen_totp.py --check
+    - uv run vectors/gen/gen_protector.py --check
 
 test:
   stage: test
