@@ -277,6 +277,9 @@ pub struct OpenExpect {
     /// The custom fields' `[{ name, type }]`, as `field_names` reads them when `item` is not given.
     #[serde(default, rename = "fieldNames")]
     pub field_names: Option<Value>,
+    /// An SSH key's `{ type, name, publicKey, fingerprint }`, as `ssh_public` reads it when `item` is not given.
+    #[serde(default, rename = "sshPublic")]
+    pub ssh_public: Option<Value>,
 }
 
 /// The scan of a read, or the error that stopped it with the requests that were sent first.

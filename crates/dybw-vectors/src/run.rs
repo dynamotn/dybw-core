@@ -481,6 +481,7 @@ fn uninspectable_code(u: Uninspectable) -> &'static str {
         Uninspectable::Value => "value",
         Uninspectable::NewerFormat => "newer-format",
         Uninspectable::Blob => "blob",
+        Uninspectable::NotSshKey => "not-ssh-key",
         other => panic!("vault::item gave {other:?}, which no vector names"),
     }
 }
@@ -632,7 +633,7 @@ pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
         let names = item::field_names(cipher, &keys.user, &keys.orgs)
             .map(|fields| fields.iter().map(|f| json!({ "name": shown_text(&f.name), "type": f.kind })).collect())
             .map_err(uninspectable_code);
-        let want_names = match (&w.field_names, opened) {
+        let want_names = match (&w.field_names, opened.clone()) {
             (Some(names), _) => Ok(names.clone()),
             (None, Ok(o)) => {
                 let fields = o.pointer("/item/fields").and_then(Value::as_array).map_or(&[][..], Vec::as_slice);
@@ -641,6 +642,28 @@ pub async fn open(files: &Files, s: &Scenario, rsa: &impl RsaOaep) -> Outcome {
             (None, Err(e)) => Err(e),
         };
         compare(&format!("field names {}", w.cipher), names, want_names)?;
+        // The SSH agent's read: a key's name, public key and fingerprint, or `not-ssh-key` for any other type.
+        let ssh = item::ssh_public(cipher, &keys.user, &keys.orgs)
+            .map(|p| {
+                json!({
+                    "type": p.summary.kind, "name": p.summary.name.as_str(),
+                    "publicKey": shown_text(&p.public_key), "fingerprint": shown_text(&p.fingerprint),
+                })
+            })
+            .map_err(uninspectable_code);
+        let want_ssh = match (&w.ssh_public, opened) {
+            _ if cipher.get("type").and_then(Value::as_u64) != Some(5) => Err("not-ssh-key"),
+            (Some(given), _) => Ok(given.clone()),
+            (None, Ok(o)) => {
+                let at = |p: &str| o.pointer(&format!("/item/{p}")).cloned().unwrap_or(Value::Null);
+                Ok(json!({
+                    "type": 5, "name": at("name"),
+                    "publicKey": at("sshKey/publicKey"), "fingerprint": at("sshKey/fingerprint"),
+                }))
+            }
+            (None, Err(e)) => Err(e),
+        };
+        compare(&format!("ssh public {}", w.cipher), ssh, want_ssh)?;
     }
     Ok(())
 }

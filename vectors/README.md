@@ -211,6 +211,11 @@ change to `fresh`.
     are the same `error`; they are given when the item does not open but these still
     read, as when a tampered value lies outside the names and URIs (`summary` plus
     `uris` for the first, `fieldNames` for the second).
+  - `sshPublic` (1.6) is what `ssh_public` reads of a type 5 item: `{ type, name,
+    publicKey, fingerprint }`, never the private key. When absent it is taken from
+    `item`, or is the same `error`; it is given when the item does not open but the
+    three still read, as when the private key is tampered. Any other type is the
+    error `not-ssh-key`, whatever the item.
 - `folders` (1.6, ADR 0025): `[{ id, name | error }]`, the names a vault client reads
   from the scenario's `folders` (`vault::folder`) with the account's user key.
   `error` is `value`: the name does not decrypt. A folder that fails is still listed.

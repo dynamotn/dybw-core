@@ -722,7 +722,13 @@
           "folderId": null
         },
         "uris": [],
-        "fieldNames": []
+        "fieldNames": [],
+        "sshPublic": {
+          "type": 5,
+          "name": "Deploy key",
+          "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI deploy@example.invalid",
+          "fingerprint": "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+        }
       },
       {
         "cipher": "e9",

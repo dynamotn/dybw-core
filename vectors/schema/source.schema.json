@@ -1474,6 +1474,30 @@
                   },
                   "additionalProperties": false
                 }
+              },
+              "sshPublic": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "publicKey": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "fingerprint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false,
