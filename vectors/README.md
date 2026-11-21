@@ -17,6 +17,36 @@ Generated files are deterministic: building twice gives identical bytes. No
 real account or secret is involved; every key comes from the fixed seeds in
 `vectors/accounts/`.
 
+The generator is a separate Python implementation (`gen/`, on `cryptography`
+and `argon2-cffi`), so the vectors do not come from the Rust code they test.
+Nothing in them is Rust-specific: any client of the dybw data model can run
+them.
+
+## Layout
+
+| Path | Holds |
+|---|---|
+| `src/` | Plaintext scenario sources, one JSON file each |
+| `generated/<ns>/` | The encrypted scenarios, one tree per namespace (`bwss`, `obsidian`) |
+| `accounts/` | The fixed test accounts the scenarios use |
+| `crypto/` | Known-answer crypto fixtures (EncString, COSE, MessagePack, TOTP, protectors, ...); see [`crypto/README.md`](crypto/README.md) |
+| `schema/` | The JSON Schemas for sources and generated files |
+| `gen/` | The generator and its tests |
+
+## Running them
+
+A tool reads only `generated/` and checks its behaviour against each
+scenario's `expect`; the `crypto/` known answers are checked by its own unit
+tests. dybw-core runs the scenarios in `crates/dybw-vectors` natively, and
+in `crates/dybw-core-wasm/js` under Node, Chromium and WebKit.
+
+After editing a source, rebuild, then confirm nothing is stale:
+
+```bash
+uv run vectors/gen/gen.py build
+uv run vectors/gen/gen.py check
+```
+
 ## Source format
 
 One JSON object per file.

@@ -1,106 +1,236 @@
 # dybw-core
 
-The shared core of bwss (a Rust Secret Service daemon) and the Obsidian
-plugin, both backed by Bitwarden. It implements data model 1.6 (M3: history,
-rollback and duplicates, `requires`, blob ciphers, signed security state, the
-KDF pin). The repository holds the Rust core and the
-language-neutral conformance vectors: plaintext scenarios, a deterministic
-generator that encrypts them, and the schemas that pin the formats. See
-[`vectors/README.md`](vectors/README.md) for the formats.
+An I/O-free Rust core for Bitwarden and Vaultwarden clients: crypto, vault
+rules, sync, an offline write queue and local unlock protectors, in one
+library that runs natively and as WebAssembly.
 
-## Vectors
+## Why
 
-Regenerate the encrypted scenarios from the sources:
+Talking to a Bitwarden server correctly takes more than an HTTP client. You
+need the KDFs and every EncString and COSE format the official clients
+write, the rules for which items a tool may read and write, a three-way sync
+that never loses a user's edit, and the checks that stop a hostile or
+rolled-back server from downgrading your keys. dybw-core does all of that
+once, so every tool built on it agrees on what is in the vault.
 
-```bash
-uv run vectors/gen/gen.py build
-```
+It does no I/O of its own. The core is written against a small set of
+*ports* (traits for HTTP, storage, secrets, time, randomness, the Argon2id
+KDF, RSA-OAEP, the notifications socket and prompts), and each host brings
+its own adapters. That is how one crate serves three very different hosts:
 
-Check that the committed files match what a build would produce (exit 1 and
-a list of stale files otherwise):
+| Host | Runtime | Adapters |
+|---|---|---|
+| the dybw CLI and agent (an `rbw` replacement) | native, tokio | `dybw-native` |
+| bwss, a Secret Service daemon backed by Bitwarden | native, tokio | `dybw-native` |
+| keychain-bitwarden, an Obsidian plugin | WASM in Electron | JavaScript, through `dybw-core-wasm` |
 
-```bash
-uv run vectors/gen/gen.py check
-```
-
-Run the tests with:
-
-```bash
-uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi pytest vectors/gen -q
-```
+It implements data model 1.6 of the dybw design: history, rollback and
+duplicate handling, `dybw:requires`, blob ciphers, the signed security state
+and the KDF pin.
 
 ## Crates
 
-- `crates/dybw-core`: the core library, native and portable (no I/O crate, no
-  `tokio`, `reqwest`, `rsa` or `getrandom` in its normal dependencies; the
-  default feature `native` adds `aws-lc-rs` and `argon2`).
-  - `ports`: the traits a host implements (HTTP, storage, secrets, clock,
-    randomness, KDF, events, prompts, RSA-OAEP).
-  - `crypto`: KDF bounds, PBKDF2, Argon2id, legacy and COSE keys, EncString
-    types 2, 3, 4 and 7, value marks.
-  - `api`: server URLs, the Bitwarden API client, MessagePack, SignalR frames
-    and the notification hub.
-  - `vault`: namespace rules, scan, duplicates, organizations, write-back and
-    create.
-  - `sync`: the out-of-date writer, the write queue, the three-way planner,
-    device state and passes.
-  - `profile`: unlock (with the password, or with a user key online or on a
-    cached `/sync`), device identity, lock.
-  - `testing` (feature): fakes and `block_on`.
-  - `totp` (feature, off by default and in `dybw-core-wasm`): parses a login's
-    `totp` field (`otpauth://totp/...`, bare base32 as rbw accepts it,
-    `steam://`) and generates RFC 6238 or Steam codes from a unix time, with
-    the seconds left in the period. Ranges follow Bitwarden's SDK (digits
-    1-10, period at least 1 s) and are refused, not clamped. Known answers in
-    `vectors/crypto/totp.json`.
-  - `vault-client` (feature, off by default and in `dybw-core-wasm`):
-    `vault::client` and `sync::client_create` / `client_update` /
-    `client_trash`, the dybw CLI's writes of ordinary items. A create is a
-    personal login or secure note; an edit changes the name, notes and folder
-    of any item and a login's username, password and URIs, pushing a changed
-    password into the history and passing everything else through byte for
-    byte, other tools' markers included; a trash moves the item to the trash.
-    The writers fetch the cipher first and refuse a copy at another revision
-    than the edit was planned on, or a server's out-of-date answer, without
-    re-applying anything. Organization items are written under their key,
-    never read-only ones; a personal blob is re-sealed, an organization blob
-    refused. Vectors in `vectors/src/write/client/` (`expect.clientWrite`).
-  - `protectors` (feature, off by default and never in `dybw-core-wasm`; it
-    turns on `native`): `profile::protector`, ADR 0006's local unlock. A
-    protector (`pin`, `biometric`, `login`) is the user key wrapped under a
-    key from a local factor: Argon2id over a secret (floors 64 MiB, 3
-    iterations, 1 lane, enforced on wrap and on read) or 32 bytes from
-    hardware, then HKDF-SHA256 with the device id and machine fingerprint as
-    salt and `dybw-unlock:<protector>` as info, so an edited binding or name
-    fails the MAC. The blob is versioned JSON (device state, never synced)
-    with an attempt count: `unwrap` refuses another device or machine
-    (`binding`), five failures (`invalidated`), a wrong factor (`wrong`,
-    counted), and a key that no longer opens the account's private key
-    (`stale`, after a rotation). Known answers in
-    `vectors/crypto/protector.json`.
-- `crates/dybw-vectors`: runs the conformance vectors against the core.
-  `expected-failures.txt` lists no vector at the end of M3.
-- `crates/dybw-core-wasm`: the core for `wasm32-unknown-unknown` (M5), with the
-  host ports in JavaScript; every `#[wasm_bindgen]` item is in `src/bindings.rs`.
-  The `vectors` feature adds the conformance runner for the harness in `js/`
-  (see [WASM](#wasm)).
+| Crate | What it is |
+|---|---|
+| [`dybw-core`](crates/dybw-core) | The library: ports, crypto, API client, vault rules, sync, profiles. No I/O, no async runtime. |
+| [`dybw-native`](crates/dybw-native) | Native host adapters (reqwest + rustls, files, tokio, tungstenite), a pinentry client and the shared config. Unix only. |
+| [`dybw-core-wasm`](crates/dybw-core-wasm) | `dybw-core` for `wasm32-unknown-unknown`, with the ports implemented over a JavaScript object. |
+| [`dybw-vectors`](crates/dybw-vectors) | Runs the language-neutral conformance vectors in [`vectors/`](vectors) against the core. |
 
-M4 Part A adds what bwss needs from the core:
+Only `dybw-core` is meant to be published; the other three set
+`publish = false`.
 
-- `vault::append_lines` unions lines into a tool field (an ACL), skipping those
-  already there, and creates the field when it is missing.
-- `profile::unlock_cached` unlocks from a cached sync, without the network.
-- `vault::item_meta` reads an item's name, username and URI.
-- The write queue holds, stalls and records as bwss expects, and older queue
-  files stay readable.
-- `profile::accept_security_version` records a security-state version the user
-  accepted.
-- `SymmetricKey::tag` is the keyed HMAC-SHA256 behind bwss's ACL confirmations,
-  with the ADR 0023 known answers in `vectors/crypto/bwss-subkeys.json`.
+## Feature flags
 
-Its futures are `!Send`: run them on a `current_thread` runtime or a `LocalSet`.
+All flags are on `dybw-core`.
 
-## WASM
+| Flag | Default | Adds |
+|---|---|---|
+| `native` | on | `crypto::NativeArgon2` (a `KdfRunner` on the `argon2` crate) and `crypto::AwsLcRsa` (an `RsaOaep` on `aws-lc-rs`). Turn it off for WASM and bring your own. |
+| `testing` | off | `testing`: in-memory fakes (`MemStorage`, `MemSecrets`, `FixedClock`, `SeededRandom`) and a `block_on` for tests. |
+| `totp` | off | `totp`: parses a login's `totp` field (`otpauth://totp/...`, bare base32, `steam://`) and generates RFC 6238 or Steam codes. |
+| `vault-client` | off | `vault::client` and `sync::client_create` / `client_update` / `client_trash`: create, edit and trash ordinary items. |
+| `protectors` | off | `profile::protector`: local unlock with a PIN, biometrics or the login password. Implies `native`. |
+
+The module the Obsidian plugin ships builds with none of them;
+`dybw-core-wasm`'s `vectors` feature, for its test harness only, adds
+`testing` and `vault-client`.
+
+## Getting started
+
+dybw-core is not on crates.io yet. Depend on it from git and pin a commit:
+
+```bash
+cargo add dybw-core --git https://gitlab.com/dynamo-tools/dybw-core.git --rev <commit>
+```
+
+```toml
+[dependencies]
+dybw-core = { git = "https://gitlab.com/dynamo-tools/dybw-core.git", rev = "<commit>" }
+```
+
+The same repository is mirrored at `https://github.com/dynamotn/dybw-core`.
+
+Unlocking an account takes a `Client` built from the host's `Http` and
+`Clock`, plus `Storage` for the device id, the KDF pin and the security
+state. The ports in this example are whatever your host provides; the
+`native` feature supplies the KDF and RSA ones:
+
+```rust
+use dybw_core::api::{ApiKey, Client, DeviceInfo, origin_of, resolve_server_urls};
+use dybw_core::crypto::{AwsLcRsa, NativeArgon2};
+use dybw_core::ports::{Clock, Http, Random, Storage};
+use dybw_core::profile::{device_id, unlock};
+use dybw_core::vault::{Namespace, Organizations, scan_vault};
+use zeroize::Zeroizing;
+
+/// Unlocks one account and lists the items the `bwss` namespace owns.
+pub async fn list_items(
+    http: impl Http,
+    clock: impl Clock,
+    storage: &impl Storage,
+    random: &impl Random,
+    (client_id, client_secret): (String, Zeroizing<String>),
+    email: &str,
+    password: Zeroizing<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let urls = resolve_server_urls("https://vault.example.org")?;
+    let key = ApiKey { origin: origin_of(&urls.identity)?, client_id, client_secret };
+    let device = DeviceInfo {
+        identifier: device_id(storage, random).await?, // saved through `Storage` on first use
+        name: "my-tool".into(),
+        device_type: 8, // Bitwarden's DeviceType: Linux desktop
+        client_name: "my-tool".into(),
+        client_version: env!("CARGO_PKG_VERSION").into(),
+    };
+    let mut client = Client::new(http, clock, urls, device)?;
+
+    let (ns, orgs) = (Namespace::BWSS, Organizations::None);
+    let unlocked =
+        unlock(&mut client, storage, &key, email, password, &NativeArgon2, &AwsLcRsa, &ns, &orgs).await?;
+    for warning in &unlocked.warnings {
+        eprintln!("warning: {warning:?}");
+    }
+
+    let report = scan_vault(&unlocked.sync, &ns, &unlocked.keys, &orgs);
+    for item in &report.items {
+        println!("{} -> cipher {}", item.id, item.cipher_id);
+    }
+    unlocked.lock(); // wipes every key
+    Ok(())
+}
+```
+
+This compiles against the current tree (it also needs `zeroize` as a direct
+dependency), but it is illustrative, not a doctest. A few things to know:
+
+- **Futures are `!Send`.** The ports are not `Send`, so the same core runs
+  on tokio and in a browser. Run it on a `current_thread` runtime or inside
+  a `LocalSet`.
+- **Your `Http` decides the redirect rule.** An adapter that refuses
+  redirects (`refuses_redirects()` answers `true`, as `dybw-native`'s does)
+  may talk to any server. One that follows them only sends the API key to
+  Bitwarden cloud or to an identity origin the user acknowledged.
+- **Bound every response.** `Http::send` must stop reading once a body
+  exceeds `HttpRequest::max_body`.
+- **Other ways in.** `profile::unlock_cached` unlocks offline from an
+  earlier `/sync`; `unlock_with_key` and `unlock_with_key_cached` take the
+  user key itself (a remembered key, or one a protector released).
+
+## What is inside
+
+| Module | Covers |
+|---|---|
+| `ports` | The traits a host implements: `Http`, `Storage`, `Secrets`, `Clock`, `Random`, `KdfRunner`, `RsaOaep`, `Events`, `Prompter`, `Confirmer`. |
+| `crypto` | KDF bounds and floors, PBKDF2, Argon2id, legacy and COSE keys, EncString types 2, 3, 4 and 7, signed security state, value marks, `SymmetricKey::tag` (a keyed HMAC-SHA256). |
+| `api` | Server URL resolution, the Bitwarden API client, MessagePack and SignalR frames, the notifications hub (`run_hub`). |
+| `vault` | Namespaces, scanning (`scan_vault`, `item_meta`), duplicates, organization keys, write-back and create, line unions into a tool field (`write::LineAppend`). |
+| `sync` | The writer with its out-of-date retry, the offline write queue (`enqueue`, `flush`), the three-way planner, device state, and full passes (`plan_pass`, `run_sync`). |
+| `profile` | Unlock, device identity, the KDF pin (`accept_kdf`), the security version (`accept_security_version`), acknowledged origins, lock. |
+| `totp` | TOTP and Steam codes (feature `totp`). |
+| `testing` | Fakes for the ports (feature `testing`). |
+
+### The optional features in detail
+
+`totp` takes the unix time from the caller and returns the code with the
+seconds left in its period. Ranges follow Bitwarden's SDK (digits 1-10,
+period at least 1 s) and are refused, not clamped. Known answers are in
+`vectors/crypto/totp.json`.
+
+`vault-client` is the dybw CLI's writes of ordinary items. A create is a
+personal login or secure note. An edit changes the name, notes and folder of
+any item and a login's username, password and URIs; a changed password goes
+into the history and everything else passes through byte for byte, other
+tools' markers included. A trash moves the item to the trash. The writers
+fetch the cipher first and refuse a copy at another revision than the edit
+was planned on, or a server's out-of-date answer, without re-applying
+anything. Organization items are written under their key, never read-only
+ones; a personal blob is re-sealed, an organization blob refused. Vectors
+are in `vectors/src/write/client/` (`expect.clientWrite`).
+
+`protectors` wraps the user key under a key from a local factor (`pin`,
+`biometric` or `login`): Argon2id over a secret (floors 64 MiB, 3
+iterations, 1 lane, enforced on wrap and on read) or 32 bytes from hardware,
+then HKDF-SHA256 with the device id and machine fingerprint as salt and
+`dybw-unlock:<protector>` as info, so an edited binding or name fails the
+MAC. The blob is versioned JSON (device state, never synced) with an attempt
+count: `unwrap` refuses another device or machine (`binding`), five failures
+(`invalidated`), a wrong factor (`wrong`, counted), and a key that no longer
+opens the account's private key (`stale`, after a rotation). Known answers
+are in `vectors/crypto/protector.json`. It is never built into
+`dybw-core-wasm`, which has no device to bind a protector to.
+
+## Design principles
+
+- **No I/O in the core.** `dybw-core`'s normal dependencies hold no I/O
+  crate and no `tokio`, `reqwest`, `rsa` or `getrandom`. Everything that
+  touches the outside world goes through a port.
+- **No unsafe code.** Every crate sets `unsafe_code = "forbid"`.
+- **Secrets are wiped.** Keys, passwords and decrypted values live in
+  `zeroize` types, including the hash states of the TOTP code. An unlocked
+  profile has no `Clone` and no `Debug`, and locking it drops every key.
+  Error messages never carry a password, key or value.
+- **MAC before decrypt.** An EncString's MAC is checked in constant time
+  before anything is decrypted.
+- **KDF floors and pins.** The KDF parameters are bounds-checked before
+  they run. The first unlock pins them per identity origin, and a later
+  server that offers weaker ones is refused until the user confirms it.
+  Below the floors (PBKDF2 600,000 iterations; Argon2id 64 MiB, 3
+  iterations, 1 lane) the unlock succeeds with a warning.
+- **Server integrity checks.** A COSE user key needs a valid signed
+  security state, and a version below the highest one this device saw stops
+  the unlock. Rolled-back items are held until the user accepts them.
+- **Vectors from an independent implementation.** The conformance vectors
+  are generated by a separate Python implementation (`cryptography`,
+  `argon2-cffi`), not by the Rust code they test, and Bitwarden's own SDK
+  decrypts strings and a wrapped item key the core produced.
+- **A size budget for WASM.** The module the Obsidian plugin ships, as
+  base64, plus its minified glue must fit in 1 179 648 bytes (1.125 MiB). A
+  test enforces it.
+- **Full coverage.** CI requires 100% line coverage on stable and 100%
+  branch coverage on a pinned nightly, excluding only the vector runner.
+
+## Conformance vectors
+
+[`vectors/`](vectors) holds scenarios that every tool on the dybw data model
+must satisfy: plaintext sources, a deterministic generator that encrypts
+them, the generated files, and JSON Schemas that pin both formats. They are
+language-neutral, so another implementation can check itself against the
+same files. [`vectors/README.md`](vectors/README.md) describes the formats.
+
+`dybw-vectors` runs them against the core natively, and the WASM harness in
+`crates/dybw-core-wasm/js` runs them again in Node, Chromium and WebKit.
+`crates/dybw-vectors/expected-failures.txt` lists the vectors the core is
+allowed to fail; it lists none.
+
+## WebAssembly
+
+`dybw-core-wasm` exposes a `WasmSession` class to JavaScript; every
+`#[wasm_bindgen]` item is in `src/bindings.rs`. The `vectors` feature adds
+the conformance runner for the harness in `js/`. The JS API below is what
+the Obsidian plugin uses and may still change.
+
+### Building
 
 Tools, at the versions CI pins: Rust 1.99.1 with the `wasm32-unknown-unknown`
 target, `wasm-bindgen-cli` 0.2.129 (it must match the `wasm-bindgen` crate),
@@ -123,12 +253,16 @@ with Node-only or eval-like code, and prints the size report. It remaps the
 repository, the cargo registry sources and the rustc sysroot, so the module
 holds no absolute build path.
 
+### Panics
+
 A panic traps the instance but leaves it callable with its memory, keys
 included. On any trap the plugin calls `lock()` on every live `WasmSession`,
 each in its own try/catch, which wipes the keys, then reloads itself (or loads
 a fresh glue module): the glue caches its instance, so calling its init again
 is no recovery. The buffers of the call that trapped are not wiped; they stay
 in the dead instance's memory until it is dropped.
+
+### JS API
 
 Calls the plugin uses (`new WasmSession(ports, namespace)`, after the glue's
 `init` and the export `init(ports)`):
@@ -318,6 +452,8 @@ stays marked expired, so each later attempt logs in once more before it
 connects: one login per backoff step (2 s, 5 s, 15 s, 60 s, then every 300 s),
 bounded and deliberate.
 
+### Testing in Node and browsers
+
 Run the vectors, the crypto known answers, the timings and the panic test in
 Node, Chromium and WebKit. The timings are a table for information, with the
 plugin's budgets: `pbkdf2-600k` under 3 000 ms and `plan-10000` (the planner
@@ -334,7 +470,33 @@ plus its glue after esbuild minify must fit in 1 179 648 bytes (ADR 0024),
 since the plugin embeds the module as base64 in its `main.js`. Gzip is
 reported for information only.
 
-## Checks
+## Status
+
+- **Version:** working toward v1.0.0-rc.1, the first release candidate. The
+  crates still declare `0.1.0` and no tag is published yet, so pin a commit.
+- **MSRV:** Rust 1.89 (edition 2024). The WASM build is pinned to Rust
+  1.99.1.
+- **Platforms:** `dybw-core` builds for native targets and for
+  `wasm32-unknown-unknown`. `dybw-native` is Unix only. CI runs on Linux.
+
+## Development
+
+Regenerate the encrypted vectors from their sources, or check that the
+committed files are what a build would produce (exit 1 and a list of stale
+files otherwise):
+
+```bash
+uv run vectors/gen/gen.py build
+uv run vectors/gen/gen.py check
+```
+
+Test the generator itself:
+
+```bash
+uv run --with jsonschema --with pytest --with cryptography --with argon2-cffi pytest vectors/gen -q
+```
+
+### Checks
 
 ```bash
 cargo fmt --all --check
@@ -379,3 +541,7 @@ target, the only build that compiles `bindings.rs`:
 ```bash
 cargo clippy -p dybw-core-wasm --target wasm32-unknown-unknown --all-features --locked -- -D warnings
 ```
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
