@@ -472,8 +472,8 @@ reported for information only.
 
 ## Status
 
-- **Version:** working toward v1.0.0-rc.1, the first release candidate. The
-  crates still declare `0.1.0` and no tag is published yet, so pin a commit.
+- **Version:** v1.0.0-rc.1, the first release candidate. The crates declare
+  `1.0.0-rc.1`; pin the `v1.0.0-rc.1` tag (`tag = "v1.0.0-rc.1"`) or a commit.
 - **MSRV:** Rust 1.89 (edition 2024). The WASM build is pinned to Rust
   1.99.1.
 - **Platforms:** `dybw-core` builds for native targets and for
